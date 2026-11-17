@@ -274,7 +274,7 @@ export default function UnifiedChequePaymentVoucher() {
                                     notFoundMessage={tr("الحساب غير موجود أو أنه حساب محاسبي — اختر عميلاً أو مورداً أو مشتركاً")}
                                     disabled={!!form.id || saving}
                                     inputClassName="h-11 rounded-xl"
-                                    requiredTypeValues={[2, 3, 5]}
+                                    requiredTypeValues={[2, 3, 5, 6]}
                                 />
                                 <AccountBalanceField accountId={form.account_id} refreshKey={`${form.id}-${(form as any).status ?? ""}`} className="min-w-0 space-y-2" inputClassName="h-11 rounded-xl bg-slate-50" />
                                 <div className="min-w-0 space-y-2"><Label htmlFor="cheque-payment-note">{tr("الملاحظة")}</Label><Input id="cheque-payment-note" className="h-11 rounded-xl" placeholder={tr("ملاحظة على السند (اختياري)")} value={form.note || ""} disabled={!!form.id || saving} onChange={event => setForm({ ...form, note: event.target.value })} /></div>

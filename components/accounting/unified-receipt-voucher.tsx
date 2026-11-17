@@ -2314,7 +2314,7 @@ export default function UnifiedReceiptVoucher({
                         onFormChange("to_account_id", account.id)
                         setJournalFirstRowAccount({ id: account.id, code: account.code, name: account.name })
                       }}
-                      searchAllowedTypeValues={[2, 3, 4, 5]}
+                      searchAllowedTypeValues={[2, 3, 4, 5, 6]}
                       showCostCenterButton={false}
                       disabled={isLocked}
                     />

@@ -552,6 +552,17 @@ export function CompactProductForm({
       toast.current?.show({ severity: "error", summary: tr("خطأ"), detail: error instanceof Error ? error.message : tr("تعذر الإنشاء"), life: 2500 })
     }
   }
+  // إعداد «مجموعة الصنف اجباري» من إعدادات السندات العامة
+  const [itemGroupMandatory, setItemGroupMandatory] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/settings/system", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((data) => {
+      const value = (data?.settings ?? data)?.item_group_mandatory
+      if (!cancelled) setItemGroupMandatory(value === true || String(value).toLowerCase() === "true")
+    }).catch(() => undefined)
+    return () => { cancelled = true }
+  }, [])
+
   const validateProduct = () => {
     if (formData.product_code === "") {
       toast.current?.show({
@@ -571,6 +582,11 @@ export function CompactProductForm({
         life: 1500
       });
       product_name.current?.focus();
+      return false
+    }
+    // «مجموعة الصنف اجباري في ملف تعريف الصنف» — للأصناف لا الخدمات (الخادم يفحصها أيضاً)
+    if (!isService && itemGroupMandatory && !(Number(formData.main_stock_id) > 0)) {
+      toast.current?.show({ severity: "error", summary: tr("خطأ"), detail: tr("مجموعة الصنف اجبارية — اختر مجموعة الصنف ثم احفظ"), life: 2500 })
       return false
     }
     if (!formData.units || formData.units.length === 0) {
@@ -2908,7 +2924,7 @@ export function CompactProductForm({
 
                       <div>
                         <Label htmlFor="category" className="text-sm font-medium">
-                          {tr("مجموعة الصنف")}
+                          {tr("مجموعة الصنف")}{itemGroupMandatory ? " *" : ""}
                         </Label>
                         <div className={sharedDropdownStyles.dropDownWrapper}>
                           <PrimeDropdown

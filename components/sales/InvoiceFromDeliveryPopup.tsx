@@ -66,7 +66,7 @@ export default function InvoiceFromDeliveryPopup({
   const confirmedRef = useRef(false)
 
   const isSalesInvoice = voucherType === SALES_INVOICE_TYPE
-  const allowedAccountTypes = isSalesInvoice ? [2,3, 5] : [2,3, 5]
+  const allowedAccountTypes = [2, 3, 5, 6]
   const sourceDeliveryTypes = isSalesInvoice ? SALES_DELIVERY_TYPES : PURCHASE_DELIVERY_TYPES
   const title = isSalesInvoice ? tr("تحميل عناصر من إرسالية مبيعات") : tr("تحميل عناصر من إرسالية مشتريات")
   const deliveryLabel = isSalesInvoice ? tr("إرسالية مبيعات") : tr("إرسالية مشتريات")

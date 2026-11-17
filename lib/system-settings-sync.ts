@@ -41,10 +41,15 @@ export async function syncSystemSettingsToLocalStorage(): Promise<void> {
     const decimalPlaces = Number.isFinite(decimalPlacesRaw) ? decimalPlacesRaw : DEFAULT_DECIMAL_PLACES
 
     const list = readList()
-    const existingIndex = list.findIndex((entry) => String(entry?.id) === String(DECIMAL_PLACES_SETTING_ID))
-    const entry = { id: DECIMAL_PLACES_SETTING_ID, value: decimalPlaces, default_value: DEFAULT_DECIMAL_PLACES }
-    if (existingIndex >= 0) list[existingIndex] = { ...list[existingIndex], ...entry }
-    else list.push(entry)
+    const put = (entry: { id: number; value: unknown; default_value: unknown }) => {
+      const index = list.findIndex((row) => String(row?.id) === String(entry.id))
+      if (index >= 0) list[index] = { ...list[index], ...entry }
+      else list.push(entry)
+    }
+    put({ id: DECIMAL_PLACES_SETTING_ID, value: decimalPlaces, default_value: DEFAULT_DECIMAL_PLACES })
+    // 16 «الاشارة السالبة للرصيد» (credit/debit) و18 «اظهار فواصل الالاف» — نفس معرّفات ShamelAPI SystemSettingsEnum (2026-11-17)
+    put({ id: 16, value: String(payload?.negative_balance_sign || "credit"), default_value: "credit" })
+    put({ id: 18, value: payload?.show_thousands_separator === undefined || payload?.show_thousands_separator === null ? "true" : String(Boolean(payload.show_thousands_separator) && String(payload.show_thousands_separator) !== "false"), default_value: "true" })
     writeList(list)
 
     window.dispatchEvent(new CustomEvent(SYSTEM_SETTINGS_UPDATED_EVENT))

@@ -8,6 +8,7 @@ import { projectFileLookup } from "@/lib/file-permissions"
 import { authorizeProductType, authorizeStoredProduct, authorizeProductLookupScope } from "./_permissions"
 import { runSchemaOnce } from "@/lib/schema-once"
 import { validateLeafAccountFields } from "@/lib/leaf-accounts"
+import { getSystemSettingValue } from "@/lib/system-settings"
 import { ensureLastPurchaseColumns } from "@/lib/last-purchase"
 import { UNIT_ROLE_COLUMNS, UNIT_ROLE_LABELS, type UnitRole } from "@/lib/product-unit-roles"
 import { ensureComponentUnitColumns, loadComponentUnits, resolveComponentUnit } from "@/lib/manufacturing-component-units"
@@ -854,6 +855,14 @@ const PRODUCT_ACCOUNT_LABELS: Record<string, string> = {
   production_account_id: "حساب الإنتاج",
   municipality_service_account_id: "حساب خدمات البلدية",
 }
+/** «مجموعة الصنف اجباري في ملف تعريف الصنف» (إعدادات السندات العامة) — للأصناف فقط لا الخدمات (2026-11-17). */
+const productGroupError = async (data: any) => {
+  if (Number(data?.type || 1) === 2) return null
+  const mandatory = await getSystemSettingValue<unknown>("item_group_mandatory", false)
+  if (!(mandatory === true || String(mandatory).toLowerCase() === "true")) return null
+  return Number(data?.main_stock_id) > 0 ? null : "مجموعة الصنف اجبارية — اختر مجموعة الصنف ثم احفظ"
+}
+
 const productAccountsError = async (data: any, productId?: number) => {
   const stored = productId && productId > 0
     ? (await sql.unsafe(`SELECT ${Object.keys(PRODUCT_ACCOUNT_LABELS).join(", ")} FROM products WHERE id = $1`, [productId]))[0] as any
@@ -878,6 +887,8 @@ export async function POST(request: NextRequest) {
     if (!permission.ok) return permission.response
     const accountsError = await productAccountsError(productData, productData.id)
     if (accountsError) return NextResponse.json({ error: accountsError }, { status: 400 })
+    const groupError = await productGroupError(productData)
+    if (groupError) return NextResponse.json({ error: groupError }, { status: 400 })
     // فحوصات المخطط (DDL) تُنفَّذ مرة واحدة لكل قاعدة شركة ولكل عملية خادم بدل كل حفظ — كانت تُبطئ استيراد
     // آلاف الأصناف إذ يُكرَّر عشرات أوامر ALTER/CREATE IF NOT EXISTS لكل صنف.
     const schemaDb = await resolveCurrentDbName()
@@ -1635,6 +1646,9 @@ export async function PUT(request: NextRequest) {
     const productData = normalizeProductPayload(requestBody)
     const accountsError = await productAccountsError(productData, normalizedId)
     if (accountsError) return NextResponse.json({ error: accountsError }, { status: 400 })
+    // تعديل جزئي بلا حقل المجموعة لا يُرفض
+    const groupError = Object.prototype.hasOwnProperty.call(requestBody, "main_stock_id") ? await productGroupError(productData) : null
+    if (groupError) return NextResponse.json({ error: groupError }, { status: 400 })
     const currentScaleRows = await sql`SELECT pos_sold_using_scale FROM products WHERE id=${normalizedId}`
     const scaleEnabled = isScaleProduct(requestBody.pos_sold_using_scale ?? currentScaleRows[0]?.pos_sold_using_scale)
     if (scaleEnabled) {

@@ -3526,7 +3526,7 @@ function UnifiedSalesOrder({
                 }
               }}
               accounts={[]}
-              allowedTypeValues={[2, 3, 5]}
+              allowedTypeValues={[2, 3, 5, 6]}
               onSelect={(account: AccountItem) => {
                 const book = state.formData.vch_book
                 setState((prev) => ({

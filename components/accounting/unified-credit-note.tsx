@@ -692,7 +692,7 @@ export default function UnifiedCreditNote({
                         onAccountSelect={(account) => account && onFormChange("customer_name", account.name)}
                         costCenters={form.account_cost_centers}
                         onCostCentersChange={(selection) => onFormChange("account_cost_centers", selection)}
-                        requiredTypeValues={[2, 3, 5]}
+                        requiredTypeValues={[2, 3, 5, 6]}
                         notFoundMessage={tr("العميل المحدد غير موجود")}
                         disabled={isLocked}
                       />

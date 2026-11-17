@@ -1,6 +1,6 @@
 "use client"
 import { tr, appDir } from "@/lib/i18n"
-import { amountNumberFormat } from "@/lib/decimals"
+import { amountNumberFormat, balanceDisplaySign } from "@/lib/decimals"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
 
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
@@ -216,14 +216,16 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
 
 
   // شبكة التقرير (ReportGrid/DataGridView): الرصيد السابق، الحركات، وأسطر الشيكات/أصناف الفواتير كصفوف تفصيلية
+  const sign = balanceDisplaySign()
   const gridRows = useMemo(() => {
     const list: any[] = []
     if (filters.showOpening && (rows.length > 0 || summary.opening_balance !== 0)) list.push({
       __kind: "opening", vch_date: filters.fromDate, voucher_type_name: tr("الرصيد السابق للفترة"),
-      debit: summary.opening_balance > 0 ? summary.opening_balance : null, credit: summary.opening_balance < 0 ? Math.abs(summary.opening_balance) : null, balance: summary.opening_balance,
+      debit: summary.opening_balance > 0 ? summary.opening_balance : null, credit: summary.opening_balance < 0 ? Math.abs(summary.opening_balance) : null, balance: summary.opening_balance * sign,
     })
     for (const row of visibleRows) {
-      list.push({ ...row, __kind: "row" })
+      // «الاشارة السالبة للرصيد»: الرصيد المعروض فقط (الحساب الداخلي مدين − دائن)
+      list.push({ ...row, balance: Number(row.balance || 0) * sign, __kind: "row" })
       if (filters.showCheques) for (const cheque of rowCheques(row)) list.push({ __kind: "detail", note: `${tr("شيك #")}${cheque.number} · ${money.format(Number(cheque.amount || 0))} · ${cheque.due_date?.slice(0, 10) || tr("بلا استحقاق")}${cheque.bank_account ? ` · ${cheque.bank_account}` : ""}${cheque.owner ? ` · ${cheque.owner}` : ""}${cheque.status ? ` · ${cheque.status}` : ""}` })
       if (filters.showInvoiceDetails) for (const item of row.invoice_items || []) list.push({ __kind: "detail", note: `${item.code || tr("صنف")} · ${item.name}${tr(" · الكمية ")}${item.quantity} ${item.unit || ""}${tr(" · السعر ")}${money.format(Number(item.unit_price || 0))}${tr(" · الخصم ")}${item.discount_percent || 0}${tr("% · الإجمالي ")}${money.format(Number(item.total_price || 0))}` })
     }
@@ -237,7 +239,7 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
     { key: "account_name", label: tr("الحساب"), width: 300, value: (row) => row.account_name ? `${row.account_name} (${row.account_code})` : "" },
     { key: "debit", label: tr("مدين"), type: "number", width: 130, total: summary.total_debit },
     { key: "credit", label: tr("دائن"), type: "number", width: 130, total: summary.total_credit },
-    { key: "balance", label: tr("الرصيد"), type: "number", width: 150, total: summary.final_balance },
+    { key: "balance", label: tr("الرصيد"), type: "number", width: 150, total: summary.final_balance * sign },
     { key: "currency", label: tr("العملة"), width: 90, visible: filters.showTransactionCurrency, value: (row) => row.__kind === "row" ? row.currency_code || row.currency_name || "" : "" },
     { key: "note", label: tr("الملاحظة"), width: "*", minWidth: 220, value: (row) => row.note || row.voucher_note || "" },
     { key: "counter_accounts", label: tr("الحساب المقابل"), width: 240, visible: filters.showCounterAccounts },
@@ -245,7 +247,7 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
 
   const exportCsv = () => {
     const header = [tr("التاريخ"),tr("رقم السند"),tr("نوع الحركة"),tr("رقم الحساب"),tr("اسم الحساب"),tr("مدين"),tr("دائن"),tr("الرصيد"),tr("العملة"),tr("الملاحظة")]
-    const csvRows = visibleRows.map(row => [row.vch_date?.slice(0,10),row.vch_code,row.voucher_type_name,row.account_code,row.account_name,row.debit,row.credit,row.balance,row.currency_code || row.currency_name || "",row.note || row.voucher_note || ""].map(value => `"${String(value ?? "").replace(/"/g,'""')}"`).join(","))
+    const csvRows = visibleRows.map(row => [row.vch_date?.slice(0,10),row.vch_code,row.voucher_type_name,row.account_code,row.account_name,row.debit,row.credit,Number(row.balance || 0) * sign,row.currency_code || row.currency_name || "",row.note || row.voucher_note || ""].map(value => `"${String(value ?? "").replace(/"/g,'""')}"`).join(","))
     const blob = new Blob(["\ufeff" + [header.join(","), ...csvRows].join("\n")], { type: "text/csv;charset=utf-8" })
     const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${isReceivables ? "بيان-حساب-ذمة" : "بيان-حساب-محاسبي"}-${today()}.csv`; link.click(); URL.revokeObjectURL(link.href)
   }
@@ -253,10 +255,10 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
   const title = isReceivables ? tr("بيان حساب الذمة") : tr("بيان حساب محاسبي")
   const subtitle = isReceivables ? tr("متابعة حركة العملاء والموردين والأرصدة والشيكات من شاشة واحدة") : tr("عرض القيود والحركات والأرصدة المتسلسلة للحسابات المحاسبية")
   const statCards = [
-    { label: tr("الرصيد السابق"), value: summary.opening_balance },
+    { label: tr("الرصيد السابق"), value: summary.opening_balance * sign },
     { label: tr("إجمالي المدين"), value: summary.total_debit, tone: "debit" },
     { label: tr("إجمالي الدائن"), value: summary.total_credit },
-    { label: tr("الرصيد النهائي"), value: summary.final_balance },
+    { label: tr("الرصيد النهائي"), value: summary.final_balance * sign },
   ]
 
   return <ReportPage loading={loading || loadingMeta}>

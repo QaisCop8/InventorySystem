@@ -4,3 +4,5 @@ Last price source
 Opening price
 Delivery number
 Voucher or manual number — ignores dates
+Employees
+Item group is required — choose the item group, then save

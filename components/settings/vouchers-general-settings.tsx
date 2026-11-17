@@ -98,7 +98,7 @@ const defaultSettings: VouchersGeneralSettingsState = {
   disallowManualChequeEntryInPayment: false,
   returnedChequeStatusAlwaysRaje: false,
   decimalPlacesCount: 3,
-  showThousandsSeparator: false,
+  showThousandsSeparator: true,
   negativeBalanceSign: "credit",
   itemGroupMandatory: false,
   customerIdNumberRequired: false,

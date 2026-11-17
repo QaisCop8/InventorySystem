@@ -4,10 +4,12 @@ import { tr } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { formatAmount } from "@/lib/decimals"
 
 type BalanceResult = { allowed: boolean; balance?: number; side?: string; currency_code?: string; credit_limit?: number }
 
-const fmt = (value: number) => Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 3 })
+// عدد الخانات وفواصل الآلاف حسب إعدادات السندات العامة
+const fmt = (value: number) => formatAmount(Math.abs(value))
 
 /**
  * حقل "الرصيد" في شاشات الحركات: رصيد الحساب المختار (عميل/مورد/حساب) من /api/accounts/[id]/balance.

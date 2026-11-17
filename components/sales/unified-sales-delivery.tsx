@@ -3616,7 +3616,7 @@ export default function UnifiedSalesDelivery({
                       // مندوب العميل من تعريفه (customers.salesman) يُعيَّن فوراً عند اختيار العميل
                       if (account?.id && !isLocked) void fetchCustomerDefaultSalesman(account.id).then((salesmanId) => { if (salesmanId) onFormChange("salesman_id", salesmanId) })
                     }}
-                    searchAllowedTypeValues={isPurchaseDeliveryVoucher ? [2,3, 5] : [2,3, 5]}
+                    searchAllowedTypeValues={[2, 3, 5, 6]}
                     emptyActionLabel={isPurchaseDeliveryVoucher ? tr("إضافة مورد") : tr("إضافة عميل")}
                     emptyActionHref={isPurchaseDeliveryVoucher ? "/?section=suppliers" : "/?section=customers"}
                     showOrderOnlyFilter={hasOrderSourceItems}

@@ -1263,6 +1263,7 @@ export default function UnifiedStockVoucher({
           : {}),
         ...(expense ? { expense_account_id: expense.id, expense_account_code: expense.code, expense_account_name: expense.name } : {}),
       })
+      void priceRowsByCategory([row])
       if (product.transaction_notes?.trim()) {
         messagesRef.current?.show?.([{ severity: "info", summary: tr("ملاحظات الصنف"), detail: product.transaction_notes, life: 5000 }])
       }
@@ -1793,6 +1794,7 @@ export default function UnifiedStockVoucher({
     }
     const row = pendingFocusRow.current ?? itemsRef.current.length - 1
     const nextRows = [...itemsRef.current]
+    const pickedRows: number[] = []
     for (let index = 0; index < selectedProducts.length; index += 1) {
       const product = selectedProducts[index]
       if (product.transaction_notes?.trim()) {
@@ -1837,11 +1839,12 @@ export default function UnifiedStockVoucher({
         ...(expense ? { expense_account_id: expense.id, expense_account_code: expense.code, expense_account_name: expense.name } : {}),
       }
       patched.serials_text = serialsSummary(patched)
-      if (index === 0) nextRows[targetRow] = patched
-      else nextRows.push(patched)
+      if (index === 0) { nextRows[targetRow] = patched; pickedRows.push(targetRow) }
+      else { nextRows.push(patched); pickedRows.push(nextRows.length - 1) }
     }
     itemsRef.current = nextRows
     onItemsChange(nextRows)
+    void priceRowsByCategory(pickedRows)
     // الوجهة التالية بعد اختيار صنف تعتمد على نوع قياسه: عادي (1) ⇐ الكمية كالمعتاد، غير ذلك ⇐ أول
     // عمود بُعد يحتاجه فعلياً (بترتيب طول←عرض←ارتفاع←عدد، متخطّياً غير المطلوب منها) — نفس منطق
     // findNextRelevantFieldIndex المستخدَم بتنقّل Tab/Enter، مطبَّقاً هنا لحظة اختيار الصنف مباشرة.
@@ -2256,6 +2259,38 @@ export default function UnifiedStockVoucher({
   // جدول pricecategory (معرّف موجب) أو إحدى الفئات الخاصة (معرّف سالب): -2 يدوي (يُصفَّر محلياً دون
   // وصول هذه الدالة إطلاقاً)، -3/-4/-5 مُحسَّبة من دفعات المخزون/تاريخ الشراء عبر الـ endpoint
   // نفسه، -1 (سعر الإنتاج) مُعطَّلة في القائمة أصلاً (SPECIAL_PRICE_CATEGORIES) فلا تصل هنا.
+  // «طريقة احتساب تكلفة الصنف في سندات ادخال/ اخراج/ استعمال» (ShamelAPI إعداد 70): سطر صنف جديد يأخذ سعره من فئة
+  // السعر/طريقة الكلفة المختارة (الافتراضية من الإعداد) لا سعر البيع الافتراضي للصنف. يدوي (-2) يبقى كما أُدخل (2026-11-17)
+  const priceRowsByCategory = async (rowIndexes: number[]) => {
+    if (isInternalDelivery || !priceCategoryId || priceCategoryId === -2 || priceCategoryId === -1) return
+    const targets = rowIndexes.filter((index) => itemsRef.current[index]?.product_id)
+    if (!targets.length) return
+    try {
+      const response = await fetch("/api/inventory/products/prices-by-category", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          price_category_id: priceCategoryId,
+          items: targets.map((index) => ({ product_id: itemsRef.current[index].product_id, unit_name: itemsRef.current[index].unit })),
+        }),
+      })
+      if (!response.ok || !isMountedRef.current) return
+      const data = await response.json()
+      const results: { price: number }[] = Array.isArray(data?.results) ? data.results : []
+      const next = [...itemsRef.current]
+      targets.forEach((index, position) => {
+        const row = next[index]
+        if (!row?.product_id) return
+        const price = Number(results[position]?.price || 0)
+        next[index] = { ...row, unit_price: price, total_price: recalcAmount(row.quantity, price) }
+      })
+      itemsRef.current = next
+      onItemsChange(next)
+    } catch (error) {
+      console.error("Failed to price rows by category", error)
+    }
+  }
+
   const recalcPricesFromCategory = async () => {
     const rows = itemsRef.current.filter((row) => row.product_id)
     if (!priceCategoryId || rows.length === 0) return
@@ -2538,7 +2573,7 @@ export default function UnifiedStockVoucher({
                     valueMode="id"
                     onValueChange={() => {}}
                     onAccountSelect={(account) => onFormChange("account_id", account?.id ?? null)}
-                    searchAllowedTypeValues={[2, 3, 5]}
+                    searchAllowedTypeValues={[2, 3, 5, 6]}
                     disabled={isLocked}
                   />
                   {form.account_id ? <AccountBalanceField accountId={form.account_id} refreshKey={`${form.id}-${form.status}`} /> : null}

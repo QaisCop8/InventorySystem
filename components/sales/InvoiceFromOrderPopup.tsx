@@ -68,7 +68,7 @@ export default function InvoiceFromOrderPopup({
   const isSalesInvoice = voucherType === SALES_INVOICE_TYPE || voucherType === 13
   const orderType = isSalesInvoice ? 1 : 2
   // المشتريات من طلبية: المورد قد يكون معرّفاً كعميل أيضاً (عميل/مورد/مشترك)
-  const allowedAccountTypes = isSalesInvoice ? [2, 5] : [2, 3, 5]
+  const allowedAccountTypes = isSalesInvoice ? [2, 5, 6] : [2, 3, 5, 6]
   const title = isSalesInvoice ? tr("تحميل عناصر من طلبية مبيعات") : tr("تحميل عناصر من طلبية مشتريات")
   const orderLabel = isSalesInvoice ? tr("طلبية مبيعات") : tr("طلبية مشتريات")
 

@@ -4678,9 +4678,12 @@ const exportDefault = {
     return v ? parseFloat(v) : 0;
   },
   formatNumber(value, decimals) {
+    // فواصل الآلاف حسب الإعداد 18 «اظهار فواصل الالاف في الكميات والاسعار والمبالغ» (بلا قيمة: ظاهرة)
+    const grouping = this.getSystemSetting(18);
     let v = new Intl.NumberFormat('en-US', {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
+      useGrouping: grouping === undefined || grouping === null || grouping === '' ? true : String(grouping).toLowerCase() !== 'false',
     }).format(value);
     /*if(e.cell.textContent==='-0.0')e.cell.textContent='0.0';
     if(e.cell.textContent==='-0.00')e.cell.textContent='0.00';
