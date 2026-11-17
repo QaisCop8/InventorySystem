@@ -182,7 +182,7 @@ const STEPS: MigrationStep[] = [
   },
   {
     key: "stock_balances", title: "كميات أول المدة (سند ادخال/اخراج بضاعة)", group: "balances", batchSize: 2000,
-    sql: () => `select si."Code" as code, si."Store" as store_pos, sum(si."St Qnty") as start_balance, sum(si."Qnty") as qnty, max(s."B.Price") as cost
+    sql: () => `select si."Code" as code, si."Store" as store_pos, sum(si."St Qnty") as start_balance, sum(si."Qnty") as qnty, max(case when s."B.Price"<>0 then s."B.Price" when s."BackDbl3"<>0 then s."BackDbl3" else s."Market price" end) as cost
       from "sitems" si inner join "stock" s on s."StockID"=si."Code" where s."Type"<6 group by si."Code", si."Store"`,
     process: (rows, ctx, last) => processStockBalances(rows, ctx, last),
   },

@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { roundAmount } from "@/lib/decimals"
 import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
@@ -1995,7 +1996,7 @@ function UnifiedSalesOrder({
     const numericPrice = Number(price ?? 0)
     const numericVat = Number(vatPercent ?? 0)
     if (!Number.isFinite(numericPrice)) return 0
-    return Math.round(numericPrice * (1 + numericVat / 100) * 100) / 100
+    return roundAmount(numericPrice * (1 + numericVat / 100))
   }
   type OrderItemType = {
     qnty: number;

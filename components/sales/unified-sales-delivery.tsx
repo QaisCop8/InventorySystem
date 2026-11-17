@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { roundAmount, amountDecimals } from "@/lib/decimals"
 import { useVoucherPricingPermission, voucherPricingPermissionLabel } from "@/components/auth/transaction-access-gate"
 import type { VoucherPricingAction } from "@/lib/transaction-permission-definitions"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -463,7 +464,7 @@ const recalcLineAmounts = (row: SalesVoucherItemRow): Pick<SalesVoucherItemRow, 
   const quantity = finiteItemNumber(row.quantity) ?? 0
   const price = finiteItemNumber(row.unit_price) ?? 0
   const discountPercent = finiteItemNumber(row.discount_percent) ?? 0
-  const amount = Math.round(quantity * price * (1 - discountPercent / 100) * 100) / 100
+  const amount = roundAmount(quantity * price * (1 - discountPercent / 100))
   return { total_price: amount, line_amount: amount }
 }
 
@@ -624,7 +625,7 @@ export default function UnifiedSalesDelivery({
         : null
       if (basePrice == null) return row
       const convertedPrice = Math.round((basePrice / newRate) * 1e6) / 1e6
-      const amount = Math.round(quantity * convertedPrice * 100) / 100
+      const amount = roundAmount(quantity * convertedPrice)
       return { ...row, unit_price: convertedPrice, base_unit_price: basePrice, total_price: amount, line_amount: amount }
     })
     itemsRef.current = next
@@ -1247,7 +1248,7 @@ export default function UnifiedSalesDelivery({
           line_amount: amount,
           unit_price_incl_tax: (() => {
             const lineRate = itemVatRef.current.enabled ? (itemVatRef.current.rateOf(row.product_id) ?? 0) : vatPercent
-            return lineRate > 0 ? Math.round(Number(row.unit_price || 0) * (1 + lineRate / 100) * 100) / 100 : Number(row.unit_price || 0)
+            return lineRate > 0 ? roundAmount(Number(row.unit_price || 0) * (1 + lineRate / 100)) : Number(row.unit_price || 0)
           })(),
         }
       })
@@ -1438,7 +1439,7 @@ export default function UnifiedSalesDelivery({
   const entryPriceToNet = (price: number | null, lineRate?: number | null) => {
     if (price === null || !Number.isFinite(price)) return price
     const vatPercent = lineRate === undefined ? Number(formRef.current.vat_percent || 0) : (lineRate ?? 0)
-    return priceEntryIncludesTax && vatPercent > 0 ? Math.round((price / (1 + vatPercent / 100)) * 100) / 100 : price
+    return priceEntryIncludesTax && vatPercent > 0 ? roundAmount(price / (1 + vatPercent / 100)) : price
   }
 
   // + / - في خلية المبلغ: تطبيق فوري (لا يُكتب الرمز في الخلية) — + يضرب المبلغ في (1 + نسبة الضريبة) و- يقسمه عليها،
@@ -1478,7 +1479,7 @@ export default function UnifiedSalesDelivery({
     if (action === "add" && startLevel >= 1) return
     if (action === "remove" && startLevel <= -1) return
     const factor = 1 + vatRate / 100
-    const amount = Math.round((action === "add" ? base * factor : base / factor) * 100) / 100
+    const amount = roundAmount(action === "add" ? base * factor : base / factor)
     const unitPrice = amount / (quantity * discountFactor)
     if (!Number.isFinite(unitPrice)) return
     amountVatAdjustmentRef.current.delete(row)
@@ -1744,7 +1745,7 @@ export default function UnifiedSalesDelivery({
     const netBeforeTax = taxPercent > 0 ? desiredTotal / (1 + taxPercent / 100) : desiredTotal
     const requiredDiscount = totals.subtotal - netBeforeTax
     if (form.discount_type === "amount") {
-      onFormChange("discount_value", Math.round(Math.min(requiredDiscount, totals.subtotal) * 100) / 100)
+      onFormChange("discount_value", roundAmount(Math.min(requiredDiscount, totals.subtotal)))
     } else {
       const percent = totals.subtotal > 0 ? (requiredDiscount / totals.subtotal) * 100 : 0
       onFormChange("discount_value", Math.round(Math.min(percent, 100) * 100) / 100)
@@ -4071,11 +4072,11 @@ export default function UnifiedSalesDelivery({
                     <Input
                       type="number"
                       step="0.01"
-                      value={netPayableDraft ?? totals.total.toFixed(2)}
+                      value={netPayableDraft ?? totals.total.toFixed(amountDecimals())}
                       // يعيد حساب الخصم العام ⇐ نفس صلاحيته
                       disabled={!canPricing("general_discount")}
                       onFocus={(e) => {
-                        setNetPayableDraft(totals.total.toFixed(2))
+                        setNetPayableDraft(totals.total.toFixed(amountDecimals()))
                         e.target.select()
                       }}
                       onChange={(e) => setNetPayableDraft(e.target.value)}
@@ -4236,7 +4237,7 @@ export default function UnifiedSalesDelivery({
             const convertedItems = items.map((item) => {
               const unitPrice = Number(item.unit_price || 0)
               const itemSourceRate = Number(item.source_rate || 1)
-              const convertedUnitPrice = itemSourceRate && invoiceRate ? Math.round((unitPrice * itemSourceRate / invoiceRate) * 100) / 100 : unitPrice
+              const convertedUnitPrice = itemSourceRate && invoiceRate ? roundAmount(unitPrice * itemSourceRate / invoiceRate) : unitPrice
               const sourceDelivery = selectedDeliveries?.find((entry) => entry.id === item.source_voucher_id) || delivery
               return {
                 ...item,
@@ -4320,7 +4321,7 @@ export default function UnifiedSalesDelivery({
             const convertedItems = items.map((item) => {
               const unitPrice = Number(item.unit_price || 0)
               const itemSourceRate = Number(item.source_rate || 1)
-              const convertedUnitPrice = itemSourceRate && invoiceRate ? Math.round((unitPrice * itemSourceRate / invoiceRate) * 100) / 100 : unitPrice
+              const convertedUnitPrice = itemSourceRate && invoiceRate ? roundAmount(unitPrice * itemSourceRate / invoiceRate) : unitPrice
               return {
                 ...item,
                 source_voucher_id: item.source_voucher_id || order.id,

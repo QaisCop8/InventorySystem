@@ -58,3 +58,9 @@ export function formatAmount(value: unknown, locale = "en-US") {
   const number = Number(value)
   return (Number.isFinite(number) ? number : 0).toLocaleString(locale, amountFractionOptions())
 }
+
+/** تقريب مبلغ/سعر بعدد الخانات العشرية من الإعدادات (بدل 2 الثابتة التي تجعل 0.0026 × 1 = 0). */
+export function roundAmount(value: number): number {
+  const factor = 10 ** amountDecimals()
+  return Math.round((Number(value) || 0) * factor) / factor
+}

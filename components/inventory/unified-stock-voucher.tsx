@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
+import { amountDecimals } from "@/lib/decimals"
 import Messages from "@/components/common/Messages"
 import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import DataGridView from "@/components/common/DataGridView"
@@ -1177,7 +1178,9 @@ export default function UnifiedStockVoucher({
   const recalcAmount = (quantity: number | null, price: number | null) => {
     const q = finiteItemNumber(quantity) ?? 0
     const p = finiteItemNumber(price) ?? 0
-    return Math.round(q * p * 100) / 100
+    // تقريب المبلغ بعدد الخانات العشرية من الإعدادات (كان 2 ثابتة: 0.002557 × 1 = 0.00)
+    const factor = 10 ** amountDecimals()
+    return Math.round(q * p * factor) / factor
   }
 
   // يوحّد شكل وحدات الصنف القادمة من مصدرين مختلفين (نافذة بحث الأصناف تُرجع unit_id/unit_name/price،
