@@ -5,7 +5,9 @@
  background:radial-gradient(ellipse at 100% 0,#e3efef,transparent 55%),#f3f6f8;
  font-size:clamp(12px,var(--font-size-custom,14px),18px);
 }
-.report-body { display:flex; flex-direction:column; gap:12px; width:100%; min-height:0; height:100%; overflow:hidden; }
+/* overflow-y:auto (2026-11-17): الفلاتر المثبّتة تأخذ من الارتفاع الثابت فكانت نهاية الشبكة (التذييل وآخر الأسطر) تُقصّ
+   بلا تمرير — الآن الصفحة تمرّر عندما لا يتسع المحتوى، وتبقى الشبكة تملأ المتبقي عندما يتسع */
+.report-body { display:flex; flex-direction:column; gap:12px; width:100%; min-height:0; height:100%; overflow-x:hidden; overflow-y:auto; scrollbar-width:thin; }
 .report-body>* { flex-shrink:0; min-width:0; }
 /* رأس موحّد لكل صفحات النظام: تدرّج النظام الأخضر (page-hero) بنص أبيض */
 .report-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:14px 18px; border:0; border-radius:16px; background:linear-gradient(to left,#047857 0%,#059669 50%,#0d9488 100%); color:#fff; box-shadow:0 8px 24px -12px rgba(5,150,105,.45); }
@@ -36,6 +38,8 @@
 .report-summary-card.is-highlight:before { background:#168c78; }
 .report-summary-card.is-highlight .report-summary-value { color:#087666; }
 .report-page .report-results { display:flex; flex:1; flex-direction:column; min-height:300px; overflow:hidden; border:1px solid var(--report-border); border-radius:12px; background:var(--report-surface); box-shadow:0 3px 12px #1b3e4d04; }
+/* نتائج فيها ReportGrid لا تنكمش دون ارتفاع الشبكة الأدنى (360) + عنوانها — وإلا يُقصّ أسفل الشبكة */
+.report-page .report-results:has(.report-grid) { min-height:min-content; }
 .report-table-scroll { flex:1; min-height:0; overflow:auto; scrollbar-width:thin; scrollbar-color:#bccfd5 transparent; }
 .report-page table { width:100%; border-collapse:separate; border-spacing:0; font-size:12px; }
 .report-page table thead { background:#253f50; background-image:none; color:#f1f7fa; }

@@ -58,7 +58,11 @@ export function ItemBalancesReport() {
       <section className="report-results"><div className="flex flex-wrap items-center justify-between gap-3 border-b p-4"><div><h2 className="font-bold">{tr("نتائج أرصدة الأصناف")}</h2><p className="text-xs text-muted-foreground">{rows.length.toLocaleString("en-US")}{tr(" سجل")}</p></div><div className="relative w-full sm:w-80"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder={tr("ابحث داخل النتائج...")} className="rounded-xl bg-muted/40 ps-9" /></div></div><ReportGrid rows={rows} exportFileName={tr("أرصدة الأصناف")} emptyText={loading ? undefined : tr("لا توجد نتائج لعرضها")}
             onRowDoubleClick={(row: any) => openSectionInNewTab("item-card-report", { item_card_product_id: String(row.id) })}
             columns={[
-              { key: "product_code", label: tr("رقم الصنف"), width: 140, render: (row: any) => <button type="button" title={tr("فتح تعريف الصنف في تبويب جديد")} onClick={(event) => { event.stopPropagation(); openSectionInNewTab("products", { products_product_id: String(row.id) }) }} className="font-mono font-bold text-teal-700 underline decoration-dotted underline-offset-4 hover:text-teal-900">{row.product_code}</button> },
+              // span لا button: أنماط الأزرار داخل الشبكة (خلفية وحشوة) كانت تقصّ رقم الصنف (10 خانات) — 2026-11-17
+              { key: "product_code", label: tr("رقم الصنف"), width: 150, render: (row: any) => <span role="link" tabIndex={0} title={tr("فتح تعريف الصنف في تبويب جديد")}
+                onClick={(event) => { event.stopPropagation(); openSectionInNewTab("products", { products_product_id: String(row.id) }) }}
+                onKeyDown={(event) => { if (event.key === "Enter") { event.stopPropagation(); openSectionInNewTab("products", { products_product_id: String(row.id) }) } }}
+                className="cursor-pointer whitespace-nowrap font-mono font-bold text-teal-700 underline decoration-dotted underline-offset-4 hover:text-teal-900" dir="ltr">{row.product_code}</span> },
               { key: "product_name", label: tr("الصنف"), width: "*", minWidth: 220 },
               { key: "balance", label: tr("الرصيد"), type: "number", width: 130, total: true },
               { key: "main_unit", label: tr("الوحدة"), width: 100 },

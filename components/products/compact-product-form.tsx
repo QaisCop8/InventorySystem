@@ -2796,14 +2796,15 @@ export function CompactProductForm({
 
           <form onSubmit={handleSubmit} className={isService ? "space-y-2" : "space-y-4"}>
             <Card className="rounded-2xl border-slate-200 shadow-sm dark:border-slate-800">
-              <CardContent className={isService ? "space-y-2 p-2 sm:p-3" : "space-y-4 p-4 sm:p-5"}>
+              {/* بطاقة مدمجة (2026-11-17): الرقم والاسمان بسطر واحد، صورة أصغر، وحشوة/فراغات أقل */}
+              <CardContent className={isService ? "space-y-2 p-2 sm:p-3" : "space-y-3 p-3 sm:p-4"}>
                 <div className={`flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200 ${isService ? "text-xs" : "text-sm"}`}><Info className="h-4 w-4 text-emerald-600" />{tr("المعلومات الأساسية والتعريف")}</div>
                 {/* نفس تصميم components/products/unified-customers.tsx: الصورة يساراً، وأكواد
                     التعريف (الرقم/الاسم العربي/الاسم الإنجليزي) يميناً — الرقم في سطره الخاص،
                     ثم كل اسم بسطر كامل العرض تحته. */}
-                <div className={`flex flex-col items-stretch ${isService ? "gap-2 md:flex-row" : "gap-4 md:flex-row"}`}>
-                  <div className={`flex-1 ${isService ? "space-y-2" : "space-y-4"}`}>
-                    <div className={`grid grid-cols-1 md:grid-cols-3 ${isService ? "gap-2" : "gap-4"}`}>
+                <div className={`flex flex-col items-stretch ${isService ? "gap-2 md:flex-row" : "gap-3 md:flex-row md:items-end"}`}>
+                  <div className={isService ? "flex-1 space-y-2" : "grid flex-1 grid-cols-1 items-end gap-3 md:grid-cols-3"}>
+                    <div className={isService ? "grid grid-cols-1 gap-2 md:grid-cols-3" : "contents"}>
                       <div>
                         <ProductCodeInput
                           formData={formData}
@@ -2831,7 +2832,7 @@ export function CompactProductForm({
                       </div>
                     </div>
 
-                    <div className={`grid grid-cols-1 md:grid-cols-2 ${isService ? "gap-2" : "gap-4"}`}>
+                    <div className={isService ? "grid grid-cols-1 gap-2 md:grid-cols-2" : "contents"}>
                       <div>
                         <Label htmlFor="product_name" className="text-sm font-medium">
                           {isService ? tr("اسم الخدمة *") : tr("اسم الصنف *")}
@@ -2871,12 +2872,12 @@ export function CompactProductForm({
                     value={formData.product_image}
                     onChange={(value) => updateFormData("product_image", value)}
                     label={isService ? tr("صورة الخدمة") : tr("صورة الصنف")}
-                    size={isService ? 88 : 160}
+                    size={isService ? 88 : 104}
                   />
                 </div>
 
 
-                <div className={`grid grid-cols-1 sm:grid-cols-2 ${isService ? "gap-2 sm:grid-cols-3" : "gap-4 xl:grid-cols-5"}`}>
+                <div className={`grid grid-cols-1 sm:grid-cols-2 ${isService ? "gap-2 sm:grid-cols-3" : "gap-3 xl:grid-cols-5"}`}>
                   {!isService && (
                     <>
                       <div>
