@@ -17,6 +17,7 @@ import {
   type SearchResultsTableHandle,
 } from "@/components/common/search-dialog-kit"
 import { cn } from "@/lib/utils"
+import { padVoucherCodeInput } from "@/lib/voucher-code"
 
 // بحث السندات — زر البحث بجانب "رقم السند" بكل الحركات. فلاتر: من/إلى تاريخ، الحالة (مسودة/مرحل/ملغي)،
 // رقم السند، الحساب/العميل، المستودع (سندات المخزون)، المبلغ والبيان. Enter كـTab بين الفلاتر، ومن آخر
@@ -162,17 +163,20 @@ export function VoucherSearchDialog({ open, onOpenChange, vchType, title, accoun
         />
 
         <div ref={filterContainerRef} className="shrink-0 space-y-3 border-b bg-white px-4 py-3">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
-            <SearchFilterField label={tr("رقم السند / اليدوي")}>
-              <Input ref={codeInputRef} value={filters.code} onChange={(e) => patch({ code: e.target.value })} className={searchInputClassName} dir="ltr" placeholder={tr("مثال: R0001")} />
+          {/* شبكة 12 عموداً (2026-11-17): السطر الأول رقم السند والتاريخان والحساب (والمستودع)، الثاني نطاق المبلغ والبيان */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-6 xl:grid-cols-12">
+            <SearchFilterField label={tr("رقم السند / اليدوي")} className="col-span-2 md:col-span-2 xl:col-span-2">
+              <Input ref={codeInputRef} value={filters.code} onChange={(e) => patch({ code: e.target.value })}
+                onBlur={(e) => { const padded = padVoucherCodeInput(e.target.value); if (padded !== filters.code) patch({ code: padded }) }}
+                className={searchInputClassName} dir="ltr" placeholder={tr("مثال: R0001")} />
             </SearchFilterField>
-            <SearchFilterField label={tr("من تاريخ")}>
+            <SearchFilterField label={tr("من تاريخ")} className="col-span-1 md:col-span-2 xl:col-span-2">
               <Input type="date" value={filters.fromDate} onChange={(e) => patch({ fromDate: e.target.value })} className={searchInputClassName} />
             </SearchFilterField>
-            <SearchFilterField label={tr("إلى تاريخ")}>
+            <SearchFilterField label={tr("إلى تاريخ")} className="col-span-1 md:col-span-2 xl:col-span-2">
               <Input type="date" value={filters.toDate} onChange={(e) => patch({ toDate: e.target.value })} className={searchInputClassName} />
             </SearchFilterField>
-            <SearchFilterField label={accountLabel} className="col-span-2 md:col-span-1 xl:col-span-2">
+            <SearchFilterField label={accountLabel} className={cn("col-span-2", isStock ? "md:col-span-4 xl:col-span-4" : "md:col-span-6 xl:col-span-6")}>
               <AutoCompleteAccount
                 label=""
                 value={filters.accountId}
@@ -187,20 +191,21 @@ export function VoucherSearchDialog({ open, onOpenChange, vchType, title, accoun
               />
             </SearchFilterField>
             {isStock && (
-              <SearchFilterField label={tr("المستودع")}>
+              <SearchFilterField label={tr("المستودع")} className="col-span-2 md:col-span-2 xl:col-span-2">
                 <select value={filters.warehouseId} onChange={(e) => patch({ warehouseId: e.target.value })} className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50/70 px-2 text-sm">
                   <option value="">{tr("الكل")}</option>
                   {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name}</option>)}
                 </select>
               </SearchFilterField>
             )}
-            <SearchFilterField label={tr("المبلغ من")}>
-              <Input value={filters.amountFrom} onChange={(e) => patch({ amountFrom: e.target.value })} inputMode="decimal" className={searchInputClassName} dir="ltr" />
+            <SearchFilterField label={tr("المبلغ")} className="col-span-2 md:col-span-3 xl:col-span-4">
+              <div className="flex items-center gap-2">
+                <Input value={filters.amountFrom} onChange={(e) => patch({ amountFrom: e.target.value })} inputMode="decimal" className={searchInputClassName} dir="ltr" placeholder={tr("من")} aria-label={tr("المبلغ من")} />
+                <span className="shrink-0 text-xs text-slate-400">—</span>
+                <Input value={filters.amountTo} onChange={(e) => patch({ amountTo: e.target.value })} inputMode="decimal" className={searchInputClassName} dir="ltr" placeholder={tr("إلى")} aria-label={tr("المبلغ إلى")} />
+              </div>
             </SearchFilterField>
-            <SearchFilterField label={tr("المبلغ إلى")}>
-              <Input value={filters.amountTo} onChange={(e) => patch({ amountTo: e.target.value })} inputMode="decimal" className={searchInputClassName} dir="ltr" />
-            </SearchFilterField>
-            <SearchFilterField label={tr("البيان")} className="col-span-2 md:col-span-2">
+            <SearchFilterField label={tr("البيان")} className="col-span-2 md:col-span-3 xl:col-span-8">
               <Input value={filters.note} onChange={(e) => patch({ note: e.target.value })} className={searchInputClassName} placeholder={tr("بحث في بيان السند")} />
             </SearchFilterField>
           </div>

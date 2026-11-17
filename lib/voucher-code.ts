@@ -11,6 +11,19 @@ export const VOUCHER_CODE_TOTAL_LENGTH = 10
 // رموز الفرع المتاحة (حرف واحد) بترتيب العرض: 0 ثم A..Z
 export const BRANCH_SYMBOLS = "0ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")
 
+/**
+ * خانة البحث برقم السند عند الخروج منها: ما قبل الرقم الأخير (بادئة/فرع/دفتر) يبقى، والرقم يُبطَّن بأصفار حتى 10 خانات
+ * (LYY831 ⇐ LYY0000831). أرقام فقط أو كود بطول 10 فأكثر يبقى كما هو (بحث جزئي).
+ */
+export const padVoucherCodeInput = (typed: string): string => {
+  const text = String(typed || "").trim().toUpperCase()
+  const match = text.match(/^(.*?[A-Z].*?)(\d+)$/)
+  if (!match || text.length >= VOUCHER_CODE_TOTAL_LENGTH) return String(typed || "").trim()
+  const [, head, digits] = match
+  const width = VOUCHER_CODE_TOTAL_LENGTH - head.length
+  return width > digits.length ? head + digits.padStart(width, "0") : text
+}
+
 export const normalizeVoucherPrefix =(value: string): string =>
   String(value || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1)
 

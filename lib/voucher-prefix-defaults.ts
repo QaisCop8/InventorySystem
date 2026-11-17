@@ -10,6 +10,14 @@ const PREFIX_DEFAULTS: [key: string, prefix: string][] = [
   ["return_delivery_consignment_sale_prefix", "RCS"],
 ]
 const MARKER = "voucher_prefix_defaults_v1"
+// v2 (2026-11-17، طلب المستخدم): إرسالية مشتريات DP، إرسالية مبيعات DS، مرتجع مشتريات RPU — تُحوَّل فقط إن بقيت
+// القيمة القديمة الافتراضية (INV/DPY/DSL أو فارغة)، فالبادئة التي اختارها المستخدم تبقى
+const PREFIX_DEFAULTS_V2: [key: string, prefix: string, oldValues: string[]][] = [
+  ["delivery_pay_prefix", "DP", ["INV", "DPY", ""]],
+  ["delivery_sell_prefix", "DS", ["DSL", ""]],
+  ["return_purchase_prefix", "RPU", ["INV", ""]],
+]
+const MARKER_V2 = "voucher_prefix_defaults_v2"
 const doneByDb = new Map<string, Promise<void>>()
 
 export function ensureVoucherPrefixDefaults(): Promise<void> {
@@ -18,11 +26,18 @@ export function ensureVoucherPrefixDefaults(): Promise<void> {
     if (!done) {
       done = (async () => {
         const marked = await sql`SELECT 1 FROM system_settings WHERE id::text = ${MARKER} OR description = ${MARKER} LIMIT 1`
-        if (marked.length) return
-        for (const [key, prefix] of PREFIX_DEFAULTS) {
-          await sql`UPDATE system_settings SET value = ${prefix} WHERE (id::text = ${key} OR description = ${key}) AND UPPER(BTRIM(COALESCE(value, ''))) = 'INV'`
+        if (!marked.length) {
+          for (const [key, prefix] of PREFIX_DEFAULTS) {
+            await sql`UPDATE system_settings SET value = ${prefix} WHERE (id::text = ${key} OR description = ${key}) AND UPPER(BTRIM(COALESCE(value, ''))) = 'INV'`
+          }
+          await sql`INSERT INTO system_settings (id, description, value) VALUES (${MARKER}, ${MARKER}, '1') ON CONFLICT DO NOTHING`
         }
-        await sql`INSERT INTO system_settings (id, description, value) VALUES (${MARKER}, ${MARKER}, '1') ON CONFLICT DO NOTHING`
+        const markedV2 = await sql`SELECT 1 FROM system_settings WHERE id::text = ${MARKER_V2} OR description = ${MARKER_V2} LIMIT 1`
+        if (markedV2.length) return
+        for (const [key, prefix, oldValues] of PREFIX_DEFAULTS_V2) {
+          await sql`UPDATE system_settings SET value = ${prefix} WHERE (id::text = ${key} OR description = ${key}) AND UPPER(BTRIM(COALESCE(value, ''))) = ANY(${oldValues}::text[])`
+        }
+        await sql`INSERT INTO system_settings (id, description, value) VALUES (${MARKER_V2}, ${MARKER_V2}, '1') ON CONFLICT DO NOTHING`
       })().catch((error) => {
         // قاعدة بلا جدول system_settings (42P01): لا شيء لتحويله — لا تُعاد المحاولة مع كل طلب
         if ((error as { code?: string })?.code === "42P01") return
