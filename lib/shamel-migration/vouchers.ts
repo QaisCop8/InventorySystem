@@ -680,6 +680,26 @@ export async function fixMigratedVouchers() {
     ) d
     WHERE h.id = d.voucher_id AND COALESCE(h.amount, 0) = 0 AND d.debit_base > 0`
   await convertMigratedPricesToGross().catch((error: unknown) => console.error("[shamel-migration] gross price repair failed:", error))
+  await repairMigratedItemTypes().catch((error: unknown) => console.error("[shamel-migration] item type repair failed:", error))
+}
+
+/**
+ * أصناف رُحِّلت قبل 2026-11-17 بنوع = Type الشامل + 1 (ترتيب خاطئ). التصحيح يعكس الصيغة القديمة (القيمة − 1 = Type الشامل)
+ * ثم يطبّق خريطة SHAMEL_ITEM_TYPE — مرة واحدة لكل شركة (علامة repair:item_type_v1)، وللأصناف التي أنشأها الترحيل فقط
+ * (ملاحظة «مُرحَّل من الشامل»)، لا لصنف موجود سابقاً رُبط به.
+ */
+async function repairMigratedItemTypes() {
+  const done = await sql`SELECT 1 FROM shamel_migration_map WHERE kind = 'repair' AND shamel_key = 'item_type_v1' LIMIT 1`
+  if (done.length) return
+  await withTenantTransaction(async () => {
+    await sql`
+      UPDATE products p SET product_type = CASE p.product_type::text
+        WHEN '1' THEN '2' WHEN '2' THEN '3' WHEN '3' THEN '4' WHEN '4' THEN '5' WHEN '5' THEN '1' WHEN '6' THEN '6' ELSE p.product_type::text END
+      WHERE p.id IN (SELECT web_id FROM shamel_migration_map WHERE kind = 'item')
+        AND COALESCE(p.notes, '') LIKE 'مُرحَّل من الشامل (%'
+        AND COALESCE(p.type, 1) = 1`
+    await sql`INSERT INTO shamel_migration_map (kind, shamel_key, web_id) VALUES ('repair', 'item_type_v1', 0) ON CONFLICT DO NOTHING`
+  })
 }
 
 /**

@@ -199,6 +199,13 @@ async function companyIdTemplate() {
   return Number((await sql`SELECT company_id FROM account_tbl ORDER BY id LIMIT 1`)[0]?.company_id || 1)
 }
 
+/**
+ * نوع الصنف: ترتيب الشامل (stock.Type) يختلف عن النظام — الشامل 0 مواد خام، 1 لوازم انتاج، 2 تحت التصنيع، 3 بضاعة مصنعة،
+ * 4 بضاعة تجارية، 5 مواد للاستهلاك (ShamelAPI main_stock_type_captions)؛ النظام 1 بضاعة تجارية، 2 مواد خام، 3 لوازم إنتاج،
+ * 4 تحت التصنيع، 5 بضاعة مصنعة، 6 مواد للاستهلاك. كان يُرحَّل Type+1 فتصبح «بضاعة تجارية» «بضاعة مصنعة» (2026-11-17).
+ */
+export const SHAMEL_ITEM_TYPE: Record<number, number> = { 0: 2, 1: 3, 2: 4, 3: 5, 4: 1, 5: 6 }
+
 /** رقم حساب بطول 10 غير مستخدم لحساب آخر من الشامل (تحويل رقمين مختلفين لنفس الرقم ⇐ يبقى الرقم الأصلي) */
 async function accountCodeFor(shamelCode: string) {
   const converted = toCode10(shamelCode)
@@ -599,7 +606,7 @@ export async function processItems(rows: Row[], ctx: StepContext) {
       last_purchase_price: num(r.last_purchase_price) || num(r.market_purchase_price), currency_id: await currencyId(r.cost_purchase_currency_code),
       tax_rate: vat, discount_rate: num(r.discount_rate), has_expiry_date: num(r.has_expiry_) !== 0, serial_tracking: num(r.has_serial_) !== 0,
       status: num(r.item_availability_status_pos) === 2 ? 2 : 1, type: isService ? 2 : 1, service_type: isService ? num(r.service_type) + 1 : 0,
-      product_type: String(itemType < 6 ? itemType + 1 : 1),
+      product_type: String(SHAMEL_ITEM_TYPE[itemType] ?? 1),
       length: num(r.length), width: num(r.width), height: num(r.height), density: num(r.density), notes: `مُرحَّل من الشامل (${shamelCode})`, barcode: text(r.barcode) || null,
       selling_account_id: await accountId(r.selling_account_code), purchase_account_id: await accountId(r.purchase_account_code),
       selling_returns_account_id: await accountId(r.selling_returns_account_code), purchase_returns_account_id: await accountId(r.purchase_returns_account_code),
