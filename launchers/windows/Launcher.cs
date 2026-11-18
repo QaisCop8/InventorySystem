@@ -20,8 +20,8 @@ using Microsoft.Web.WebView2.WinForms;
 [assembly: AssemblyTitle(NoonLauncher.Title)]
 [assembly: AssemblyProduct("NoonERP")]
 [assembly: AssemblyCompany("Sabbah Soft")]
-[assembly: AssemblyVersion("1.5.0.0")]
-[assembly: AssemblyFileVersion("1.5.0.0")]
+[assembly: AssemblyVersion("1.6.0.0")]
+[assembly: AssemblyFileVersion("1.6.0.0")]
 
 static class NoonLauncher
 {
@@ -38,8 +38,8 @@ static class NoonLauncher
     [STAThread]
     static void Main()
     {
-        // مكتبات WebView2 المُدارة تُحمَّل من موارد الملف التنفيذي — يجب ربطها قبل أي استخدام لأنواعها
-        AppDomain.CurrentDomain.AssemblyResolve += ResolveEmbedded;
+        // 1.6 (2026-11-18): مكتبات WebView2 بجانب الملف التنفيذي (مجلد مضغوط) — لا تحميل من الموارد ولا استخراج إلى القرص؛
+        // ذلك النمط (Assembly.Load من الموارد + كتابة DLL في LocalAppData) جعل Windows Defender يعدّ الملف فيروساً
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         Run();
@@ -51,34 +51,10 @@ static class NoonLauncher
         Application.Run(new LauncherForm(ReadServerUrl().TrimEnd('/') + "/?app=" + Mode));
     }
 
-    static Assembly ResolveEmbedded(object sender, ResolveEventArgs args)
+    // WebView2Loader.dll (مكتبة أصلية) في المجلد الفرعي x64 أو x86 بجانب الملف التنفيذي
+    public static string LoaderFolder()
     {
-        string name = new AssemblyName(args.Name).Name + ".dll";
-        using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(name))
-        {
-            if (stream == null) return null;
-            byte[] bytes = new byte[stream.Length];
-            stream.Read(bytes, 0, bytes.Length);
-            return Assembly.Load(bytes);
-        }
-    }
-
-    // WebView2Loader.dll (مكتبة أصلية) تُستخرج مرة لكل إصدار إلى %LOCALAPPDATA%\NoonERP\bin\<arch>
-    public static string ExtractLoader()
-    {
-        string arch = Environment.Is64BitProcess ? "x64" : "x86";
-        string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NoonERP", "bin", Assembly.GetExecutingAssembly().GetName().Version.ToString(), arch);
-        string target = Path.Combine(folder, "WebView2Loader.dll");
-        if (!File.Exists(target))
-        {
-            Directory.CreateDirectory(folder);
-            using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("WebView2Loader." + arch + ".dll"))
-            using (FileStream file = File.Create(target))
-            {
-                stream.CopyTo(file);
-            }
-        }
-        return folder;
+        return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Environment.Is64BitProcess ? "x64" : "x86");
     }
 
     // launcher.ini بجانب الملف: url=https://example.com (اختياري)
@@ -141,7 +117,7 @@ class LauncherForm : Form
     {
         try
         {
-            CoreWebView2Environment.SetLoaderDllFolderPath(NoonLauncher.ExtractLoader());
+            CoreWebView2Environment.SetLoaderDllFolderPath(NoonLauncher.LoaderFolder());
             string profile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NoonERP", NoonLauncher.Mode);
             Directory.CreateDirectory(profile);
             CoreWebView2Environment environment = await CoreWebView2Environment.CreateAsync(null, profile);

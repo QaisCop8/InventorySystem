@@ -187,3 +187,5 @@ NoonERP-Restaurant.exe — restaurant screen only
 Direct printing, PinPad, cheque reader — unzip and run CashierWinService.exe
 NoonERP-System.apk — the full system on mobile
 Not available yet
+NoonERP-Cashier.zip — unzip and run NoonERP-Cashier.exe (cashier only, works offline)
+NoonERP-Restaurant.zip — unzip and run NoonERP-Restaurant.exe (restaurant screen only)

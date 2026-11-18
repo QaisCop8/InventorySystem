@@ -42,8 +42,8 @@ export function listDownloads(): DownloadItem[] {
   const apk = (name: string): FileInfo => localFile(`/downloads/${name}.apk`) || (base ? { url: `${base}/${name}.apk`, size: null, updatedAt: null } : null)
   const system = resolveAndroidApk()
   const items: [DownloadItem["key"], DownloadItem["group"], string, string, FileInfo][] = [
-    ["windows-cashier", "windows", "كاشير ويندوز", "NoonERP-Cashier.exe — نافذة الكاشير وحدها، تعمل دون اتصال", localFile("/downloads/NoonERP-Cashier.exe")],
-    ["windows-restaurant", "windows", "مطعم ويندوز", "NoonERP-Restaurant.exe — شاشة المطعم وحدها", localFile("/downloads/NoonERP-Restaurant.exe")],
+    ["windows-cashier", "windows", "كاشير ويندوز", "NoonERP-Cashier.zip — فك الضغط وشغّل NoonERP-Cashier.exe (الكاشير وحده، يعمل دون اتصال)", localFile("/downloads/NoonERP-Cashier.zip")],
+    ["windows-restaurant", "windows", "مطعم ويندوز", "NoonERP-Restaurant.zip — فك الضغط وشغّل NoonERP-Restaurant.exe (شاشة المطعم وحدها)", localFile("/downloads/NoonERP-Restaurant.zip")],
     ["cash-service", "service", "خدمة الكاشير CashService", "الطباعة المباشرة، أجهزة الدفع PinPad، قارئ الشيكات — فك الضغط وشغّل CashierWinService.exe", localFile("/downloads/NoonERP-CashService.zip")],
     ["android-system", "android", "النظام — أندرويد", "NoonERP-System.apk — النظام كاملاً على الجوال", system ? { url: system.url, size: null, updatedAt: system.updatedAt } : apk("NoonERP-System")],
     ["android-cashier", "android", "الكاشير — أندرويد", "NoonERP-Cashier.apk", apk("NoonERP-Cashier")],
