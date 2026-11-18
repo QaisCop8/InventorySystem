@@ -134,7 +134,9 @@ export default function CashVan() {
       {!loading && rows.length === 0 && <div className="rounded-2xl border-2 border-dashed py-14 text-center text-sm text-muted-foreground">
         <Truck className="mx-auto mb-2 h-10 w-10 text-emerald-600" />{tr("لا توجد سيارات — عرّف السيارة ومندوبها ومستودعها وصندوقها من شاشة السيارات")}
       </div>}
-      <div className="grid gap-4 xl:grid-cols-2">
+      {loading && rows.length === 0 && <div className="relative h-40"><LoadingOverlay /></div>}
+      <div className="relative grid gap-4 xl:grid-cols-2">
+        {loading && rows.length > 0 && <LoadingOverlay />}
         {rows.map((van) => (
           <div key={van.id} className="space-y-3 rounded-2xl border bg-white p-4 shadow-sm dark:bg-slate-950">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -275,9 +277,28 @@ function CarProfitPanel() {
       ]} />
       {missingEmployee && <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" />{tr("بعض المندوبين غير مرتبطين بموظف — اربطهم من تعريف المندوبين («الموظف المرتبط») ليُحتسب الراتب")}</p>}
       {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
+      <div className="relative">
+      {loading && <LoadingOverlay />}
       <ReportGrid rows={rows} columns={columns} exportFileName={tr("ربح وخسارة السيارات")} totalLabel={tr("المجموع")}
-        rowClassName={(row) => row.result === "loss" ? "bg-red-50/40" : undefined} emptyText={loading ? tr("جاري التحميل...") : tr("لا توجد سيارات")} />
+        rowClassName={(row) => row.result === "loss" ? "bg-red-50/40" : undefined} emptyText={loading ? "" : tr("لا توجد سيارات")} />
+      </div>
       <p className="text-xs text-muted-foreground">{tr("ربح الأصناف = فواتير المبيعات − المرتجعات من مستودع السيارة مطروحاً منها الكلفة (كتقرير أرباح الأصناف). المصاريف من حسابات مصاريف السيارة. الراتب من كشف رواتب الموظف المرتبط بالمندوب للأشهر المشمولة (أو راتبه الأساسي إن لم يُصرف)، موزّعاً على أيام الفترة.")}</p>
+    </div>
+  )
+}
+
+/** طبقة تحميل فوق الشبكة/البطاقات: دائرة + «جاري تحميل البيانات...» + شريط تقدّم متحرك. */
+function LoadingOverlay() {
+  return (
+    <div role="status" aria-live="polite" className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-white/75 backdrop-blur-[1px] dark:bg-slate-950/75">
+      <div className="flex w-64 flex-col items-center gap-3 rounded-2xl border bg-white px-6 py-5 shadow-lg dark:bg-slate-900">
+        <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+        <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{tr("جاري تحميل البيانات...")}</div>
+        <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-emerald-100 dark:bg-emerald-950">
+          <div className="absolute inset-y-0 w-1/3 rounded-full bg-emerald-600 [animation:cashvan-progress_1.2s_ease-in-out_infinite]" />
+        </div>
+        <style>{"@keyframes cashvan-progress{0%{inset-inline-start:-35%}100%{inset-inline-start:100%}}"}</style>
+      </div>
     </div>
   )
 }

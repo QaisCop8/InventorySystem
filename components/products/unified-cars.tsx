@@ -243,7 +243,7 @@ export default function UnifiedCars({
                       filter={false}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
-                      appendTo="self"
+                      appendTo={() => document.body}
                       onChange={(e: any) => onFormChange("status", e.value || "نشط")}
                     />
                   </Field>
@@ -329,7 +329,7 @@ function CarVanSection({ form, onFormChange }: { form: CarFormData; onFormChange
   const dropdown = (field: "salesman_id" | "warehouse_id", label: string, options: { label: string; value: number }[]) => (
     <Field label={label}>
       <PrimeDropdown value={form[field] ?? null} options={[{ label: tr("بلا"), value: null }, ...options]} optionLabel="label" optionValue="value" filter
-        className="invoice-currency-dropdown w-full" panelClassName="invoice-currency-dropdown-panel" appendTo="self"
+        className="invoice-currency-dropdown w-full" panelClassName="invoice-currency-dropdown-panel" appendTo={() => document.body}
         onChange={(e: any) => onFormChange(field, e.value ?? null)} />
     </Field>
   )
