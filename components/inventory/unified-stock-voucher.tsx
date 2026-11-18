@@ -627,10 +627,14 @@ export default function UnifiedStockVoucher({
     initialSnapshotRef.current = JSON.stringify(form)
   }, [form])
 
+  // سند جديد فارغ (بلا أصناف ولا ملاحظة) لا شيء فيه يستحق الحفظ: بعد «حفظ» يُفتح سند جديد وتصله قيم افتراضية
+  // لاحقة (الفرع/الدفتر/الإعدادات) بعد أخذ اللقطة، فكانت «تغييرات غير محفوظة» تظهر عند الإغلاق رغم عدم تعديل شيء
+  const isBlankNewVoucher = () => !form.id && !(form.items || []).some((item: any) => Number(item?.product_id) > 0) && !String((form as any).note || "").trim()
+  const hasUnsavedEdits = () => ![2, 3].includes(Number(form.status)) && !isBlankNewVoucher() && JSON.stringify(form) !== initialSnapshotRef.current
   const guardedAction = (action: () => void) => {
     if ([2, 3].includes(Number(form.status))) { action(); return }
     if (showUnsavedConfirm) return
-    if (JSON.stringify(form) !== initialSnapshotRef.current) {
+    if (hasUnsavedEdits()) {
       pendingActionRef.current = action
       setShowUnsavedConfirm(true)
     } else {
@@ -640,7 +644,7 @@ export default function UnifiedStockVoucher({
   // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
   // التحقق من التغييرات (حفظ/عدم حفظ/إلغاء) — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
   useNavigationGuard(
-    () => dialogOpen && ![2, 3].includes(Number(form.status)) && JSON.stringify(form) !== initialSnapshotRef.current,
+    () => dialogOpen && hasUnsavedEdits(),
     (continueNavigation) => guardedAction(continueNavigation),
   )
 
