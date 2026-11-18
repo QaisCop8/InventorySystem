@@ -129,3 +129,6 @@ Send items
 Delete item
 Payment
 Decrease
+Show chat
+Hide bubble
+Drag to move
