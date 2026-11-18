@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ManagementLogin } from "@/components/auth/management-login"
 import { loginOffline, rememberOfflinePassword } from "@/lib/offline-unlock"
+import { activateCompany } from "@/lib/tenant-client"
 
 export default function ManagementLoginPage() {
   const router = useRouter()
@@ -44,7 +45,14 @@ export default function ManagementLoginPage() {
     await rememberOfflinePassword(credentials.username, credentials.password)
 
     // مسؤول المنصة ينتقل إلى لوحة الإدارة؛ بقية المستخدمين يختارون الشركة من "شركاتي".
-    router.push(data.user?.is_platform_admin ? "/management/admin" : "/management/companies")
+    if (data.user?.is_platform_admin) { router.push("/management/admin"); return }
+    // شركة واحدة جاهزة ⇐ تُفتح مباشرة دون صفحة "شركاتي" (فتحها من جهاز آخر أو أي خطأ ⇐ "شركاتي" تعرض السبب وخياراته)
+    const companies = await fetch("/api/management/companies", { cache: "no-store" }).then((res) => (res.ok ? res.json() : [])).catch(() => [])
+    if (Array.isArray(companies) && companies.length === 1 && companies[0]?.status === "approved") {
+      const result = await activateCompany(Number(companies[0].id))
+      if (result.success) { window.location.href = `/?company=${companies[0].id}`; return }
+    }
+    router.push("/management/companies")
   }
 
   return <ManagementLogin onLogin={handleLogin} footer={<Link href="/management/signup" className="font-semibold text-emerald-300 transition-colors hover:text-emerald-200">{tr("إنشاء مستخدم جديد")}</Link>} />

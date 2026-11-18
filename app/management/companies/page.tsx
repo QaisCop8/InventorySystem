@@ -35,6 +35,7 @@ import { deviceLabel, formatSessionTime } from "@/lib/device-label"
 import { useToast } from "@/hooks/use-toast"
 import { NoonLogo } from "@/components/brand/noon-logo"
 import { PoweredBy } from "@/components/brand/powered-by"
+import { appModeSection } from "@/lib/app-mode"
 
 interface Company {
   id: number
@@ -185,6 +186,7 @@ export default function ManagementCompaniesPage() {
       .catch(() => setIsPlatformAdmin(false))
   }, [])
 
+  const autoOpenTriedRef = useRef(false)
   const loadCompanies = async () => {
     try {
       const res = await fetch("/api/management/companies")
@@ -193,7 +195,13 @@ export default function ManagementCompaniesPage() {
         return
       }
       const data = await res.json()
-      setCompanies(Array.isArray(data) ? data : [])
+      const list: Company[] = Array.isArray(data) ? data : []
+      setCompanies(list)
+      // تطبيق الكاشير/المطعم بشركة واحدة جاهزة ⇐ تُفتح مباشرة (مرة لكل تحميل — فشلها يُبقي الصفحة لتعرض السبب)
+      if (!autoOpenTriedRef.current && appModeSection() && list.length === 1 && list[0].status === "approved") {
+        autoOpenTriedRef.current = true
+        void handleSelectCompany(list[0])
+      }
     } catch {
       setError(tr("تعذّر تحميل الشركات"))
     } finally {

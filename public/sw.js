@@ -1,5 +1,8 @@
-const CACHE_NAME = "shamel-app-v4"
-const APP_SHELL = ["/", "/mobile", "/manifest.json", "/icon-192.jpg"]
+// v5 (2026-11-18): نسخة قديمة محفوظة من صفحة الدخول (قبل الدخول دون اتصال) كانت تُعرض دون اتصال فتظهر "Failed to fetch"
+const CACHE_NAME = "shamel-app-v5"
+const APP_SHELL = ["/", "/management/login", "/mobile", "/manifest.json", "/icon-192.jpg"]
+// صفحات يجب أن تُفتح دون اتصال بأحدث نسخة (تطبيق الكاشير/المطعم بعد تسجيل الخروج أو إعادة التشغيل) — تُحدَّث مع كل حفظ للملفات
+const OFFLINE_PAGES = ["/", "/management/login"]
 
 // حفظ كل ملفات الواجهة المبنية مسبقاً (قائمتها من /api/offline/assets) — بدونها لا يعمل دون اتصال إلا ما فُتح
 // سابقاً متصلاً، فيفشل تحميل شاشة/نافذة لم تُفتح منذ آخر نشر ("Failed to load chunk"). يتخطّى المحفوظ، 6 طلبات معاً.
@@ -12,6 +15,10 @@ async function precacheAppAssets() {
       if (!response.ok) return
       const { urls = [] } = await response.json()
       const cache = await caches.open(CACHE_NAME)
+      await Promise.allSettled(OFFLINE_PAGES.map(async (page) => {
+        const html = await fetch(page, { cache: "no-store" })
+        if (html.ok && !html.redirected) await cache.put(page, html)
+      }))
       const queue = urls.filter((url) => typeof url === "string" && url.startsWith("/_next/static/"))
       const worker = async () => {
         while (queue.length) {
@@ -81,7 +88,8 @@ self.addEventListener("fetch", (event) => {
           }
           return response
         })
-        .catch(async () => (await caches.match(request)) || (await caches.match(url.pathname.startsWith("/mobile") ? "/mobile" : "/")) || Response.error()),
+        .catch(async () => (await caches.match(request)) || (await caches.match(request, { ignoreSearch: true }))
+          || (await caches.match(url.pathname.startsWith("/mobile") ? "/mobile" : url.pathname.startsWith("/management/login") ? "/management/login" : "/")) || Response.error()),
     )
     return
   }

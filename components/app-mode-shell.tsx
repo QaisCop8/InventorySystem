@@ -25,6 +25,12 @@ export function AppModeShell({ children }: { children: ReactNode }) {
 
   useEffect(() => { if (user?.id && activeBranchId) saveSessionSnapshot() }, [user?.id, activeBranchId])
 
+  // الكاشير والمطعم: حفظ أحدث ملفات الواجهة وصفحة الدخول متصلاً، لتعمل دون اتصال بعد تسجيل الخروج أو إعادة تشغيل الجهاز
+  useEffect(() => {
+    if (!navigator.onLine || !("serviceWorker" in navigator)) return
+    navigator.serviceWorker.ready.then((registration) => registration.active?.postMessage({ type: "PRECACHE_APP" })).catch(() => undefined)
+  }, [])
+
   useEffect(() => {
     let running = false
     const reconnect = async () => {
