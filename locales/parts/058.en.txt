@@ -111,3 +111,21 @@ Kitchen: done
 Kitchen: order cancelled
 Kitchen: cancelled order acknowledged
 Kitchen: back to preparation
+No connection to the server — the request was not sent. Unsent items stay on screen; try again when the connection is back
+This action needs a server connection — available when the connection is back
+{0} — offline, will sync when the connection is back
+This order is not saved on this device — it needs a connection to open
+Synced {0} operations from the outage
+{0} failed — check the notice
+No server connection and no saved custody for this location
+Payment saved offline{0} — the invoice is issued when the connection is back{1}
+Offline — work is saved on this device
+Syncing operations from the outage
+{0} operations waiting to sync
+Permanently delete the failed operations? Review them first.
+Delete failed operations
+Open takeaway
+Send items
+Delete item
+Payment
+Decrease

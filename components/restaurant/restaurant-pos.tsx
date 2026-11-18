@@ -3,6 +3,10 @@
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import { currentPosTenantKey, loadPosCatalog, savePosCatalog } from "@/lib/pos-offline"
+import {
+  applyOffline, cacheCustody, cachedCustody, cacheFloor, cacheOrder, discardFailedOps, hasOfflineChanges, hasQueuedOps, isNetworkError, OFFLINE_ACTIONS,
+  offlineFloor, offlineOps, offlineOrder, setRestaurantOfflineScope, syncRestaurantOffline, type OfflineOp,
+} from "@/lib/restaurant-offline"
 import { ArrowRightLeft, Ban, Combine, Loader2, Lock, Minus, Plus, Printer, Split, UserCog, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -121,6 +125,11 @@ export default function RestaurantPos() {
   const [category, setCategory] = useState("all")
   const [mobileTab, setMobileTab] = useState<"menu" | "ticket">("menu")
   const [busy, setBusy] = useState(false)
+  // دون اتصال (lib/restaurant-offline.ts): هذا الجهاز يحفظ عملياته ويزامنها عند عودة الاتصال
+  setRestaurantOfflineScope(currentPosTenantKey(user?.id))
+  const [offline, setOffline] = useState(false)
+  const [offlineQueue, setOfflineQueue] = useState<OfflineOp[]>([])
+  const refreshQueue = useCallback(() => setOfflineQueue(offlineOps()), [])
 
   // ---------------- النادل: جلسة PIN لهذا التبويب، الجهاز المشترك، الطباعة المحلية أو طابور المطبخ ----------------
   installWaiterFetch()
@@ -191,8 +200,13 @@ export default function RestaurantPos() {
       if (response.status === 403) { setDenied(true); setFloorError(await errorOf(response, "لا توجد صلاحية")); return }
       if (!response.ok) throw new Error(await errorOf(response, "تعذر تحميل الطاولات"))
       const data = await response.json()
-      setDenied(false); setFloorError(""); setFloor(data)
+      cacheFloor(data)
+      setOffline(false)
+      // طلبات هذا الجهاز دون اتصال لم تُزامن بعد تبقى ظاهرة فوق لوحة الخادم
+      setDenied(false); setFloorError(""); setFloor(hasQueuedOps() ? offlineFloor() || data : data)
     } catch (error) {
+      const cached = isNetworkError(error) ? offlineFloor() : null
+      if (cached) { setOffline(true); setDenied(false); setFloorError(""); setFloor(cached); return }
       if (!silent) setFloorError(error instanceof Error ? error.message : tr("تعذر تحميل الطاولات"))
     } finally {
       if (!silent) setLoadingFloor(false)
@@ -304,14 +318,23 @@ export default function RestaurantPos() {
 
   const showOrder = useCallback(async (orderId: number) => {
     setBusy(true)
+    const showLocal = () => {
+      const local = offlineOrder(orderId)
+      if (!local || local.status !== "open") { setMessage({ type: "error", text: tr("الطلب غير محفوظ على هذا الجهاز — يحتاج اتصالاً لفتحه") }); return }
+      setOrder(local); setPending([]); setQuery(""); setCategory("all"); setMobileTab("menu")
+      void loadCatalog(local.location_id)
+    }
     try {
+      if (hasOfflineChanges(orderId)) { showLocal(); return }
       const response = await fetch(`/api/restaurant/orders?id=${orderId}`, { cache: "no-store" })
       if (!response.ok) throw new Error(await errorOf(response, "تعذر تحميل الطلب"))
       const data: Order = await response.json()
+      cacheOrder(data)
       if (data.status !== "open") { setMessage({ type: "error", text: tr("الطلب لم يعد مفتوحاً") }); await loadFloor(true); return }
       setOrder(data); setPending([]); setQuery(""); setCategory("all"); setMobileTab("menu")
       void loadCatalog(data.location_id)
     } catch (error) {
+      if (isNetworkError(error)) { setOffline(true); showLocal(); return }
       setMessage({ type: "error", text: error instanceof Error ? error.message : tr("تعذر تحميل الطلب") })
     } finally {
       setBusy(false)
@@ -319,10 +342,28 @@ export default function RestaurantPos() {
   }, [loadCatalog, loadFloor])
 
   /** تنفيذ إجراء على الطلب؛ الاستجابة تحمل الطلب المحدَّث */
-  const act = useCallback(async (action: string, body: Record<string, unknown>, success?: string) => {
+  const act = useCallback(async (action: string, body: Record<string, unknown>, success?: string): Promise<any> => {
     setBusy(true)
+    // دون اتصال (أو طلب عليه عمليات لم تُزامن): يُطبَّق محلياً ويُحفظ في طابور المزامنة — lib/restaurant-offline.ts
+    const runLocal = () => {
+      if (!OFFLINE_ACTIONS.has(action)) throw new Error(tr("هذا الإجراء يحتاج اتصالاً بالخادم — متاح عند عودة الاتصال"))
+      const data = applyOffline(action, body, { floor, userName: user?.fullName || user?.username || "" })
+      if (data.order && data.order.status === "open") setOrder(data.order)
+      else if (data.order) { setOrder(null); setPending([]) }
+      if (success) setMessage({ type: "success", text: tr("{0} — دون اتصال، ستُزامن عند عودة الاتصال", success) })
+      setFloor(offlineFloor()); refreshQueue()
+      return data
+    }
     try {
-      const response = await fetch("/api/restaurant/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...body }) })
+      if (body.order_id !== undefined && hasOfflineChanges(Number(body.order_id))) return runLocal()
+      let response: Response
+      try {
+        response = await fetch("/api/restaurant/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...body }) })
+      } catch (error) {
+        if (!isNetworkError(error)) throw error
+        setOffline(true)
+        return runLocal()
+      }
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         if (response.status === 409 && order) void showOrder(order.id)
@@ -339,7 +380,30 @@ export default function RestaurantPos() {
     } finally {
       setBusy(false)
     }
-  }, [loadFloor, order, showOrder])
+  }, [floor, loadFloor, order, refreshQueue, showOrder, user?.fullName, user?.username])
+
+  // المزامنة: عند عودة الاتصال، ودورياً ما دام في الطابور عمليات
+  const runSync = useCallback(async () => {
+    if (!hasQueuedOps()) { refreshQueue(); return }
+    const result = await syncRestaurantOffline()
+    refreshQueue()
+    if (result.network) { setOffline(true); return }
+    setOffline(false)
+    if (result.done || result.failed) {
+      const parts = [tr("تمت مزامنة {0} عملية من وقت الانقطاع", result.done), ...(result.failed ? [tr("فشلت {0} — راجع التنبيه", result.failed)] : []), ...result.notes.map((note) => tr(note))]
+      setMessage({ type: result.failed ? "error" : "success", text: parts.join(" — ") })
+      setOrder((current) => (current && current.id < 0 ? null : current))
+      void loadFloor(true)
+    }
+  }, [loadFloor, refreshQueue])
+  useEffect(() => {
+    refreshQueue()
+    const onOnline = () => void runSync()
+    window.addEventListener("online", onOnline)
+    const timer = window.setInterval(() => { if (hasQueuedOps() && navigator.onLine) void runSync() }, 20_000)
+    void runSync()
+    return () => { window.removeEventListener("online", onOnline); window.clearInterval(timer) }
+  }, [refreshQueue, runSync])
 
   useNavigationGuard(() => pending.length > 0, (continueNavigation) => {
     void confirmYesNo(tr("توجد أصناف لم تُرسل للطاولة بعد. هل تريد المتابعة وتجاهلها؟")).then((ok) => { if (ok) { setPending([]); continueNavigation() } })
@@ -366,13 +430,19 @@ export default function RestaurantPos() {
   const custodyLocationName = floor?.locations.find((l) => l.id === custodyLocation)?.name || ""
   const custodyCurrency = (custodyInfo?.currencies || [])[0]
   const loadCustody = useCallback(async (locationId: number) => {
-    const response = await fetch(`/api/restaurant/custody?location_id=${locationId}`, { cache: "no-store" })
+    // دون اتصال: آخر عهدة محفوظة للموقع (الدفع دون اتصال يتطلب عهدة كانت مفتوحة)
+    const response = await fetch(`/api/restaurant/custody?location_id=${locationId}`, { cache: "no-store" }).catch((error) => {
+      const cached = isNetworkError(error) ? cachedCustody(locationId) : null
+      if (!cached) throw new Error(tr("لا يوجد اتصال بالخادم ولا عهدة محفوظة لهذا الموقع"))
+      return { ok: true, json: async () => cached, offline: true } as unknown as Response
+    })
     const data = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(String(data?.error || "تعذر تحميل العهدة"))
     const info = {
       session: data.session || null, pending: data.pending || [], active_shift: data.active_shift || null,
       currencies: (data.currencies || []).map((row: any) => ({ currency_id: Number(row.currency_id), currency_code: String(row.currency_code || ""), currency_name: String(row.currency_name || ""), rate_to_point: Number(row.rate_to_point || 1) })),
     }
+    if (!(response as any).offline) cacheCustody(locationId, data)
     setCustodyInfo(info)
     return info
   }, [])
@@ -770,12 +840,14 @@ export default function RestaurantPos() {
     })
     if (!result) { setPayError(tr("تعذر الدفع؛ راجع الرسالة")); return }
     setPayLines(null)
-    void printPosReceipt({ ...receiptSnapshot, code: String(result.vch_code || "") }, {
+    void printPosReceipt({ ...receiptSnapshot, pending: Boolean(result.offline), code: String(result.vch_code || "") }, {
       point, receiptSettings: catalog?.receiptSettings || {}, taxRate: catalog?.taxRate || 0,
       cashierName: user?.fullName || user?.username || "", onPreview: setPrintPreview, onMessage: setMessage,
     })
-    setMessage({ type: "success", text: tr("تم حفظ الفاتورة {0}{1}{2}", result.vch_code || "", result.closed ? " وإغلاق الطاولة" : " — دفعة جزئية، الطاولة ما زالت مفتوحة", change > 0 ? ` — الباقي للعميل ${money(change)}` : "") })
-    if (order.location_id) void loadCatalog(order.location_id, true)
+    setMessage({ type: "success", text: result.offline
+      ? tr("حُفظ الدفع دون اتصال{0} — تُصدر الفاتورة عند عودة الاتصال{1}", result.closed ? " وأُغلقت الطاولة" : "", change > 0 ? ` — الباقي للعميل ${money(change)}` : "")
+      : tr("تم حفظ الفاتورة {0}{1}{2}", result.vch_code || "", result.closed ? " وإغلاق الطاولة" : " — دفعة جزئية، الطاولة ما زالت مفتوحة", change > 0 ? ` — الباقي للعميل ${money(change)}` : "") })
+    if (order.location_id && !result.offline) void loadCatalog(order.location_id, true)
   }
 
   const printBill = async () => {
@@ -935,6 +1007,17 @@ export default function RestaurantPos() {
         </DialogContent>
       </Dialog>
       {toast}
+      {(offline || offlineQueue.length > 0) && (
+        <div className="fixed start-3 top-3 z-[61] max-w-sm rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 shadow-lg print:hidden" role="status">
+          <div>{offline ? tr("دون اتصال — العمل محفوظ على هذا الجهاز") : tr("جاري مزامنة عمليات وقت الانقطاع")}{offlineQueue.filter((op) => op.status === "queued").length ? ` · ${tr("{0} عملية بانتظار المزامنة", offlineQueue.filter((op) => op.status === "queued").length)}` : ""}</div>
+          {offlineQueue.some((op) => op.status === "failed") && (
+            <div className="mt-1 space-y-0.5 text-rose-700">
+              {offlineQueue.filter((op) => op.status === "failed").map((op) => <div key={op.id}>{tr(op.label)}: {op.error}</div>)}
+              <button type="button" className="mt-1 rounded-md bg-rose-600 px-2 py-0.5 text-white" onClick={() => { void confirmYesNo(tr("حذف العمليات الفاشلة نهائياً؟ راجعها قبل الحذف.")).then((ok) => { if (ok) { discardFailedOps(); refreshQueue(); void loadFloor(true) } }) }}>{tr("حذف العمليات الفاشلة")}</button>
+            </div>
+          )}
+        </div>
+      )}
     </>
   )
 

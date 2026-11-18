@@ -1,0 +1,153 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   شاشة طلب المطعم — "حديقة وأطباق" (2026-11-18، اعتمدها المستخدم من معاينة مزيج A+B):
+   خلفية كريمية، شريط علوي وبطاقة طلب بالأخضر الداكن، مرجاني للجديد/الإرسال، المجموعات في عمود جانبي
+   بدوائر ملوّنة، والأصناف "أطباق" دائرية فوق بطاقات بيضاء. ألوان المجموعة تُحسب من اسمها (ثابتة لكل مجموعة).
+   ───────────────────────────────────────────────────────────────────────────── */
+.ro-root {
+  --ro-bg: #f6f1e9;
+  --ro-card: #ffffff;
+  --ro-ink: #24302b;
+  --ro-muted: #8c958f;
+  --ro-forest: #24302b;
+  --ro-forest-2: #2e3c36;
+  --ro-mint: #b9d3c3;
+  --ro-coral: #ef6f4c;
+  --ro-coral-soft: #fff4ef;
+  --ro-shadow: 0 16px 30px -24px rgb(36 48 43 / 70%);
+  display: flex; flex-direction: column; height: 100%; min-height: 0;
+  color: var(--ro-ink); background: var(--ro-bg);
+  font-feature-settings: "tnum";
+}
+.dark .ro-root {
+  --ro-bg: #111815;
+  --ro-card: #1a2420;
+  --ro-ink: #e8efe9;
+  --ro-muted: #8fa198;
+  --ro-forest: #0b120f;
+  --ro-forest-2: #16201b;
+  --ro-coral-soft: #3a211a;
+  --ro-shadow: 0 16px 30px -24px rgb(0 0 0 / 80%);
+}
+
+/* ── الشريط العلوي ── */
+.ro-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; color: #fff; background: var(--ro-forest); }
+.ro-back { display: inline-flex; align-items: center; gap: 6px; height: 42px; padding: 0 16px; border-radius: 999px; background: rgb(255 255 255 / 12%); font-size: 15px; font-weight: 800; transition: background-color .15s; }
+.ro-back:hover { background: rgb(255 255 255 / 20%); }
+.ro-tags { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.ro-table { display: inline-flex; align-items: center; gap: 6px; font-size: 20px; font-weight: 900; }
+.ro-table button { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: rgb(255 255 255 / 14%); }
+.ro-badge { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px; color: #fff; background: var(--ro-coral); font-size: 12px; font-weight: 800; white-space: nowrap; }
+.ro-soft { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px; color: var(--ro-mint); background: rgb(255 255 255 / 8%); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.ro-guests { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: rgb(255 255 255 / 12%); }
+.ro-guests button { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; }
+.ro-guests button:hover:not(:disabled) { background: rgb(255 255 255 / 16%); }
+.ro-guests button:disabled { opacity: .35; }
+.ro-guests span { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; font-weight: 900; }
+
+/* ── التخطيط: المجموعات | الأصناف | الطلب ── */
+/* لا display على .ro-rail/.ro-menu/.ro-ticket: CSS خارج الطبقات تتغلب على hidden/flex في Tailwind v4 (تبديل الجوال) */
+.ro-body { display: grid; flex: 1; min-height: 0; grid-template-columns: 1fr; gap: 14px; padding: 12px; }
+@media (min-width: 1024px) { .ro-body { grid-template-columns: 158px minmax(0, 1fr) 360px; } }
+@media (min-width: 1280px) { .ro-body { grid-template-columns: 172px minmax(0, 1fr) 400px; } }
+.ro-menu { flex-direction: column; min-height: 0; gap: 10px; }
+
+/* البحث */
+.ro-search { position: relative; display: flex; align-items: center; gap: 8px; height: 46px; padding-inline: 16px 6px; border-radius: 999px; background: var(--ro-card); box-shadow: var(--ro-shadow); }
+.ro-search > svg { flex-shrink: 0; width: 18px; height: 18px; color: var(--ro-muted); }
+.ro-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; color: var(--ro-ink); font-size: 15px; }
+.ro-search .ro-icon-btn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: var(--ro-muted); }
+.ro-search .ro-icon-btn:hover:not(:disabled) { color: var(--ro-ink); background: var(--ro-bg); }
+.ro-search .ro-icon-btn.is-dark { color: #fff; background: var(--ro-forest); }
+
+/* عمود المجموعات (أفقي على الجوال) */
+.ro-rail { gap: 8px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: thin; }
+@media (min-width: 1024px) { .ro-rail { flex-direction: column; overflow-x: hidden; overflow-y: auto; padding: 2px 4px 8px 2px; } }
+.ro-cat { display: flex; flex-shrink: 0; align-items: center; gap: 9px; min-height: 52px; padding: 7px 10px; border: 2px solid transparent; border-radius: 18px; color: var(--ro-ink); background: var(--ro-card); box-shadow: var(--ro-shadow); font-size: 13.5px; font-weight: 800; text-align: start; transition: border-color .15s, transform .15s; }
+.ro-cat:hover { transform: translateY(-1px); }
+.ro-cat i { display: grid; flex-shrink: 0; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: #fff; font-size: 14px; font-style: normal; font-weight: 900; }
+.ro-cat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ro-cat small { margin-inline-start: auto; color: var(--ro-muted); font-size: 11px; font-weight: 700; }
+.ro-cat[aria-pressed=true] { border-color: var(--ro-coral); background: var(--ro-coral-soft); }
+
+/* ── بطاقات الأصناف: "طبق" دائري فوق بطاقة بيضاء ── */
+.ro-grid-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 2px 4px 12px; }
+.ro-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 40px 14px; padding-top: 38px; }
+.ro-dish { position: relative; display: flex; flex-direction: column; padding: 54px 12px 12px; border-radius: 24px; color: var(--ro-ink); background: var(--ro-card); box-shadow: var(--ro-shadow); text-align: center; transition: transform .15s, box-shadow .15s; contain: content; }
+.ro-dish { contain: layout style; }
+.ro-dish:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 22px 36px -24px rgb(36 48 43 / 80%); }
+.ro-dish:active:not(:disabled) { transform: scale(.97); }
+.ro-dish:disabled { opacity: .5; }
+.ro-plate { position: absolute; top: -36px; left: 50%; display: grid; place-items: center; width: 84px; height: 84px; overflow: hidden; border-radius: 50%; color: #fff; font-size: 26px; font-weight: 900; transform: translateX(-50%); box-shadow: 0 0 0 6px var(--ro-bg), 0 14px 22px -10px rgb(36 48 43 / 55%); }
+.ro-plate img { width: 100%; height: 100%; object-fit: cover; }
+.ro-dish h4 { display: -webkit-box; min-height: 38px; overflow: hidden; font-size: 14.5px; font-weight: 800; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.ro-dish-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 8px; }
+.ro-dish-foot b { font-size: 17px; font-weight: 900; }
+.ro-add { display: grid; flex-shrink: 0; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: #fff; background: var(--ro-forest); }
+.dark .ro-add { background: var(--ro-coral); }
+.ro-count { position: absolute; z-index: 2; top: 8px; inset-inline-start: 8px; box-shadow: 0 0 0 3px var(--ro-card); padding: 1px 8px; border-radius: 999px; color: #fff; background: var(--ro-coral); font-size: 12px; font-weight: 900; }
+.ro-flags { position: absolute; z-index: 2; top: 10px; inset-inline-end: 10px; display: flex; gap: 3px; color: var(--ro-coral); }
+.ro-flags svg { width: 15px; height: 15px; }
+.ro-empty { padding: 40px; color: var(--ro-muted); text-align: center; }
+
+/* ── بطاقة الطلب: أخضر داكن ── */
+.ro-ticket { flex-direction: column; min-height: 0; padding: 6px; border-radius: 28px; color: #fff; background: var(--ro-forest); box-shadow: 0 30px 50px -34px rgb(36 48 43 / 90%); }
+.ro-ticket-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 8px; }
+.ro-ticket-head b { font-size: 16px; font-weight: 900; }
+.ro-ticket-head span { color: var(--ro-mint); font-size: 12px; }
+.ro-lines { display: flex; flex-direction: column; flex: 1; gap: 6px; min-height: 140px; overflow-y: auto; padding: 2px 6px 6px; }
+.ro-section-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 4px 2px; color: var(--ro-mint); font-size: 11.5px; font-weight: 800; }
+.ro-line { padding: 9px 10px; border-radius: 16px; background: rgb(255 255 255 / 6%); }
+.ro-line.is-paid { opacity: .5; }
+.ro-line.is-new { background: rgb(239 111 76 / 18%); outline: 1px dashed var(--ro-coral); }
+.ro-line-row { display: flex; align-items: flex-start; gap: 9px; }
+.ro-q { display: grid; flex-shrink: 0; place-items: center; min-width: 30px; height: 30px; padding: 0 6px; border-radius: 999px; background: rgb(255 255 255 / 12%); font-size: 13px; font-weight: 900; }
+.ro-line.is-new .ro-q { background: var(--ro-coral); }
+.ro-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 800; line-height: 1.3; text-align: start; }
+.ro-name small { color: var(--ro-mint); font-size: 11px; font-weight: 600; }
+.ro-amount { flex-shrink: 0; font-size: 14px; font-weight: 900; }
+.ro-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.ro-chip { padding: 1px 8px; border-radius: 999px; color: #ffd9cc; background: rgb(239 111 76 / 22%); font-size: 11px; font-weight: 700; }
+.ro-chip.is-mint { color: #d6f5e3; background: rgb(62 207 142 / 20%); }
+.ro-chip.is-amber { color: #ffe7b3; background: rgb(240 180 60 / 22%); }
+.ro-note { margin-top: 3px; color: #ffc6a8; font-size: 12px; }
+.ro-line-tools { display: flex; gap: 6px; margin-top: 8px; }
+.ro-tool { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 5px; height: 32px; border-radius: 999px; color: #fff; background: rgb(255 255 255 / 10%); font-size: 12px; font-weight: 800; }
+.ro-tool:hover:not(:disabled) { background: rgb(255 255 255 / 18%); }
+.ro-tool.is-danger { color: #ffb4a3; }
+.ro-stepper { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border-radius: 999px; background: rgb(255 255 255 / 10%); }
+.ro-stepper button { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; }
+.ro-stepper button:hover { background: rgb(255 255 255 / 16%); }
+.ro-stepper span { min-width: 30px; text-align: center; font-weight: 900; }
+.ro-x { display: grid; flex-shrink: 0; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #ffb4a3; }
+.ro-x:hover { background: rgb(255 255 255 / 10%); }
+.ro-ticket-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 160px; color: var(--ro-mint); font-size: 13px; text-align: center; }
+
+.ro-foot { display: flex; flex-direction: column; gap: 8px; padding: 8px 6px 4px; }
+.ro-sums { display: flex; flex-direction: column; gap: 4px; padding: 0 6px; font-size: 13px; }
+.ro-sums > div { display: flex; justify-content: space-between; gap: 8px; }
+.ro-sums .is-paid { color: #8ee0b5; }
+.ro-sums .is-new { color: #ffb49c; }
+.ro-sums button { color: var(--ro-mint); text-decoration: underline dotted; text-underline-offset: 3px; }
+.ro-sums button:disabled { text-decoration: none; opacity: .7; }
+.ro-total { display: flex; align-items: baseline; justify-content: space-between; padding: 4px 6px; font-weight: 900; }
+.ro-total span { font-size: 15px; }
+.ro-total strong { font-size: 26px; }
+.ro-total small { margin-inline-start: 6px; color: var(--ro-mint); font-size: 12px; }
+.ro-main { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 56px; border-radius: 22px; color: #fff; font-size: 17px; font-weight: 900; transition: transform .15s, filter .15s; }
+.ro-main:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.06); }
+.ro-main:disabled { opacity: .45; }
+.ro-main.is-send { background: var(--ro-coral); box-shadow: 0 16px 28px -16px var(--ro-coral); }
+.ro-main.is-pay { color: #0f2a1d; background: #6fdca5; }
+.ro-main.is-bill { background: #6d74e8; }
+.ro-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.ro-action { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 54px; padding: 6px 4px; border-radius: 16px; color: #e4eee8; background: rgb(255 255 255 / 7%); font-size: 11.5px; font-weight: 800; transition: background-color .15s; }
+.ro-action svg { width: 17px; height: 17px; }
+.ro-action:hover:not(:disabled) { background: rgb(255 255 255 / 14%); }
+.ro-action:disabled { opacity: .35; }
+.ro-action.is-danger { color: #ffb4a3; }
+
+/* الجوال: تبديل القائمة/الطلب */
+.ro-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px; background: var(--ro-forest); }
+.ro-tabs button { height: 48px; border-radius: 16px; color: var(--ro-mint); font-size: 14px; font-weight: 900; }
+.ro-tabs button[aria-pressed=true] { color: #fff; background: var(--ro-coral); }
+@media (min-width: 1024px) { .ro-tabs { display: none; } }

@@ -21,11 +21,19 @@ const isNativeApp = () =>
 export function loadVoucherPrintSettings(voucherTypeId: number, force = false): Promise<SettingsBundle> {
   const cached = cache.get(voucherTypeId)
   if (!force && cached && Date.now() - cached.at < CACHE_MS) return cached.promise
+  // آخر إعدادات ناجحة تُحفظ على الجهاز: دون اتصال (مطعم/كاشير) تُطبع قسائم المطبخ والإيصالات بها
+  const storeKey = `voucher-print-settings:${(() => { try { return sessionStorage.getItem("active_tenant_db") || localStorage.getItem("active_tenant_db") || "" } catch { return "" } })()}:${voucherTypeId}`
   const promise = fetch(`/api/settings/voucher-print?voucher_type_id=${voucherTypeId}`, { cache: "no-store" })
     .then(async response => {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "تعذر تحميل إعدادات الطباعة")
+      try { localStorage.setItem(storeKey, JSON.stringify({ settings: data.settings, company: data.company })) } catch {}
       return { settings: normalizePrintSettings(data.settings), company: data.company as CompanyInfo }
+    }, (error) => {
+      let stored: any = null
+      try { stored = JSON.parse(localStorage.getItem(storeKey) || "null") } catch {}
+      if (!stored?.settings) throw error
+      return { settings: normalizePrintSettings(stored.settings), company: stored.company as CompanyInfo }
     })
   promise.catch(() => cache.delete(voucherTypeId))
   cache.set(voucherTypeId, { at: Date.now(), promise })
