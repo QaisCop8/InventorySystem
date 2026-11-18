@@ -2,11 +2,11 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PosDialogMessages } from "./pos-dialog-messages"
-import { ArrowDownToLine, ArrowUpFromLine, Check, HandCoins, LockKeyhole, X } from "lucide-react"
+import { ArrowDownToLine, ArrowUpFromLine, Check, HandCoins, LockKeyhole, UserRound, X } from "lucide-react"
+import "./pos-custody.css"
 
 type Currency = { currency_id: number; currency_code: string; currency_name: string; rate_to_point: number }
 type Session = { details_hidden?: boolean; movement_totals?: Array<{ movement_type: string; amount: number }>; shift_guid?: string; opening_cash: number; expected_cash: number; opened_at?: string; payments?: Array<{ payment_method: string; amount: number; sale_amount?: number; refund_amount?: number }>; currencies?: Array<{ currency_id: number; expected_amount: number; currency_code: string; rate_to_point?: number }>; movements?: Array<{ id: number; movement_type: string; currency_code?: string; currency_amount?: number; amount: number; created_at?: string; note?: string }> }
@@ -51,97 +51,37 @@ export function PosHandoverDialog(p: Props) {
     const index = controls.indexOf(target)
     controls[(index + 1) % controls.length]?.focus()
   }
-  const totalsSummary = <div className="grid gap-3 rounded-xl border border-slate-800 bg-slate-900 px-4 py-4 text-sm font-semibold text-white sm:grid-cols-3" aria-live="polite">
-    <div className="flex items-center justify-between gap-3"><span className="text-slate-300">{tr("إجمالي المبلغ المعدود (")}{currencyCode})</span><strong dir="ltr" className="text-lg tabular-nums text-cyan-300">{money(totalEntered)}</strong></div>
-    <div className="flex items-center justify-between gap-3"><span className="text-slate-300">{tr("إجمالي المبلغ المطلوب (")}{currencyCode})</span><strong dir="ltr" className="text-lg tabular-nums">{money(totalRequired)}</strong></div>
-    <div className={"flex items-center justify-between gap-3 border-t border-slate-700 pt-3 sm:border-e sm:border-t-0 sm:pe-3 " + (difference > 0 ? "text-emerald-300" : difference < 0 ? "text-rose-300" : "text-slate-200")}><span>{tr("الفرق (")}{currencyCode})</span><strong dir="ltr" className="text-lg tabular-nums">{difference > 0 ? "+" : ""}{money(difference)}</strong></div>
+  const totalsSummary = <div className="pc-total" aria-live="polite">
+    <span className="pc-total-icon"><HandCoins /></span>
+    <div className="pc-total-item"><span>{tr("إجمالي المبلغ المعدود (")}{currencyCode})</span><strong dir="ltr">{money(totalEntered)}</strong></div>
+    <div className="pc-total-item"><span>{tr("إجمالي المبلغ المطلوب (")}{currencyCode})</span><strong dir="ltr">{money(totalRequired)}</strong></div>
+    <div className={"pc-total-item " + (difference > 0 ? "is-plus" : difference < 0 ? "is-minus" : "")}><span>{tr("الفرق (")}{currencyCode})</span><strong dir="ltr">{difference > 0 ? "+" : ""}{money(difference)}</strong></div>
   </div>
+  const facts = [{ label: tr("رقم الوردية"), value: session?.shift_guid || "", ltr: true }, { label: tr("تاريخ العملية"), value: new Date().toLocaleString("en-GB"), ltr: true }, { label: tr("المستخدم"), value: userName }, { label: tr("الرصيد الافتتاحي"), value: `${money(Number(session?.opening_cash || 0))} ${currencyCode}` }, ...(showDetails ? [{ label: tr("مجموع المبيعات"), value: `${money(totalSales)} ${currencyCode}` }, { label: tr("الرصيد المتوقع"), value: `${money(Number(session?.expected_cash || 0))} ${currencyCode}` }] : [])]
 
+  // بنمط شاشة الكاشير "Floating dock" — pos-custody.css
   return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent dir={appDir()} className="pos-custody-dialog flex h-[calc(100%-1.5rem)] max-h-[820px] w-[calc(100%-1.5rem)] max-w-[1040px] flex-col gap-0 overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-[0_28px_80px_-28px_rgba(15,23,42,.55)] sm:rounded-2xl dark:border-slate-700 dark:bg-slate-950" onKeyDown={event => { if (event.key === "F3") { event.preventDefault(); if (valid && !busy) onConfirm(); return } moveToNextField(event) }}>
-      <DialogHeader className="shrink-0 border-b border-[#6967c4] bg-gradient-to-l from-[#262653] via-[#433b91] to-[#5950b2] px-6 py-5 text-start text-white">
-        <div className="flex items-center gap-3"><span className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-white/30 bg-white/15 text-white">{closing ? <LockKeyhole className="size-5" /> : <HandCoins className="size-5" />}</span><div><DialogTitle className="text-lg font-bold text-white">{closing ? tr("إغلاق الوردية") : tr("العهدة")}</DialogTitle><DialogDescription className="mt-1 text-xs text-indigo-100">{closing ? tr("المبلغ المعدود حسب المبالغ المدخلة في تفاصيل التسليم حسب العملة") : tr("إدارة عهدة الوردية والأرصدة حسب العملة")}</DialogDescription></div><span className="ms-auto hidden rounded-md border border-white/25 bg-white/10 px-3 py-1.5 text-xs text-indigo-100 sm:inline">{userName || tr("الكاشير")}</span></div>
+    <DialogContent dir={appDir()} className="pos-custody flex h-[calc(100%-1.5rem)] max-h-[860px] w-[calc(100%-1.5rem)] max-w-[1040px] flex-col gap-0 overflow-hidden p-0" onKeyDown={event => { if (event.key === "F3") { event.preventDefault(); if (valid && !busy) onConfirm(); return } moveToNextField(event) }}>
+      <DialogHeader className="pc-head shrink-0">
+        <div className="pc-head-row"><span className="pc-brand">{closing ? <LockKeyhole /> : <HandCoins />}</span><div className="min-w-0"><span className="pc-eyebrow">{tr("العهدة")}</span><DialogTitle className="pc-title">{closing ? tr("إغلاق الوردية") : tr("العهدة")}</DialogTitle><DialogDescription className="pc-desc">{closing ? tr("المبلغ المعدود حسب المبالغ المدخلة في تفاصيل التسليم حسب العملة") : tr("إدارة عهدة الوردية والأرصدة حسب العملة")}</DialogDescription></div><span className="pc-chip max-sm:hidden"><UserRound />{userName || tr("الكاشير")}</span></div>
       </DialogHeader>
-      <PosDialogMessages error={error} open={open} />
-      <style jsx global>{`
-        .pos-custody-dialog section {
-          border-color: #cbd5e1 !important;
-          border-radius: 8px !important;
-          box-shadow: none !important;
-        }
-        .dark .pos-custody-dialog section { border-color: #334155 !important; }
-        .pos-custody-dialog section > h3 {
-          background: #f8fafc;
-          color: #0f172a;
-          font-size: 13px;
-        }
-        .dark .pos-custody-dialog section > h3 { background: #111c2c; color: #f8fafc; }
-        .pos-custody-dialog table thead { background: #433b91 !important; color: #f8fafc !important; }
-        .pos-custody-dialog table tbody tr { border-color: #e2e8f0 !important; }
-        .pos-custody-dialog table tbody tr:nth-child(even) { background: #f1f5f9; }
-        .dark .pos-custody-dialog table tbody tr:nth-child(even) { background: #111c2c; }
-        .pos-custody-dialog table input:not([disabled]) {
-          border-color: #94a3b8;
-          background: #fff;
-          color: #0f172a;
-          font-variant-numeric: tabular-nums;
-        }
-        .pos-custody-dialog table input:not([disabled]):focus-visible {
-          border-color: #5146b9;
-          box-shadow: 0 0 0 2px rgb(81 70 185 / 18%);
-        }
-        .dark .pos-custody-dialog table input:not([disabled]) { border-color: #475569; background: #0b1220; color: #f8fafc; }
-        .pos-custody-dialog > div:last-child {
-          border-color: #cbd5e1;
-          background: #fff;
-        }
-        .dark .pos-custody-dialog > div:last-child { border-color: #334155; background: #020617; }
-        .pos-custody-dialog > div:last-child button:first-child {
-          border-color: #cbd5e1;
-          border-radius: 6px;
-          background: #fff;
-          color: #334155;
-        }
-        .pos-custody-dialog > div:last-child button:last-child {
-          border-radius: 6px;
-          background: #5146b9;
-          color: #fff;
-        }
-        .pos-custody-dialog > div:last-child button:last-child:hover { background: #433b91; }
-        .dark .pos-custody-dialog > div:last-child button:first-child { border-color: #475569; background: #0f172a; color: #e2e8f0; }
-        .dark .pos-custody-dialog > div:last-child button:last-child { background: #655bc9; color: #fff; }
-        .dark .pos-custody-dialog > div:last-child button:last-child:hover { background: #5146b9; }
-        .pos-custody-dialog [aria-live="polite"] {
-          border-color: #6967c4 !important;
-          background: linear-gradient(115deg, #262653, #433b91 60%, #5950b2) !important;
-        }
-        .pos-custody-dialog [class*="border-cyan-"] { border-color: #5146b9 !important; }
-        .pos-custody-dialog [class*="text-cyan-"] { color: #eeecff !important; }
-        .pos-custody-dialog [class*="bg-cyan-"] { background: #5146b9 !important; color: #fff !important; }
-        .pos-custody-dialog section > h3 { border-color: #dfe4f1 !important; }
-        .dark .pos-custody-dialog section > h3 { border-color: #5146b9 !important; }
-      `}</style>
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-slate-100 p-4 sm:p-6 dark:bg-slate-900">
-        <div role="tablist" className="grid grid-cols-2 gap-2 sm:flex sm:justify-center">{actions.map(row => <button key={row.key} type="button" role="tab" aria-selected={action === row.key} onClick={() => onActionChange(row.key)} className={`flex min-w-0 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition-colors sm:px-5 ${action === row.key ? "border-indigo-600 bg-indigo-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"}`}><row.icon className="size-4 shrink-0" /><span className="truncate">{row.label}</span></button>)}</div>
-        {closing ? <section className="border-t-2 border-slate-900 bg-white p-5 dark:border-cyan-500 dark:bg-slate-950">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white"><span className="flex size-8 items-center justify-center rounded-lg bg-slate-900 text-cyan-300 dark:bg-cyan-500 dark:text-slate-950"><LockKeyhole className="size-4" /></span>{tr("المبلغ المعدود")}</h3>
-          <div className="grid gap-4 sm:grid-cols-2">{currencies.map(row => <div key={row.currency_id} className="min-w-0 border-b border-slate-200 p-3 dark:border-slate-800"><Label htmlFor={`counted-${row.currency_id}`} className="mb-2 block text-xs font-semibold text-slate-600 dark:text-slate-300">{row.currency_name} ({row.currency_code})</Label><Input id={`counted-${row.currency_id}`} aria-label={tr("المبلغ المعدود {0}", row.currency_code)} type="number" min="0" step="0.01" value={amounts[row.currency_id] ?? 0} onFocus={event => event.currentTarget.select()} onChange={event => onCurrencyAmountChange(row.currency_id, Number(event.target.value))} className="h-12 rounded-lg border-slate-300 bg-white text-end text-xl font-bold tabular-nums dark:border-slate-700 dark:bg-slate-900" dir="ltr" /></div>)}</div>
-          {showDetails && <div className="mt-4">{totalsSummary}</div>}
-        </section> : <>
-          <div className="grid gap-px overflow-hidden border border-slate-300 bg-slate-300 sm:grid-cols-2 lg:grid-cols-3 dark:border-slate-700 dark:bg-slate-700">{[{ label: tr("رقم الوردية"), value: session?.shift_guid || "" }, { label: tr("تاريخ العملية"), value: new Date().toLocaleString("en-GB") }, { label: tr("المستخدم"), value: userName }, { label: tr("الرصيد الافتتاحي"), value: `${money(Number(session?.opening_cash || 0))} ${currencyCode}` }, ...(showDetails ? [{ label: tr("مجموع المبيعات"), value: `${money(totalSales)} ${currencyCode}` }, { label: tr("الرصيد المتوقع"), value: `${money(Number(session?.expected_cash || 0))} ${currencyCode}` }] : [])].map(card => <div key={card.label} className="min-w-0 bg-white px-4 py-3 dark:bg-slate-950"><div className="mb-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">{card.label}</div><div className="truncate text-sm font-bold text-slate-900 dark:text-white" title={card.value}>{card.value}</div></div>)}</div>
-          {showDetails && <>
-            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><h3 className="border-b border-slate-100 px-4 py-3 text-sm font-bold dark:border-slate-800">{tr("ملخص حركة الوردية")}</h3><div className="overflow-x-auto"><table className="w-full min-w-[540px] text-xs"><thead className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"><tr><th className="p-3 text-start">{tr("التفاصيل")}</th><th className="p-3 text-center">{tr("المبيعات")}</th><th className="p-3 text-center">{tr("المردودات")}</th><th className="p-3 text-center">{tr("الصافي")}</th></tr></thead><tbody>{methods.map(row => <tr key={row.key} className="border-t border-slate-100 dark:border-slate-800"><th className="p-3 text-start font-medium">{row.label}</th><td className="p-3 text-center">{money(sales(row.key))}</td><td className="p-3 text-center">{money(refunds(row.key))}</td><td className="p-3 text-center">{money(sales(row.key) - refunds(row.key))}</td></tr>)}<tr className="border-t border-emerald-200 bg-emerald-50 font-bold text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100"><th className="p-3 text-start">{tr("المجموع")}</th><td className="p-3 text-center">{money(totalSales)}</td><td className="p-3 text-center">{money(totalRefunds)}</td><td className="p-3 text-center">{money(totalSales - totalRefunds)}</td></tr></tbody></table></div></section>
-          </>}
-          {false && <>
-            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><h3 className="border-b border-slate-100 px-4 py-3 text-sm font-bold dark:border-slate-800">{tr("تفاصيل التسليم حسب العملة")}</h3><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-xs"><thead className="bg-sky-50 text-sky-900 dark:bg-sky-950/30 dark:text-sky-100"><tr><th className="p-3 text-start">{tr("العملة")}</th><th className="p-3 text-center">{tr("الرصيد المتاح")}</th><th className="p-3 text-center">{tr("المبلغ المسلم")}</th><th className="p-3 text-center">{tr("سعر الصرف")}</th><th className="p-3 text-center">{tr("المبلغ المقيم")}</th></tr></thead><tbody>{currencies.map(row => <tr key={row.currency_id} className="border-t border-slate-100 dark:border-slate-800"><th className="p-3 text-start font-medium">{row.currency_name} · {row.currency_code}</th><td className="p-3 text-center">{money(available(row.currency_id))}</td><td className="p-2"><Input aria-label={tr("المبلغ المسلم {0}", row.currency_code)} type="number" min="0" max={available(row.currency_id)} step="0.01" value={amounts[row.currency_id] ?? 0} onChange={event => onCurrencyAmountChange(row.currency_id, Number(event.target.value))} className="h-9 min-w-24 rounded-lg text-center" /></td><td className="p-3 text-center">{rate(row.currency_id).toFixed(4)}</td><td className="p-3 text-center font-bold">{money(Number(amounts[row.currency_id] || 0) * rate(row.currency_id))}</td></tr>)}</tbody></table></div></section>
-            {totalsSummary}
-          </>}
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><h3 className="border-b border-slate-100 px-4 py-3 text-sm font-bold dark:border-slate-800">{action === "cash_in" ? tr("تفاصيل الإيداع") : tr("تفاصيل السحب")}</h3><div className="overflow-x-auto"><table className="w-full min-w-[440px] text-xs"><thead className="bg-sky-50 text-sky-900 dark:bg-sky-950/30 dark:text-sky-100"><tr><th className="p-3 text-start">{tr("العملة")}</th>{showDetails && <th className="p-3 text-center">{tr("الرصيد المتاح")}</th>}<th className="p-3 text-center">{action === "cash_in" ? tr("مبلغ الإيداع") : tr("مبلغ السحب")}</th><th className="p-3 text-center">{tr("المبلغ المقيم (")}{currencyCode})</th></tr></thead><tbody>{currencies.map(row => <tr key={row.currency_id} className="border-t border-slate-100 dark:border-slate-800"><th className="p-3 text-start">{row.currency_code} · {row.currency_name}</th>{showDetails && <td className="p-3 text-center">{money(available(row.currency_id))}</td>}<td className="p-2"><Input aria-label={tr("{0} {1}", action === "cash_in" ? "إيداع" : "سحب", row.currency_code)} type="number" min="0" max={action === "cash_out" && showDetails ? available(row.currency_id) : undefined} step="0.01" value={movementAmounts[row.currency_id] ?? 0} onChange={event => onMovementAmountChange(row.currency_id, Number(event.target.value))} className="h-9 min-w-24 rounded-lg text-center" /></td><td className="p-3 text-center">{money(Number(movementAmounts[row.currency_id] || 0) * rate(row.currency_id))}</td></tr>)}</tbody></table></div></section>
+      <div className="pc-body min-h-0 flex-1 overflow-y-auto">
+        <PosDialogMessages error={error} open={open} />
+        <div role="tablist" className="pc-tabs">{actions.map(row => <button key={row.key} type="button" role="tab" aria-selected={action === row.key} onClick={() => onActionChange(row.key)} className="pc-tab"><row.icon /><span className="truncate">{row.label}</span></button>)}</div>
+        {closing ? <>
+          <section className="pc-card"><h3 className="pc-card-title">{tr("المبلغ المعدود")}</h3><div className="pc-card-body">
+            <div className="grid gap-3 sm:grid-cols-2">{currencies.map(row => <div key={row.currency_id} className="pc-row" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.4fr)" }}><label htmlFor={`counted-${row.currency_id}`} className="pc-cur">{row.currency_code}<small>{row.currency_name}</small></label><Input id={`counted-${row.currency_id}`} aria-label={tr("المبلغ المعدود {0}", row.currency_code)} type="number" min="0" step="0.01" value={amounts[row.currency_id] ?? 0} onFocus={event => event.currentTarget.select()} onChange={event => onCurrencyAmountChange(row.currency_id, Number(event.target.value))} className="!h-12 text-end !text-xl" dir="ltr" /></div>)}</div>
+          </div></section>
+          {showDetails && totalsSummary}
+        </> : <>
+          <div className="pc-facts">{facts.map(card => <div key={card.label} className="pc-fact"><span>{card.label}</span><strong dir={card.ltr ? "ltr" : undefined} className={card.ltr ? "text-start" : undefined} title={card.value}>{card.value}</strong></div>)}</div>
+          {showDetails && <section className="pc-card"><h3 className="pc-card-title">{tr("ملخص حركة الوردية")}</h3><div className="overflow-x-auto"><table className="pc-table min-w-[540px]"><thead><tr><th className="text-start">{tr("التفاصيل")}</th><th className="text-center">{tr("المبيعات")}</th><th className="text-center">{tr("المردودات")}</th><th className="text-center">{tr("الصافي")}</th></tr></thead><tbody>{methods.map(row => <tr key={row.key}><th className="text-start font-semibold">{row.label}</th><td className="text-center">{money(sales(row.key))}</td><td className="text-center">{money(refunds(row.key))}</td><td className="text-center font-bold">{money(sales(row.key) - refunds(row.key))}</td></tr>)}<tr className="pc-sum"><th className="text-start">{tr("المجموع")}</th><td className="text-center">{money(totalSales)}</td><td className="text-center">{money(totalRefunds)}</td><td className="text-center">{money(totalSales - totalRefunds)}</td></tr></tbody></table></div></section>}
+          <section className="pc-card"><h3 className="pc-card-title">{action === "cash_in" ? tr("تفاصيل الإيداع") : tr("تفاصيل السحب")}</h3><div className="overflow-x-auto"><table className="pc-table min-w-[440px]"><thead><tr><th className="text-start">{tr("العملة")}</th>{showDetails && <th className="text-center">{tr("الرصيد المتاح")}</th>}<th className="text-center">{action === "cash_in" ? tr("مبلغ الإيداع") : tr("مبلغ السحب")}</th><th className="text-center">{tr("المبلغ المقيم (")}{currencyCode})</th></tr></thead><tbody>{currencies.map(row => <tr key={row.currency_id}><th className="text-start"><span className="pc-cur">{row.currency_code}<small>{row.currency_name}</small></span></th>{showDetails && <td className="text-center">{money(available(row.currency_id))}</td>}<td><Input aria-label={tr("{0} {1}", action === "cash_in" ? "إيداع" : "سحب", row.currency_code)} type="number" min="0" max={action === "cash_out" && showDetails ? available(row.currency_id) : undefined} step="0.01" value={movementAmounts[row.currency_id] ?? 0} onFocus={event => event.currentTarget.select()} onChange={event => onMovementAmountChange(row.currency_id, Number(event.target.value))} dir="ltr" /></td><td className="text-center font-bold">{money(Number(movementAmounts[row.currency_id] || 0) * rate(row.currency_id))}</td></tr>)}</tbody></table></div></section>
         </>}
-        {showDetails && <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800"><span className="size-2 rounded-full bg-emerald-500" /><h3 className="text-sm font-bold text-slate-900 dark:text-white">{tr("سجل العهدة في هذه الوردية")}</h3></div><div className="max-h-64 overflow-auto"><table className="w-full min-w-[540px] text-xs"><thead className="sticky top-0 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"><tr><th className="p-3 text-start">{tr("التاريخ والوقت")}</th><th className="p-3 text-start">{tr("العملية")}</th><th className="p-3 text-start">{tr("العملة")}</th><th className="p-3 text-end">{tr("المبلغ")}</th><th className="p-3 text-start">{tr("ملاحظات")}</th></tr></thead><tbody>{movements.map(row => <tr key={row.id} className="border-t border-slate-100 dark:border-slate-800"><td dir="ltr" className="p-3 text-start text-slate-500 dark:text-slate-400">{row.created_at ? new Date(row.created_at).toLocaleString("en-GB") : "—"}</td><td className="p-3 font-medium">{movementLabels[row.movement_type] || row.movement_type}</td><td className="p-3">{row.currency_code || currencyCode}</td><td dir="ltr" className="p-3 text-end font-bold tabular-nums">{money(Number(row.currency_amount ?? row.amount))}</td><td className="max-w-48 truncate p-3 text-slate-500" title={row.note || ""}>{row.note || "—"}</td></tr>)}</tbody></table>{movements.length === 0 && <p className="p-6 text-center text-xs text-slate-500">{tr("لا توجد حركات مسجلة في هذه الوردية")}</p>}</div></section>}
-        {!closing && <div className="space-y-2"><Label htmlFor="custody-note">{tr("ملاحظات")}</Label><Input id="custody-note" value={note} onChange={event => onNoteChange(event.target.value)} placeholder={tr("أضف ملاحظة لهذه العملية (اختياري)")} className="h-10 rounded-xl border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" /></div>}
+        {showDetails && <section className="pc-card"><h3 className="pc-card-title">{tr("سجل العهدة في هذه الوردية")}</h3><div className="max-h-64 overflow-auto"><table className="pc-table min-w-[540px]"><thead><tr><th className="text-start">{tr("التاريخ والوقت")}</th><th className="text-start">{tr("العملية")}</th><th className="text-start">{tr("العملة")}</th><th className="text-end">{tr("المبلغ")}</th><th className="text-start">{tr("ملاحظات")}</th></tr></thead><tbody>{movements.map(row => <tr key={row.id}><td dir="ltr" className="text-start" style={{ color: "var(--pc-muted)" }}>{row.created_at ? new Date(row.created_at).toLocaleString("en-GB") : "—"}</td><td className="font-semibold">{movementLabels[row.movement_type] || row.movement_type}</td><td>{row.currency_code || currencyCode}</td><td dir="ltr" className="text-end font-bold">{money(Number(row.currency_amount ?? row.amount))}</td><td className="max-w-48 truncate" style={{ color: "var(--pc-muted)" }} title={row.note || ""}>{row.note || "—"}</td></tr>)}</tbody></table>{movements.length === 0 && <p className="p-6 text-center text-xs" style={{ color: "var(--pc-muted)" }}>{tr("لا توجد حركات مسجلة في هذه الوردية")}</p>}</div></section>}
+        {!closing && <div className="space-y-2"><Label htmlFor="custody-note">{tr("ملاحظات")}</Label><Input id="custody-note" value={note} onChange={event => onNoteChange(event.target.value)} placeholder={tr("أضف ملاحظة لهذه العملية (اختياري)")} className="!font-normal" /></div>}
       </div>
-      <div className="flex shrink-0 items-center justify-center gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 dark:border-slate-800 dark:bg-slate-950"><Button disabled={busy || !valid} onClick={onConfirm} className="h-11 flex-1 rounded-xl sm:h-10 sm:w-36 sm:flex-none bg-emerald-600 font-bold shadow-sm hover:bg-emerald-700"><Check className="me-2 size-4" />{tr("موافق")}</Button><Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)} className="h-11 flex-1 rounded-xl sm:h-10 sm:w-36 sm:flex-none"><X className="me-2 size-4" />{tr("إلغاء")}</Button></div>
+      <div className="pc-foot"><button type="button" disabled={busy || !valid} onClick={onConfirm} className="pc-confirm"><Check className="size-5" />{tr("موافق")}<kbd>F3</kbd></button><button type="button" disabled={busy} onClick={() => onOpenChange(false)} className="pc-cancel"><X className="size-5" />{tr("إلغاء")}<kbd>Esc</kbd></button></div>
     </DialogContent>
   </Dialog>
 }

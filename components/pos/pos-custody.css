@@ -1,0 +1,139 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   استلام العهدة / العهدة (إيداع، سحب، إغلاق الوردية) — بنمط شاشة الكاشير "Floating dock" (2026-11-18)
+   نفس ألوان pos-workspace.css: لوحة نعناعية، بطاقات بيضاء شبه زجاجية، أزرار كبسولية، وزر تأكيد بتدرّج أخضر.
+   تُستخدم في الكاشير والمطعم (pos-start-session-dialog.tsx و pos-handover-dialog.tsx).
+   ───────────────────────────────────────────────────────────────────────────── */
+.pos-custody {
+  --pc-ink: #12302a;
+  --pc-muted: #5e7c74;
+  --pc-accent: #10a37f;
+  --pc-accent-strong: #0b7f63;
+  --pc-accent-soft: #d8f5ea;
+  --pc-surface: #ffffff;
+  --pc-soft: #f1faf6;
+  --pc-edge: #d9eee6;
+  --pc-shadow: 0 24px 48px -30px rgb(16 92 72 / 45%);
+  color: var(--pc-ink);
+  border: 1px solid rgb(255 255 255 / 85%) !important;
+  border-radius: 28px !important;
+  background:
+    radial-gradient(900px 420px at 100% -10%, #c9f2e3 0%, transparent 60%),
+    radial-gradient(700px 380px at -10% 110%, #dff5ff 0%, transparent 55%),
+    linear-gradient(180deg, #f3fbf8 0%, #eef8f4 100%) !important;
+  box-shadow: 0 40px 90px -40px rgb(16 92 72 / 60%) !important;
+}
+.dark .pos-custody {
+  --pc-ink: #e6f6f0;
+  --pc-muted: #93b3aa;
+  --pc-accent-soft: #123a30;
+  --pc-surface: #0f1d1a;
+  --pc-soft: #12241f;
+  --pc-edge: #1f3a33;
+  --pc-shadow: 0 24px 48px -30px rgb(0 0 0 / 70%);
+  border-color: #1f3a33 !important;
+  background: linear-gradient(180deg, #0b1714 0%, #0d1b18 100%) !important;
+}
+.pos-custody > button[class*="absolute"] { top: 22px; inset-inline-end: 22px; border-radius: 999px; }
+
+/* ── رأس النافذة: شريط أوامر زجاجي مثل شريط الكاشير ── */
+.pos-custody .pc-head {
+  margin: 14px 14px 0; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--pc-accent) 22%, white); border-radius: 22px;
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--pc-accent) 20%, transparent), transparent 60%),
+    linear-gradient(135deg, color-mix(in srgb, var(--pc-accent) 13%, #ffffff), color-mix(in srgb, var(--pc-accent) 6%, #f4fbff));
+  box-shadow: var(--pc-shadow); text-align: start;
+}
+.dark .pos-custody .pc-head { border-color: #1f3a33; background: linear-gradient(135deg, color-mix(in srgb, var(--pc-accent) 22%, #0f1d1a), color-mix(in srgb, var(--pc-accent) 8%, #0f1d1a)); }
+.pos-custody .pc-head-row { display: flex; align-items: center; gap: 12px; padding-inline-end: 34px; }
+.pos-custody .pc-brand { display: grid; flex-shrink: 0; place-items: center; width: 44px; height: 44px; border-radius: 15px; color: #fff; background: linear-gradient(140deg, #34d3a6, var(--pc-accent-strong)); box-shadow: 0 8px 18px -8px var(--pc-accent); }
+.pos-custody .pc-brand svg { width: 21px; height: 21px; }
+.pos-custody .pc-eyebrow { display: block; color: var(--pc-muted); font-size: 10.5px; font-weight: 700; }
+.pos-custody .pc-title { color: var(--pc-ink); font-size: 18px; font-weight: 900; line-height: 1.2; }
+.pos-custody .pc-desc { margin-top: 2px; color: var(--pc-muted); font-size: 12px; }
+.pos-custody .pc-chip { display: inline-flex; flex-shrink: 0; align-items: center; gap: 6px; height: 32px; margin-inline-start: auto; padding: 0 12px; border: 1px solid var(--pc-edge); border-radius: 999px; color: var(--pc-ink); background: var(--pc-surface); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pos-custody .pc-chip svg { width: 15px; height: 15px; color: var(--pc-accent); }
+
+/* ── جسم النافذة ── */
+.pos-custody .pc-body { display: flex; flex-direction: column; gap: 14px; padding: 14px; }
+.pos-custody .pc-card { overflow: hidden; border: 1px solid rgb(255 255 255 / 85%); border-radius: 22px; background: #fbfefd; box-shadow: 0 24px 50px -36px rgb(16 92 72 / 55%), inset 0 1px 0 #fff; }
+.dark .pos-custody .pc-card { border-color: var(--pc-edge); background: var(--pc-surface); box-shadow: none; }
+.pos-custody .pc-card-title { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--pc-edge); color: var(--pc-ink); font-size: 13px; font-weight: 800; }
+.pos-custody .pc-card-title::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--pc-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pc-accent) 18%, transparent); }
+.pos-custody .pc-card-body { padding: 14px 16px; }
+
+/* حقول بيانات للعرض فقط (تاريخ، ساعة، رقم الوردية…) */
+.pos-custody .pc-facts { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.pos-custody .pc-fact { min-width: 0; padding: 10px 14px; border: 1px solid var(--pc-edge); border-radius: 16px; background: var(--pc-soft); }
+.pos-custody .pc-fact span { display: block; color: var(--pc-muted); font-size: 11px; font-weight: 700; }
+.pos-custody .pc-fact strong { display: block; overflow: hidden; color: var(--pc-ink); font-size: 13.5px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* حقول الإدخال: كبسولات مثل حقل البحث في الكاشير */
+.pos-custody input:not([type=checkbox]):not([type=radio]) {
+  height: 44px; border: 1px solid var(--pc-edge); border-radius: 14px; color: var(--pc-ink); background: var(--pc-surface);
+  font-weight: 700; font-variant-numeric: tabular-nums; box-shadow: none;
+}
+.pos-custody input:not([disabled]):focus-visible { border-color: color-mix(in srgb, var(--pc-accent) 50%, white); outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--pc-accent) 16%, transparent); }
+.pos-custody label { color: var(--pc-muted); font-size: 12px; font-weight: 700; }
+
+/* صفوف العملات */
+.pos-custody .pc-rows { display: flex; flex-direction: column; gap: 8px; }
+.pos-custody .pc-rows-head { display: grid; gap: 10px; padding: 0 14px; color: var(--pc-muted); font-size: 11px; font-weight: 800; }
+.pos-custody .pc-row { display: grid; align-items: center; gap: 10px; padding-block: 8px; padding-inline: 14px 8px; border: 1px solid var(--pc-edge); border-radius: 18px; background: var(--pc-surface); }
+.pos-custody .pc-cols-4 { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, .9fr) minmax(0, 1fr); }
+.pos-custody .pc-cur { min-width: 0; font-weight: 900; }
+.pos-custody .pc-cur small { display: block; overflow: hidden; color: var(--pc-muted); font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.pos-custody .pc-num { color: var(--pc-muted); font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pos-custody .pc-strong { color: var(--pc-ink); font-size: 14px; font-weight: 900; font-variant-numeric: tabular-nums; }
+
+/* اختيار عهدة مسلّمة */
+.pos-custody .pc-option { display: grid; width: 100%; gap: 8px; padding: 14px 16px; border: 1px solid var(--pc-edge); border-radius: 18px; color: var(--pc-ink); background: var(--pc-surface); text-align: start; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.pos-custody .pc-option:hover:not(:disabled) { border-color: color-mix(in srgb, var(--pc-accent) 35%, white); transform: translateY(-1px); box-shadow: 0 10px 20px -16px var(--pc-accent); }
+.pos-custody .pc-option[aria-checked=true] { border-color: var(--pc-accent); background: var(--pc-accent-soft); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc-accent) 18%, transparent); }
+.pos-custody .pc-dot { width: 18px; height: 18px; flex-shrink: 0; border: 2px solid #9fbfb6; border-radius: 50%; }
+.pos-custody .pc-option[aria-checked=true] .pc-dot { border-color: var(--pc-accent); background: radial-gradient(circle, var(--pc-accent) 45%, transparent 50%); }
+
+/* الإجمالي: كبسولة "الصافي للدفع" */
+.pos-custody .pc-total { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 18px; padding-block: 10px; padding-inline: 10px 22px; border-radius: 999px; color: #fff; background: linear-gradient(135deg, var(--pc-accent), var(--pc-accent-strong)); box-shadow: 0 16px 28px -16px var(--pc-accent); }
+.pos-custody .pc-total-icon { display: grid; flex-shrink: 0; place-items: center; width: 42px; height: 42px; border-radius: 50%; color: var(--pc-accent-strong); background: #fff; }
+.pos-custody .pc-total-icon svg { width: 20px; height: 20px; }
+.pos-custody .pc-total-item { display: flex; align-items: baseline; gap: 8px; }
+.pos-custody .pc-total-item span { color: rgb(255 255 255 / 85%); font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+.pos-custody .pc-total-item strong { color: #fff; font-size: 24px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pos-custody .pc-total-item.is-plus strong { color: #d9ffe9; }
+.pos-custody .pc-total-item.is-minus strong { color: #ffe0e0; }
+.pos-custody .pc-total-item.is-minus span::after { content: " ▼"; font-size: 9px; }
+@media (max-width: 639px) { .pos-custody .pc-total { border-radius: 22px; } }
+
+/* تبويبات إيداع / سحب / إغلاق: أزرار كبسولية، النشط بتدرّج أخضر */
+.pos-custody .pc-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; padding: 5px; border: 1px solid var(--pc-edge); border-radius: 999px; background: var(--pc-surface); align-self: center; }
+.pos-custody .pc-tab { display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 18px; border-radius: 999px; color: var(--pc-ink); font-size: 13px; font-weight: 800; transition: background-color .15s, color .15s; }
+.pos-custody .pc-tab svg { width: 16px; height: 16px; color: var(--pc-accent); }
+.pos-custody .pc-tab:hover { background: var(--pc-soft); }
+.pos-custody .pc-tab[aria-selected=true] { color: #fff; background: linear-gradient(135deg, #2cc79a, var(--pc-accent-strong)); box-shadow: 0 10px 20px -12px var(--pc-accent); }
+.pos-custody .pc-tab[aria-selected=true] svg { color: #fff; }
+
+/* الجداول */
+.pos-custody .pc-table { width: 100%; font-size: 12.5px; border-collapse: separate; border-spacing: 0; }
+.pos-custody .pc-table thead th { position: sticky; top: 0; padding: 10px 14px; color: var(--pc-muted); background: var(--pc-soft); font-size: 11px; font-weight: 800; }
+.pos-custody .pc-table tbody th, .pos-custody .pc-table tbody td { padding: 9px 14px; border-top: 1px solid var(--pc-edge); }
+.pos-custody .pc-table tbody tr:hover { background: color-mix(in srgb, var(--pc-accent) 5%, transparent); }
+.pos-custody .pc-table td { font-variant-numeric: tabular-nums; }
+.pos-custody .pc-table input { height: 38px; min-width: 96px; text-align: center; }
+.pos-custody .pc-table .pc-sum th, .pos-custody .pc-table .pc-sum td { color: var(--pc-accent-strong); background: var(--pc-accent-soft); font-weight: 900; }
+.dark .pos-custody .pc-table .pc-sum th, .dark .pos-custody .pc-table .pc-sum td { color: #7ee2c3; }
+
+.pos-custody .pc-alert { padding: 10px 16px; border: 1px solid #f6dfae; border-radius: 16px; color: #8a5a12; background: #fdf6e6; font-size: 13px; font-weight: 700; }
+
+/* ── تذييل: زر التأكيد بتدرّج مثل زر الدفع، والإلغاء كبسولة بيضاء ── */
+.pos-custody .pc-foot { display: flex; flex-shrink: 0; justify-content: center; gap: 10px; padding: 12px 14px 14px; }
+.pos-custody .pc-confirm, .pos-custody .pc-cancel { display: inline-flex; flex: 1 1 0; align-items: center; justify-content: center; gap: 8px; max-width: 240px; height: 50px; border-radius: 999px; font-size: 15px; font-weight: 900; transition: transform .15s, box-shadow .15s, opacity .15s; }
+.pos-custody .pc-confirm { border: 0; color: #fff; background: linear-gradient(135deg, #2cc79a, var(--pc-accent-strong)); box-shadow: 0 16px 28px -16px var(--pc-accent); }
+.pos-custody .pc-confirm:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 20px 32px -16px var(--pc-accent); }
+.pos-custody .pc-cancel { border: 1px solid var(--pc-edge); color: var(--pc-ink); background: var(--pc-surface); }
+.pos-custody .pc-cancel:hover:not(:disabled) { border-color: color-mix(in srgb, var(--pc-accent) 35%, white); }
+.pos-custody :is(.pc-confirm, .pc-cancel):disabled { opacity: .45; cursor: not-allowed; }
+.pos-custody .pc-foot kbd { padding: 1px 6px; border: 1px solid currentColor; border-radius: 6px; font: 700 10px/1.3 ui-monospace, monospace; opacity: .7; }
+/* إغلاق الوردية: المعدود / المطلوب / الفرق — شبكة منتظمة بدل التفاف الكبسولة */
+.pos-custody .pc-total:has(.pc-total-item + .pc-total-item) { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); border-radius: 26px; }
+.pos-custody .pc-total:has(.pc-total-item + .pc-total-item) .pc-total-item { flex-direction: column; align-items: flex-start; gap: 6px; }
+@media (max-width: 639px) { .pos-custody .pc-total:has(.pc-total-item + .pc-total-item) { grid-template-columns: repeat(3, minmax(0, 1fr)); } .pos-custody .pc-total:has(.pc-total-item + .pc-total-item) .pc-total-icon { display: none; } }
