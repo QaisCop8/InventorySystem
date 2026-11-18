@@ -110,12 +110,12 @@ export default function CashVan() {
       <VoucherListHero title={tr("البيع المتجول")} subtitle={tr("سيارات التوزيع: مخزون كل سيارة، مبيعاتها، صندوقها ومصاريفها — التحميل والتفريغ بالارسالية الداخلية")}
         icon={Truck} category={tr("المبيعات")} addLabel={tr("تعريف السيارات")} onNew={() => openSectionInNewTab("cars")}
         actions={<Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>} />
-      <VoucherStats stats={[
+      {tab === "vans" && <VoucherStats stats={[
         { label: tr("صافي المبيعات"), value: fmt(totals.sales) },
         { label: tr("نقدية السيارات"), value: fmt(totals.cash) },
         { label: tr("قيمة مخزون السيارات"), value: fmt(totals.stock) },
         { label: tr("المصاريف"), value: fmt(totals.expenses) },
-      ]} />
+      ]} />}
       <div className="inline-flex rounded-xl border bg-white p-1 dark:bg-slate-950">
         {([["vans", tr("متابعة السيارات"), LayoutGrid], ["profit", tr("ربح / خسارة السيارات"), Scale]] as const).map(([value, label, Icon]) => (
           <button key={value} type="button" onClick={() => setTab(value)}
@@ -237,11 +237,10 @@ function CarProfitPanel() {
   }), { gross: 0, expenses: 0, salary: 0, net: 0 }), [rows])
 
   const money = (key: keyof ProfitRow, label: string, extra: Partial<ReportGridColumn<ProfitRow>> = {}): ReportGridColumn<ProfitRow> =>
-    ({ key, label, type: "number", total: true, minWidth: 110, ...extra })
+    ({ key, label, type: "number", total: true, minWidth: 92, ...extra })
   const columns: ReportGridColumn<ProfitRow>[] = [
-    { key: "car_code", label: tr("رقم السيارة"), minWidth: 110 },
-    { key: "name", label: tr("السيارة"), minWidth: 140, render: (row) => <span className="font-semibold">{row.name}{row.plate_number ? <span className="ms-1 text-xs text-slate-500">({row.plate_number})</span> : null}</span> },
-    { key: "salesman_name", label: tr("المندوب"), minWidth: 150 },
+    { key: "name", label: tr("السيارة"), minWidth: 130, value: (row) => `${row.name} (${row.car_code})`, render: (row) => <span className="flex min-w-0 flex-col leading-tight"><span className="truncate font-semibold">{row.name}</span><span className="truncate font-mono text-[11px] text-slate-500">{row.car_code}{row.plate_number ? ` · ${row.plate_number}` : ""}</span></span> },
+    { key: "salesman_name", label: tr("المندوب"), minWidth: 120, render: (row) => <span className="block truncate" title={row.salesman_name}>{row.salesman_name || "—"}</span> },
     money("net_sales", tr("صافي المبيعات")),
     money("cost", tr("كلفة المبيعات")),
     money("gross_profit", tr("ربح الأصناف"), { render: (row) => <span className={row.gross_profit < 0 ? "text-red-600" : ""}>{fmt(row.gross_profit)}{row.unpriced_lines ? <span title={tr("{0} سطر بلا كلفة", row.unpriced_lines)} className="ms-1 text-amber-600">⚠</span> : null}</span> }),
@@ -249,10 +248,9 @@ function CarProfitPanel() {
     money("maintenance", tr("الصيانة")),
     money("insurance", tr("التأمين والترخيص")),
     money("salary", tr("راتب المندوب"), { render: (row) => <span title={tr(SALARY_SOURCE[row.salary_source])} className={row.salary_source === "no_employee" ? "text-amber-600" : ""}>{fmt(row.salary)}</span> }),
-    money("net_profit", tr("صافي الربح / الخسارة"), { minWidth: 140, render: (row) => <span className={`font-bold ${row.net_profit < 0 ? "text-red-600" : "text-emerald-700"}`}>{fmt(row.net_profit)}</span> }),
-    { key: "result", label: tr("النتيجة"), minWidth: 90, value: (row) => row.result === "profit" ? tr("ربح") : tr("خسارة"),
+    money("net_profit", tr("صافي الربح / الخسارة"), { minWidth: 110, render: (row) => <span className={`font-bold ${row.net_profit < 0 ? "text-red-600" : "text-emerald-700"}`}>{fmt(row.net_profit)}</span> }),
+    { key: "result", label: tr("النتيجة"), minWidth: 72, value: (row) => row.result === "profit" ? tr("ربح") : tr("خسارة"),
       render: (row) => <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${row.result === "profit" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"}`}>{row.result === "profit" ? tr("ربح") : tr("خسارة")}</span> },
-    { key: "salary_source", label: tr("مصدر الراتب"), minWidth: 150, value: (row) => tr(SALARY_SOURCE[row.salary_source]) },
   ]
   const missingEmployee = rows.some((row) => row.salary_source === "no_employee")
 
@@ -278,7 +276,7 @@ function CarProfitPanel() {
       {missingEmployee && <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" />{tr("بعض المندوبين غير مرتبطين بموظف — اربطهم من تعريف المندوبين («الموظف المرتبط») ليُحتسب الراتب")}</p>}
       {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
       <ReportGrid rows={rows} columns={columns} exportFileName={tr("ربح وخسارة السيارات")} totalLabel={tr("المجموع")}
-        rowClassName={(row) => row.result === "loss" ? "bg-red-50/40" : undefined} emptyText={tr("لا توجد سيارات")} />
+        rowClassName={(row) => row.result === "loss" ? "bg-red-50/40" : undefined} emptyText={loading ? tr("جاري التحميل...") : tr("لا توجد سيارات")} />
       <p className="text-xs text-muted-foreground">{tr("ربح الأصناف = فواتير المبيعات − المرتجعات من مستودع السيارة مطروحاً منها الكلفة (كتقرير أرباح الأصناف). المصاريف من حسابات مصاريف السيارة. الراتب من كشف رواتب الموظف المرتبط بالمندوب للأشهر المشمولة (أو راتبه الأساسي إن لم يُصرف)، موزّعاً على أيام الفترة.")}</p>
     </div>
   )
