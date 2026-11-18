@@ -53,6 +53,8 @@ const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((par
 const DISH_TONES: [string, string][] = [["#f08a4b", "#d0562a"], ["#5fbf8f", "#2f8a62"], ["#e2b53f", "#b08418"], ["#5fa8d3", "#2c78a3"], ["#e2627b", "#b03a55"], ["#8f7ae0", "#5b45b8"], ["#4fb8b0", "#23807a"], ["#d98a5f", "#a3542b"]]
 const toneIndex = (text: string) => Array.from(text).reduce((sum, char) => sum + char.charCodeAt(0), 0) % DISH_TONES.length
 const toneFor = (text: string) => { const [from, to] = DISH_TONES[toneIndex(text)]; return `linear-gradient(140deg, ${from}, ${to})` }
+// حرف المجموعة بلا "ال" التعريف (كانت أغلب المجموعات تظهر «ا»)
+const groupLetter = (name: string) => (name.trim().replace(/^ال(?=S{2,})/, "")[0] || "•")
 const solidTone = (text: string) => DISH_TONES[toneIndex(text)][1]
 
 function AddonChips({ addons }: { addons?: Addon[] }) {
@@ -209,7 +211,7 @@ export function RestaurantOrder(p: Props) {
         <nav className={`${p.mobileTab === "menu" ? "flex" : "hidden"} ro-rail lg:flex`} aria-label={tr("مجموعات الأصناف")}>
           {categories.map((row) => (
             <button key={row.name} type="button" className="ro-cat" aria-pressed={p.category === row.name} onClick={() => p.onCategory(row.name)} title={row.label}>
-              <i style={{ background: row.name === "all" ? "var(--ro-coral)" : solidTone(row.name) }}>{row.name === "all" ? "★" : initials(row.label).slice(0, 1)}</i>
+              <i style={{ background: row.name === "all" ? "var(--ro-coral)" : solidTone(row.name) }}>{row.name === "all" ? "★" : groupLetter(row.label)}</i>
               <span>{row.label}</span>
               <small>{row.count}</small>
             </button>

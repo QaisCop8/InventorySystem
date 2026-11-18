@@ -8,9 +8,9 @@
   --ro-card: #ffffff;
   --ro-ink: #24302b;
   --ro-muted: #8c958f;
-  --ro-forest: #24302b;
-  --ro-forest-2: #2e3c36;
-  --ro-mint: #b9d3c3;
+  --ro-forest: #3b7a66;
+  --ro-forest-2: #458a74;
+  --ro-mint: #dcefe6;
   --ro-coral: #ef6f4c;
   --ro-coral-soft: #fff4ef;
   --ro-shadow: 0 16px 30px -24px rgb(36 48 43 / 70%);
@@ -23,7 +23,7 @@
   --ro-card: #1a2420;
   --ro-ink: #e8efe9;
   --ro-muted: #8fa198;
-  --ro-forest: #0b120f;
+  --ro-forest: #1f4337;
   --ro-forest-2: #16201b;
   --ro-coral-soft: #3a211a;
   --ro-shadow: 0 16px 30px -24px rgb(0 0 0 / 80%);
@@ -47,8 +47,8 @@
 /* ── التخطيط: المجموعات | الأصناف | الطلب ── */
 /* لا display على .ro-rail/.ro-menu/.ro-ticket: CSS خارج الطبقات تتغلب على hidden/flex في Tailwind v4 (تبديل الجوال) */
 .ro-body { display: grid; flex: 1; min-height: 0; grid-template-columns: 1fr; gap: 14px; padding: 12px; }
-@media (min-width: 1024px) { .ro-body { grid-template-columns: 158px minmax(0, 1fr) 360px; } }
-@media (min-width: 1280px) { .ro-body { grid-template-columns: 172px minmax(0, 1fr) 400px; } }
+@media (min-width: 1024px) { .ro-body { grid-template-columns: 210px minmax(0, 1fr) 360px; } }
+@media (min-width: 1280px) { .ro-body { grid-template-columns: 236px minmax(0, 1fr) 400px; } }
 .ro-menu { flex-direction: column; min-height: 0; gap: 10px; }
 
 /* البحث */
@@ -65,7 +65,7 @@
 .ro-cat { display: flex; flex-shrink: 0; align-items: center; gap: 9px; min-height: 52px; padding: 7px 10px; border: 2px solid transparent; border-radius: 18px; color: var(--ro-ink); background: var(--ro-card); box-shadow: var(--ro-shadow); font-size: 13.5px; font-weight: 800; text-align: start; transition: border-color .15s, transform .15s; }
 .ro-cat:hover { transform: translateY(-1px); }
 .ro-cat i { display: grid; flex-shrink: 0; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: #fff; font-size: 14px; font-style: normal; font-weight: 900; }
-.ro-cat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ro-cat span { display: -webkit-box; overflow: hidden; line-height: 1.25; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .ro-cat small { margin-inline-start: auto; color: var(--ro-muted); font-size: 11px; font-weight: 700; }
 .ro-cat[aria-pressed=true] { border-color: var(--ro-coral); background: var(--ro-coral-soft); }
 
@@ -90,7 +90,7 @@
 .ro-empty { padding: 40px; color: var(--ro-muted); text-align: center; }
 
 /* ── بطاقة الطلب: أخضر داكن ── */
-.ro-ticket { flex-direction: column; min-height: 0; padding: 6px; border-radius: 28px; color: #fff; background: var(--ro-forest); box-shadow: 0 30px 50px -34px rgb(36 48 43 / 90%); }
+.ro-ticket { flex-direction: column; min-height: 0; padding: 6px; border-radius: 28px; color: #fff; background: var(--ro-forest); box-shadow: 0 30px 50px -34px rgb(59 122 102 / 90%); }
 .ro-ticket-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 8px; }
 .ro-ticket-head b { font-size: 16px; font-weight: 900; }
 .ro-ticket-head span { color: var(--ro-mint); font-size: 12px; }

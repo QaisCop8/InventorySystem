@@ -1008,12 +1008,13 @@ export default function RestaurantPos() {
       </Dialog>
       {toast}
       {(offline || offlineQueue.length > 0) && (
-        <div className="fixed start-3 top-3 z-[61] max-w-sm rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 shadow-lg print:hidden" role="status">
+        <div className="pointer-events-none fixed left-1/2 top-1.5 z-[61] w-max max-w-[min(32rem,calc(100vw-1rem))] -translate-x-1/2 rounded-full border border-amber-300 bg-amber-50/95 px-3 py-1 text-[11px] font-semibold text-amber-900 shadow print:hidden" role="status">
+          {/* أعلى المنتصف ولا يلتقط النقر (كان يغطي زر «الطاولات») — زر حذف العمليات الفاشلة وحده قابل للنقر */}
           <div>{offline ? tr("دون اتصال — العمل محفوظ على هذا الجهاز") : tr("جاري مزامنة عمليات وقت الانقطاع")}{offlineQueue.filter((op) => op.status === "queued").length ? ` · ${tr("{0} عملية بانتظار المزامنة", offlineQueue.filter((op) => op.status === "queued").length)}` : ""}</div>
           {offlineQueue.some((op) => op.status === "failed") && (
             <div className="mt-1 space-y-0.5 text-rose-700">
               {offlineQueue.filter((op) => op.status === "failed").map((op) => <div key={op.id}>{tr(op.label)}: {op.error}</div>)}
-              <button type="button" className="mt-1 rounded-md bg-rose-600 px-2 py-0.5 text-white" onClick={() => { void confirmYesNo(tr("حذف العمليات الفاشلة نهائياً؟ راجعها قبل الحذف.")).then((ok) => { if (ok) { discardFailedOps(); refreshQueue(); void loadFloor(true) } }) }}>{tr("حذف العمليات الفاشلة")}</button>
+              <button type="button" className="pointer-events-auto mt-1 rounded-md bg-rose-600 px-2 py-0.5 text-white" onClick={() => { void confirmYesNo(tr("حذف العمليات الفاشلة نهائياً؟ راجعها قبل الحذف.")).then((ok) => { if (ok) { discardFailedOps(); refreshQueue(); void loadFloor(true) } }) }}>{tr("حذف العمليات الفاشلة")}</button>
             </div>
           )}
         </div>
