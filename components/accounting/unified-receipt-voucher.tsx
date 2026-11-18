@@ -4,6 +4,7 @@ import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react"
 import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
+import { useMyVan, useVanCar } from "@/lib/use-van-car"
 import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
 import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X, ScanLine, Loader2, Info } from "lucide-react"
 import { cancelChequeReader, readReceivedCheques, sameCode, type ChequeReaderPhase } from "@/lib/cheque-reader"
@@ -571,6 +572,24 @@ export default function UnifiedReceiptVoucher({
   // مقفل بالكامل (نموذج + شبكة الحسابات للقراءة فقط) لكلا الحالتين: مُرحَّل (2) أو ملغي منطقياً
   // (3) — لا فرق بينهما من ناحية إمكانية التعديل، الفرق فقط في نص رسالة تأكيد الحذف أدناه.
   const isLocked = form.status === 2 || form.status === 3
+  // ───── البيع المتجول (2026-11-18): سند قبض جديد لمستخدم مرتبط بمندوب ⇐ مندوبه؛ سند قبض لمندوب سيارة ⇐ حساب
+  // الصندوق مقفل على صندوق السيارة (الخادم يفرضه أيضاً — lib/van-car.ts)
+  const myVan = useMyVan(dialogOpen && isReceipt)
+  const vanCar = useVanCar(form.salesman_id, [], dialogOpen && isReceipt)
+  const vanDefaultAppliedRef = useRef("")
+  useEffect(() => {
+    if (!dialogOpen || !isReceipt || form.id || isLocked || !myVan) return
+    const key = String(form.vch_code || "new")
+    if (vanDefaultAppliedRef.current === key) return
+    vanDefaultAppliedRef.current = key
+    if (!form.salesman_id) onFormChange("salesman_id", myVan.salesman_id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, isReceipt, form.id, form.vch_code, myVan, isLocked])
+  useEffect(() => {
+    if (!vanCar || isLocked || Number(form.cash_account_id) === vanCar.cash_account_id) return
+    onFormChange("cash_account_id", vanCar.cash_account_id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vanCar, isLocked, form.cash_account_id])
   // مندوب الحساب (العميل) المقبوض منه/المدفوع له يُعبّأ تلقائياً عند اختياره (إن كان له مندوب)
   useCustomerDefaultSalesman({ recordId: form.id, accountId: form.to_account_id, locked: isLocked, onSalesman: (salesmanId) => onFormChange("salesman_id", salesmanId) })
   // شارة الحالة في عنوان النافذة: ملغي منطقياً (status=3) تطغى على أي شيء آخر؛ خلاف ذلك
@@ -2543,6 +2562,7 @@ export default function UnifiedReceiptVoucher({
                     </span>
                     {tr("الحسابات الافتراضية")}
                   </div>
+                {vanCar && <div className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">{tr("حساب الصندوق مقفل على صندوق السيارة «{0}»", vanCar.name)}</div>}
                 <div className={isPayment ? "grid gap-4 md:grid-cols-2" : "grid gap-4 md:grid-cols-3"}>
                   <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                     label={tr("حساب الصندوق")}
@@ -2551,7 +2571,7 @@ export default function UnifiedReceiptVoucher({
                     onValueChange={(v) => onFormChange("cash_account_id", v ? Number(v) : null)}
                     costCenters={form.cash_account_cost_centers}
                     onCostCentersChange={(selection) => onFormChange("cash_account_cost_centers", selection)}
-                    disabled={isLocked}
+                    disabled={isLocked || Boolean(vanCar)}
                     requiredTypeValues={[1]}
                   />
                   <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}

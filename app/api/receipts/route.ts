@@ -1,4 +1,5 @@
 import { validateAccountStops } from "@/lib/account-stops"
+import { enforceVanCash } from "@/lib/van-car"
 import { type NextRequest, NextResponse } from "next/server"
 import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql from "@/lib/database"
@@ -64,6 +65,8 @@ async function postHandler(request: NextRequest) {
     const data = await request.json()
     const family = transactionFamilyForVoucherType(Number(data.vch_type))
     if (!family) return NextResponse.json({ error: "نوع الحركة غير صالح" }, { status: 400 })
+    // صندوق السيارة المقفل: نقدية سند مندوب/مستودع سيارة تذهب لصندوق السيارة دائماً (lib/van-car.ts)
+    await enforceVanCash(data)
     const authorization = await authorizeTransaction(request, family, "create", data.branch_id)
     if (!authorization.ok) return authorization.response
     if (Number(data.status || 1) === 2) {
@@ -190,6 +193,8 @@ async function putHandler(request: NextRequest) {
     const data = await request.json()
     const family = transactionFamilyForVoucherType(Number(data.vch_type))
     if (!family) return NextResponse.json({ error: "نوع الحركة غير صالح" }, { status: 400 })
+    // صندوق السيارة المقفل: نقدية سند مندوب/مستودع سيارة تذهب لصندوق السيارة دائماً (lib/van-car.ts)
+    await enforceVanCash(data)
     const action = Number(data.status) === 3 ? "delete" : "update"
     const authorization = await authorizeTransaction(request, family, action, data.branch_id)
     if (!authorization.ok) return authorization.response

@@ -6,6 +6,7 @@ import { useVoucherPricingPermission, voucherPricingPermissionLabel } from "@/co
 import type { VoucherPricingAction } from "@/lib/transaction-permission-definitions"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
+import { useMyVan, useVanCar } from "@/lib/use-van-car"
 import { fetchCustomerDefaultSalesman, useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { computeVoucherTax } from "@/lib/item-vat"
 import { itemVatRateFor, useItemVatRates } from "@/lib/use-item-vat-rates"
@@ -948,6 +949,32 @@ export default function UnifiedSalesDelivery({
   const defaultItemWarehouseIdRef = useRef(defaultItemWarehouseId)
   defaultItemWarehouseIdRef.current = defaultItemWarehouseId
 
+  // ───── البيع المتجول (2026-11-18): المستخدم المرتبط بمندوب سيارة ⇐ سند جديد بمندوبه ومستودع سيارته، والفاتورة/المرتجع
+  // النقدي لمندوب أو مستودع سيارة ⇐ حساب الصندوق مقفل على صندوق السيارة (الخادم يفرضه أيضاً — lib/van-car.ts)
+  const vanCashTypes = voucherType === SALES_INVOICE_VCH_TYPE || voucherType === RETURN_SELL_VCH_TYPE
+  const vanDefaultTypes = vanCashTypes || voucherType === DELIVERY_SELL_VCH_TYPE
+  const myVan = useMyVan(dialogOpen && vanDefaultTypes)
+  const vanCar = useVanCar(form.salesman_id, items.map((row: any) => row.warehouse_id ?? row.store_id), dialogOpen && vanCashTypes && !form.account_id)
+  const vanWarehouseIdRef = useRef<number | null>(null)
+  vanWarehouseIdRef.current = !form.id && myVan?.car?.warehouse_id ? myVan.car.warehouse_id : null
+  const vanDefaultAppliedRef = useRef("")
+  useEffect(() => {
+    if (!dialogOpen || form.id || isLocked || !myVan) return
+    const key = `${gridResetToken}`
+    if (vanDefaultAppliedRef.current === key) return
+    vanDefaultAppliedRef.current = key
+    if (!form.salesman_id) (onDerivedFormChange ?? onFormChange)("salesman_id", myVan.salesman_id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, form.id, myVan, gridResetToken, isLocked])
+  useEffect(() => {
+    if (!vanCar || isLocked || Number(form.cash_account_id) === vanCar.cash_account_id) return
+    const set = onDerivedFormChange ?? onFormChange
+    set("cash_account_id", vanCar.cash_account_id)
+    set("cash_account_code", vanCar.cash_account_code)
+    set("cash_account_name", vanCar.cash_account_name)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vanCar, isLocked, form.cash_account_id])
+
   // تاريخ الانتهاء: يظهر فقط إن كان مفعّلاً بإعدادات السند وكان يوجد فعلياً صنف واحد على الأقل متتبَّع
   // (تاريخ صلاحية أو رقم تشغيلي) بالسند — لا فائدة من عمود يبقى فارغاً دوماً لسند لا يحوي أي صنف متتبَّع.
   const showExpiryColumn =
@@ -1764,7 +1791,8 @@ export default function UnifiedSalesDelivery({
   const resolveDefaultWarehouse = (product: any): { id: number; name: string } | null => {
     const currentWarehouses = warehousesRef.current
     const productWarehouseId = product?.default_store ? Number(product.default_store) : null
-    const candidateId = productWarehouseId || (defaultItemWarehouseIdRef.current ? Number(defaultItemWarehouseIdRef.current) : null)
+    // مندوب سيارة: مستودع السيارة قبل مستودع الصنف الافتراضي
+    const candidateId = vanWarehouseIdRef.current || productWarehouseId || (defaultItemWarehouseIdRef.current ? Number(defaultItemWarehouseIdRef.current) : null)
     if (candidateId) {
       const match = currentWarehouses.find((w) => Number(w.id) === candidateId)
       if (match) return { id: match.id, name: match.warehouse_name }
@@ -3881,6 +3909,7 @@ export default function UnifiedSalesDelivery({
                 {!isDeliveryVoucher && (
                   <div className="space-y-3 rounded-xl border border-slate-200 p-3">
                     <div className="text-sm font-bold text-slate-600">{tr("الحسابات")}</div>
+                    {vanCar && <div className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">{tr("حساب الصندوق مقفل على صندوق السيارة «{0}»", vanCar.name)}</div>}
                     <div className="grid gap-3 md:grid-cols-2">
                       <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                         label={tr("حساب الصندوق *")}
@@ -3893,7 +3922,7 @@ export default function UnifiedSalesDelivery({
                           onFormChange("cash_account_name", account?.name ?? "")
                         }}
                         requiredTypeValues={[1]}
-                        disabled={isLocked}
+                        disabled={isLocked || Boolean(vanCar)}
                       />
                       <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                         label={tr("حساب الضريبة *")}

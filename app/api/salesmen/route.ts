@@ -24,6 +24,8 @@ async function ensureSalesmenSchema() { return runSchemaOnce("app/api/salesmen/r
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS notes TEXT`
   // الموظف المرتبط بالمندوب (2026-11-18): راتبه يدخل في تقرير ربح/خسارة سيارة البيع المتجول
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS employee_id INTEGER`
+  // المستخدم المرتبط بالمندوب (البيع المتجول: تعبئة مندوبه ومستودع وصندوق سيارته عند دخوله — lib/van-car.ts)
+  await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS user_id VARCHAR(64)`
 }) }
 
 
@@ -38,6 +40,10 @@ export async function GET(request: NextRequest) {
     if (requestedCode) {
       const found = await sql`SELECT s.*, supervisor.name AS supervisor_name, account.code AS parent_account_code, account.name AS parent_account_name FROM salesmen s LEFT JOIN salesmen supervisor ON supervisor.id=s.supervisor_id LEFT JOIN account_tbl account ON account.id=s.parent_account_id WHERE UPPER(s.code)=${requestedCode} LIMIT 1`
       return NextResponse.json({ success: true, data: found[0] || null })
+    }
+    if (searchParams.get("users") === "1") {
+      const users = await sql`SELECT user_id::text AS id, COALESCE(NULLIF(full_name, ''), username, user_id::text) AS name, username FROM user_settings WHERE COALESCE(is_deleted, false) = false ORDER BY 2`.catch(() => [])
+      return NextResponse.json({ success: true, data: users })
     }
     if (searchParams.get("employees") === "1") {
       const employees = await sql`SELECT id, employee_code AS code, full_name AS name FROM employees_tbl WHERE COALESCE(status, 1) = 1 ORDER BY employee_code`.catch(() => [])
@@ -104,7 +110,7 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `;
 
-    if (inserted[0]?.id) await sql`UPDATE salesmen SET employee_id = ${Number(data.employee_id) || null} WHERE id = ${inserted[0].id}`
+    if (inserted[0]?.id) await sql`UPDATE salesmen SET employee_id = ${Number(data.employee_id) || null}, user_id = ${String(data.user_id || "").trim() || null} WHERE id = ${inserted[0].id}`
     return NextResponse.json({ success: true, data: { ...inserted[0], employee_id: Number(data.employee_id) || null } });
   } catch (error: any) {
     console.error("POST /salesmen error:", error);
@@ -137,6 +143,7 @@ export async function PUT(request: NextRequest) {
         sales_commission_percent = ${Number(data.sales_commission_percent) || 0}, collection_commission_percent = ${Number(data.collection_commission_percent) || 0},
         portal_active = ${!!data.portal_active}, login_code = ${data.login_code || null}, portal_password = ${data.portal_password || null}, notes = ${data.notes || null},
         employee_id = ${Number(data.employee_id) || null},
+        user_id = ${String(data.user_id || "").trim() || null},
         is_active = COALESCE(${is_active}, is_active),
         updated_at = NOW()
       WHERE id = ${id}

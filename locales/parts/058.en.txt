@@ -148,3 +148,5 @@ License expense
 Insurance
 License
 Insurance and license are annual: the period is charged (their account net over the last 365 days up to «To date») × period days ÷ 365
+Linked user (van sales)
+Cash account is locked to the van cash box «{0}»

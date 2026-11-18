@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { VoucherStats } from "@/components/common/voucher-list-shell"
 import { Pencil, Users } from "lucide-react"
 
-const blank = (parent: Pick<SalesmanRecord, "parent_account_id" | "parent_account_code" | "parent_account_name"> = { parent_account_id: null, parent_account_code: "", parent_account_name: "" }): SalesmanRecord => ({ code: "", name: "", other_name: "", job_title: "", classification: "", region: "", address: "", mobile: "", email: "", ...parent, is_supervisor: false, supervisor_id: null, employee_id: null, sales_commission_percent: 0, collection_commission_percent: 0, portal_active: false, login_code: "", portal_password: "", notes: "", is_active: true })
+const blank = (parent: Pick<SalesmanRecord, "parent_account_id" | "parent_account_code" | "parent_account_name"> = { parent_account_id: null, parent_account_code: "", parent_account_name: "" }): SalesmanRecord => ({ code: "", name: "", other_name: "", job_title: "", classification: "", region: "", address: "", mobile: "", email: "", ...parent, is_supervisor: false, supervisor_id: null, employee_id: null, user_id: null, sales_commission_percent: 0, collection_commission_percent: 0, portal_active: false, login_code: "", portal_password: "", notes: "", is_active: true })
 
 export default function SalesmenPages() {
   const [rows, setRows] = useState<SalesmanRecord[]>([])
