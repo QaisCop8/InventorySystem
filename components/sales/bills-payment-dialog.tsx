@@ -92,20 +92,20 @@ export function BillsPaymentDialog({ open, onOpenChange, voucherId }: { open: bo
                   </div>
                 </div>
                 <div className="max-h-[32vh] overflow-auto">
-                  <table className="w-full min-w-[760px]">
+                  <table className="w-full min-w-[900px]">
                     <thead className="sticky top-0 bg-slate-100 text-xs text-slate-600"><tr>{["#", "النوع", "رقم السند", "التاريخ", ...(isInvoice ? [] : ["الاستحقاق", "أيام التأخير"]), "المبلغ", "المسدّد سابقاً", "المتبقي", "مبلغ التسديد", ""].map((label) => <th key={label} className="whitespace-nowrap px-2 py-2 text-start font-semibold">{label}</th>)}</tr></thead>
                     <tbody>
                       {candidates.map((row, index) => <tr key={row.id} className="border-t">
-                        <td className="px-2 py-1.5 text-muted-foreground">{index + 1}</td>
-                        <td className="px-2 py-1.5">{row.type_label}</td>
-                        <td className="px-2 py-1.5 font-mono font-bold text-indigo-700">{row.vch_code}</td>
-                        <td className="px-2 py-1.5" dir="ltr">{row.vch_date}</td>
-                        {!isInvoice && <><td className="px-2 py-1.5" dir="ltr">{row.due_date || "-"}</td><td className={`px-2 py-1.5 font-semibold ${row.overdue_days ? "text-rose-600" : "text-muted-foreground"}`}>{row.overdue_days || "-"}</td></>}
-                        <td className="px-2 py-1.5" dir="ltr">{fmt(row.amount)} <span className="text-[10px] text-muted-foreground">{row.currency_name}</span></td>
-                        <td className="px-2 py-1.5" dir="ltr">{fmt(row.settled)}</td>
-                        <td className="px-2 py-1.5 font-semibold" dir="ltr">{fmt(row.remaining_in_current)}</td>
-                        <td className="px-2 py-1.5"><Input type="number" min={0} step="0.01" className="h-8 w-28 text-center" disabled={!canEdit || busy} placeholder={fmt(Math.min(row.remaining_in_current, voucher.remaining))} value={amounts[row.id] ?? ""} onChange={(event) => setAmounts((current) => ({ ...current, [row.id]: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); payRow(row) } }} /></td>
-                        <td className="px-2 py-1.5"><Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700" disabled={!canEdit || busy || !voucher.remaining} onClick={() => payRow(row)}><CheckCircle2 className="me-1 h-3.5 w-3.5" />{tr("تسديد")}</Button></td>
+                        <td className="whitespace-nowrap px-2 py-1.5 text-muted-foreground">{index + 1}</td>
+                        <td className="whitespace-nowrap px-2 py-1.5">{row.type_label}</td>
+                        <td className="whitespace-nowrap px-2 py-1.5 font-mono font-bold text-indigo-700">{row.vch_code}</td>
+                        <td className="whitespace-nowrap px-2 py-1.5 text-end tabular-nums" dir="ltr">{row.vch_date}</td>
+                        {!isInvoice && <><td className="whitespace-nowrap px-2 py-1.5 text-end tabular-nums" dir="ltr">{row.due_date || "-"}</td><td className={`whitespace-nowrap px-2 py-1.5 font-semibold ${row.overdue_days ? "text-rose-600" : "text-muted-foreground"}`}>{row.overdue_days || "-"}</td></>}
+                        <td className="whitespace-nowrap px-2 py-1.5 text-end tabular-nums" dir="ltr">{fmt(row.amount)} <span className="text-[10px] text-muted-foreground">{row.currency_name}</span></td>
+                        <td className="whitespace-nowrap px-2 py-1.5 text-end tabular-nums" dir="ltr">{fmt(row.settled)}</td>
+                        <td className="whitespace-nowrap px-2 py-1.5 text-end tabular-nums font-semibold" dir="ltr">{fmt(row.remaining_in_current)}</td>
+                        <td className="whitespace-nowrap px-2 py-1.5"><Input type="number" min={0} step="0.01" className="h-8 w-28 text-center" disabled={!canEdit || busy} placeholder={fmt(Math.min(row.remaining_in_current, voucher.remaining))} value={amounts[row.id] ?? ""} onChange={(event) => setAmounts((current) => ({ ...current, [row.id]: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); payRow(row) } }} /></td>
+                        <td className="whitespace-nowrap px-2 py-1.5"><Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700" disabled={!canEdit || busy || !voucher.remaining} onClick={() => payRow(row)}><CheckCircle2 className="me-1 h-3.5 w-3.5" />{tr("تسديد")}</Button></td>
                       </tr>)}
                       {!candidates.length && <tr><td colSpan={11} className="px-3 py-8 text-center text-muted-foreground">{isInvoice ? tr("لا توجد سندات قبض أو إشعارات أو مرتجعات متاحة لهذا العميل") : tr("لا توجد فواتير مفتوحة لهذا العميل")}</td></tr>}
                     </tbody>
@@ -116,17 +116,17 @@ export function BillsPaymentDialog({ open, onOpenChange, voucherId }: { open: bo
               <section className="rounded-xl border">
                 <div className="border-b bg-white px-3 py-2"><h3 className="font-bold">{isInvoice ? tr("السندات المرتبطة بالفاتورة") : tr("الفواتير المسدّدة بهذا السند")} <span className="font-normal text-muted-foreground">({view?.linked.length || 0})</span></h3></div>
                 <div className="max-h-[26vh] overflow-auto">
-                  <table className="w-full min-w-[640px]">
+                  <table className="w-full min-w-[720px]">
                     <thead className="sticky top-0 bg-slate-100 text-xs text-slate-600"><tr>{["#", "النوع", "رقم السند", "التاريخ", "مبلغ السند", "المبلغ المسدّد", ""].map((label) => <th key={label} className="whitespace-nowrap px-2 py-2 text-start font-semibold">{label}</th>)}</tr></thead>
                     <tbody>
                       {(view?.linked || []).map((row, index) => <tr key={row.id} className="border-t">
-                        <td className="px-2 py-1.5 text-muted-foreground">{index + 1}</td>
-                        <td className="px-2 py-1.5">{row.type_label}</td>
-                        <td className="px-2 py-1.5 font-mono font-bold text-indigo-700">{row.vch_code}</td>
-                        <td className="px-2 py-1.5" dir="ltr">{row.vch_date}</td>
-                        <td className="px-2 py-1.5" dir="ltr">{fmt(row.voucher_amount)} <span className="text-[10px] text-muted-foreground">{row.currency_name}</span></td>
-                        <td className="px-2 py-1.5 font-semibold text-emerald-700" dir="ltr">{fmt(isInvoice ? row.amount : row.payment_amount)}</td>
-                        <td className="px-2 py-1.5"><Button size="sm" variant="outline" className="h-8 border-rose-200 text-rose-600 hover:bg-rose-50" disabled={!view?.can_settle || busy} onClick={() => void post({ action: "remove", id: row.id })}><Link2Off className="me-1 h-3.5 w-3.5" />{tr("فك الربط")}</Button></td>
+                        <td className="whitespace-nowrap px-2 py-1.5 text-muted-foreground">{index + 1}</td>
+                        <td className="whitespace-nowrap px-2 py-1.5">{row.type_label}</td>
+                        <td className="whitespace-nowrap px-2 py-1.5 font-mono font-bold text-indigo-700">{row.vch_code}</td>
+                        <td className="whitespace-nowrap px-2 py-1.5 text-end tabular-nums" dir="ltr">{row.vch_date}</td>
+                        <td className="whitespace-nowrap px-2 py-1.5 text-end tabular-nums" dir="ltr">{fmt(row.voucher_amount)} <span className="text-[10px] text-muted-foreground">{row.currency_name}</span></td>
+                        <td className="whitespace-nowrap px-2 py-1.5 text-end tabular-nums font-semibold text-emerald-700" dir="ltr">{fmt(isInvoice ? row.amount : row.payment_amount)}</td>
+                        <td className="whitespace-nowrap px-2 py-1.5"><Button size="sm" variant="outline" className="h-8 border-rose-200 text-rose-600 hover:bg-rose-50" disabled={!view?.can_settle || busy} onClick={() => void post({ action: "remove", id: row.id })}><Link2Off className="me-1 h-3.5 w-3.5" />{tr("فك الربط")}</Button></td>
                       </tr>)}
                       {!view?.linked.length && <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">{tr("لا يوجد ربط بعد")}</td></tr>}
                     </tbody>
@@ -146,5 +146,5 @@ export function BillsPaymentDialog({ open, onOpenChange, voucherId }: { open: bo
 }
 
 function Info({ label, value, tone = "", wide = false }: { label: string; value: string; tone?: string; wide?: boolean }) {
-  return <div className={`min-w-0 ${wide ? "col-span-2 sm:col-span-1" : ""}`}><div className="text-[11px] text-muted-foreground">{label}</div><div className={`truncate font-bold ${tone}`} dir="auto">{value}</div></div>
+  return <div className={`min-w-0 ${wide ? "col-span-2 sm:col-span-1" : ""}`}><div className="text-[11px] text-muted-foreground">{label}</div><div className={`truncate text-start font-bold tabular-nums ${tone}`}><bdi>{value}</bdi></div></div>
 }

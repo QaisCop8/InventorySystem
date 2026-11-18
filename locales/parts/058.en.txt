@@ -43,3 +43,5 @@ Van cash box
 Insurance & licence expense account
 Fuel expense account
 Maintenance expense account
+A discount given to the customer on this receipt: on save, a credit note for the discount is created automatically on the customer (debit allowed-discount account, credit customer). It cannot exceed the voucher amount; the note is cancelled if the discount is removed or the voucher is cancelled.
+Adding a discount in a receipt requires permission to add a credit note

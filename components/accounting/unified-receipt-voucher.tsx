@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "rea
 import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
-import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X, ScanLine, Loader2 } from "lucide-react"
+import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X, ScanLine, Loader2, Info } from "lucide-react"
 import { cancelChequeReader, readReceivedCheques, sameCode, type ChequeReaderPhase } from "@/lib/cheque-reader"
 import { PinpadPayButton } from "@/components/pinpad/pinpad-pay-button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -37,6 +37,7 @@ import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import * as wjcCore from "@grapecity/wijmo"
 import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import { useAuth } from "@/components/auth/auth-context"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
@@ -2368,30 +2369,6 @@ export default function UnifiedReceiptVoucher({
                         }}
                       />
                     </div>
-                    {isReceipt && (
-                      <div className="grid gap-1.5">
-                        <Label title={canDiscount ? tr("يُنشأ إشعار دائن على العميل بمبلغ الخصم عند الحفظ") : tr("يلزم صلاحية إضافة إشعار دائن")}>
-                          {tr("خصم")}{form.discount_note_code ? <span className="ms-1 text-[11px] font-normal text-emerald-700">({tr("إشعار دائن")} {form.discount_note_code})</span> : null}
-                        </Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          value={numberValue(form.receipt_discount ?? null)}
-                          disabled={isLocked || !canDiscount}
-                          onKeyDown={blockNonNumericKey}
-                          onChange={(e) => onFormChange("receipt_discount" as any, e.target.value ? Number(e.target.value) : null)}
-                          {...selectAllProps}
-                          onBlur={() => {
-                            const discount = Number(form.receipt_discount || 0)
-                            const total = Number(form.amount || 0)
-                            if (discount < 0 || discount > total) {
-                              onFormChange("receipt_discount" as any, null)
-                              toast({ variant: "destructive", title: tr("الخصم يجب ألا يتجاوز مبلغ السند") })
-                            }
-                          }}
-                        />
-                      </div>
-                    )}
                     <div className="grid gap-1.5">
                       <Label>{tr("نقدي")}</Label>
                       <Input
@@ -2431,6 +2408,43 @@ export default function UnifiedReceiptVoucher({
                           onChange={(e) => onFormChange("credit_card_amount", e.target.value ? Number(e.target.value) : null)}
                           {...selectAllProps}
                           onBlur={() => doCalculation("credit_card")}
+                        />
+                      </div>
+                    )}
+                    {/* الخصم آخر الحقول (بعد البطاقات) — يُنشئ إشعار دائن على العميل عند الحفظ */}
+                    {isReceipt && (
+                      <div className="grid gap-1.5">
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Label className="flex w-fit cursor-help items-center gap-1">
+                                {tr("خصم")}<Info className="h-3.5 w-3.5 text-slate-400" />
+                                {form.discount_note_code ? <span className="text-[11px] font-normal text-emerald-700">({tr("إشعار دائن")} {form.discount_note_code})</span> : null}
+                              </Label>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs text-start leading-6" dir={appDir()}>
+                              {canDiscount
+                                ? tr("خصم يُمنح للعميل على هذا السند: عند الحفظ يُنشأ تلقائياً إشعار دائن على العميل بمبلغ الخصم (مدين حساب الخصم المسموح به، دائن العميل). لا يتجاوز مبلغ السند، ويُلغى الإشعار عند حذف الخصم أو إلغاء السند.")
+                                : tr("يلزم صلاحية إضافة إشعار دائن لإدخال خصم في سند القبض")}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={numberValue(form.receipt_discount ?? null)}
+                          disabled={isLocked || !canDiscount}
+                          onKeyDown={blockNonNumericKey}
+                          onChange={(e) => onFormChange("receipt_discount" as any, e.target.value ? Number(e.target.value) : null)}
+                          {...selectAllProps}
+                          onBlur={() => {
+                            const discount = Number(form.receipt_discount || 0)
+                            const total = Number(form.amount || 0)
+                            if (discount < 0 || discount > total) {
+                              onFormChange("receipt_discount" as any, null)
+                              toast({ variant: "destructive", title: tr("الخصم يجب ألا يتجاوز مبلغ السند") })
+                            }
+                          }}
                         />
                       </div>
                     )}
