@@ -28,9 +28,20 @@ type Props = {
 }
 
 /** شكل الطاولة: دائرية/مربعة/مستطيلة بلون حالتها، مع كراسي حولها بعدد المقاعد (حتى 8) */
-function TableShape({ table, occupied }: { table: FloorTable; occupied: boolean }) {
+/** لون الموقع (#rrggbb) ⇐ لون الطاولة الفارغة؛ النص داكن على الألوان الفاتحة */
+function locationTone(color?: string | null) {
+  const hex = /^#?([0-9a-f]{6})$/i.exec(String(color || "").trim())?.[1]
+  if (!hex) return null
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  const light = (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.72
+  return { table: { backgroundColor: `#${hex}`, color: light ? "#0f172a" : "#ffffff", boxShadow: `0 10px 15px -3px #${hex}4d` }, chair: { backgroundColor: `#${hex}99` } }
+}
+
+function TableShape({ table, occupied, color }: { table: FloorTable; occupied: boolean; color?: string | null }) {
   const chairs = Math.min(8, Math.max(2, table.seats || 4))
-  const tone = occupied ? "bg-amber-500 text-white shadow-amber-500/30" : "bg-emerald-500 text-white shadow-emerald-500/30"
+  // الفارغة بلون موقعها (تعريف المواقع ← اللون)، المشغولة كهرمانية لتبقى الحالة واضحة
+  const custom = occupied ? null : locationTone(color)
+  const tone = occupied ? "bg-amber-500 text-white shadow-amber-500/30" : custom ? "" : "bg-emerald-500 text-white shadow-emerald-500/30"
   const shape = table.shape === "round" ? "h-16 w-16 rounded-full" : table.shape === "rect" ? "h-14 w-24 rounded-xl" : "h-16 w-16 rounded-xl"
   return (
     <div className="relative flex h-24 w-full items-center justify-center">
@@ -38,11 +49,11 @@ function TableShape({ table, occupied }: { table: FloorTable; occupied: boolean 
         const angle = (index / chairs) * Math.PI * 2
         const rx = table.shape === "rect" ? 58 : 44, ry = table.shape === "rect" ? 38 : 40
         return (
-          <span key={index} className={`absolute h-3 w-3 rounded-full ${occupied ? "bg-amber-300" : "bg-emerald-300"}`}
-            style={{ transform: `translate(${Math.cos(angle) * rx}px, ${Math.sin(angle) * ry}px)` }} />
+          <span key={index} className={`absolute h-3 w-3 rounded-full ${occupied ? "bg-amber-300" : custom ? "" : "bg-emerald-300"}`}
+            style={{ transform: `translate(${Math.cos(angle) * rx}px, ${Math.sin(angle) * ry}px)`, ...(custom?.chair || {}) }} />
         )
       })}
-      <div className={`relative z-10 flex items-center justify-center px-1 text-center text-lg font-black shadow-lg ${shape} ${tone}`}>
+      <div className={`relative z-10 flex items-center justify-center px-1 text-center text-lg font-black shadow-lg ${shape} ${tone}`} style={custom?.table}>
         <span className="line-clamp-2 leading-tight">{table.name}</span>
       </div>
     </div>
@@ -180,7 +191,7 @@ export function RestaurantFloor(p: Props) {
                   return (
                     <button key={table.id} type="button" disabled={p.busy} onClick={() => p.onTable(table)}
                       className={`flex flex-col rounded-2xl border-2 bg-card p-2 text-center shadow-sm transition active:scale-[0.97] ${billRequested ? "border-indigo-400 hover:border-indigo-600" : occupied ? "border-amber-300 hover:border-amber-500" : "border-transparent hover:border-emerald-400"} ${occupied && mine(table.waiter_id) ? "ring-2 ring-rose-500 ring-offset-1" : ""}`}>
-                      <TableShape table={table} occupied={occupied} />
+                      <TableShape table={table} occupied={occupied} color={location.color} />
                       {occupied ? (
                         <div className="space-y-0.5">
                           <div className="text-base font-black text-amber-700 dark:text-amber-300">{money(table.remaining)}</div>
