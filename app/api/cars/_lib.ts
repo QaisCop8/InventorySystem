@@ -18,6 +18,7 @@ export interface CarDB {
   warehouse_id: number | null
   cash_account_id: number | null
   insurance_account_id: number | null
+  license_account_id: number | null
   fuel_account_id: number | null
   maintenance_account_id: number | null
   created_at: string
@@ -36,6 +37,7 @@ export interface Car {
   warehouse_id: number | null
   cash_account_id: number | null
   insurance_account_id: number | null
+  license_account_id: number | null
   fuel_account_id: number | null
   maintenance_account_id: number | null
   created_at: string
@@ -65,11 +67,13 @@ export const ensureCarsTable = async () => { return runSchemaOnce("app/api/cars/
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS warehouse_id INTEGER`
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS cash_account_id INTEGER`
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS insurance_account_id INTEGER`
+  // 2026-11-18: الترخيص منفصل عن التأمين (كان حساباً واحداً «التأمين والترخيص»)
+  await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS license_account_id INTEGER`
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS fuel_account_id INTEGER`
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS maintenance_account_id INTEGER`
 }) }
 
-export const CAR_SELECT_COLUMNS = "id, car_code, name, plate_number, model, licence_expiry, status, salesman_id, warehouse_id, cash_account_id, insurance_account_id, fuel_account_id, maintenance_account_id, created_at, updated_at"
+export const CAR_SELECT_COLUMNS = "id, car_code, name, plate_number, model, licence_expiry, status, salesman_id, warehouse_id, cash_account_id, insurance_account_id, license_account_id, fuel_account_id, maintenance_account_id, created_at, updated_at"
 
 /** حقول السيارة الإضافية من الطلب (أرقام موجبة أو null). */
 export function carExtraFields(data: any) {
@@ -79,6 +83,7 @@ export function carExtraFields(data: any) {
     warehouse_id: id(data?.warehouse_id),
     cash_account_id: id(data?.cash_account_id),
     insurance_account_id: id(data?.insurance_account_id),
+    license_account_id: id(data?.license_account_id),
     fuel_account_id: id(data?.fuel_account_id),
     maintenance_account_id: id(data?.maintenance_account_id),
   }
@@ -195,6 +200,7 @@ export function toCar(row: CarDB): Car {
     warehouse_id: row.warehouse_id == null ? null : Number(row.warehouse_id),
     cash_account_id: row.cash_account_id == null ? null : Number(row.cash_account_id),
     insurance_account_id: row.insurance_account_id == null ? null : Number(row.insurance_account_id),
+    license_account_id: row.license_account_id == null ? null : Number(row.license_account_id),
     fuel_account_id: row.fuel_account_id == null ? null : Number(row.fuel_account_id),
     maintenance_account_id: row.maintenance_account_id == null ? null : Number(row.maintenance_account_id),
     status: toDisplayStatus(row.status),

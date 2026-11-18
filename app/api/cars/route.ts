@@ -78,9 +78,9 @@ export async function POST(request: NextRequest) {
       try {
         result = await sql`
           INSERT INTO cars (car_code, name, plate_number, model, licence_expiry, status,
-            salesman_id, warehouse_id, cash_account_id, insurance_account_id, fuel_account_id, maintenance_account_id)
+            salesman_id, warehouse_id, cash_account_id, insurance_account_id, license_account_id, fuel_account_id, maintenance_account_id)
           VALUES (${carCode}, ${name}, ${data.plate_number || ""}, ${data.model || ""}, ${data.licence_expiry || null}, ${statusValue},
-            ${extra.salesman_id}, ${extra.warehouse_id}, ${extra.cash_account_id}, ${extra.insurance_account_id}, ${extra.fuel_account_id}, ${extra.maintenance_account_id})
+            ${extra.salesman_id}, ${extra.warehouse_id}, ${extra.cash_account_id}, ${extra.insurance_account_id}, ${extra.license_account_id}, ${extra.fuel_account_id}, ${extra.maintenance_account_id})
           RETURNING ${sql.unsafe(CAR_SELECT_COLUMNS)}
         `
         break

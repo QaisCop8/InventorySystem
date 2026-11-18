@@ -2,7 +2,7 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Truck, RefreshCw, Fuel, Wrench, ShieldCheck, Banknote, PackagePlus, PackageMinus, Loader2, AlertTriangle, Settings2, LayoutGrid, Scale } from "lucide-react"
+import { Truck, RefreshCw, Fuel, Wrench, ShieldCheck, BadgeCheck, Banknote, PackagePlus, PackageMinus, Loader2, AlertTriangle, Settings2, LayoutGrid, Scale } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,12 +20,12 @@ import PrimeDropdown from "@/components/common/FocusDropdown"
 type Van = {
   id: number; car_code: string; name: string; plate_number: string | null; salesman_name: string; warehouse_name: string; cash_account_name: string
   cash_account_id: number | null; items_count: number; stock_quantity: number; stock_value: number; sales: number; returns: number; sales_count: number
-  cash_in: number; cash_out: number; cash_balance: number; expenses: { insurance: number; fuel: number; maintenance: number }; expenses_total: number; ready: boolean
+  cash_in: number; cash_out: number; cash_balance: number; expenses: { insurance: number; license: number; fuel: number; maintenance: number }; expenses_total: number; ready: boolean
 }
 type ProfitRow = {
   id: number; car_code: string; name: string; plate_number: string; salesman_name: string; warehouse_name: string; employee_name: string
   sales: number; returns: number; net_sales: number; cost: number; gross_profit: number; unpriced_lines: number
-  insurance: number; fuel: number; maintenance: number; expenses_total: number
+  insurance: number; license: number; fuel: number; maintenance: number; expenses_total: number
   salary: number; salary_source: "payroll" | "basic" | "mixed" | "none" | "no_salesman" | "no_employee"
   net_profit: number; result: "profit" | "loss"; has_warehouse: boolean
 }
@@ -38,11 +38,12 @@ const PRICING = [
   { label: "آخر سعر شراء", value: "last" },
   { label: "داخل أول خارج أول", value: "fifo" },
 ]
-type Kind = "insurance" | "fuel" | "maintenance"
+type Kind = "insurance" | "license" | "fuel" | "maintenance"
 const KINDS: { value: Kind; label: string; icon: any }[] = [
   { value: "fuel", label: "مصروف المحروقات", icon: Fuel },
   { value: "maintenance", label: "مصروف صيانة", icon: Wrench },
-  { value: "insurance", label: "مصروف التامين والترخيص", icon: ShieldCheck },
+  { value: "insurance", label: "مصروف التأمين", icon: ShieldCheck },
+  { value: "license", label: "مصروف الترخيص", icon: BadgeCheck },
 ]
 const today = () => new Date().toISOString().slice(0, 10)
 const fmt = (value: number) => formatAmount(value)
@@ -248,7 +249,8 @@ function CarProfitPanel() {
     money("gross_profit", tr("ربح الأصناف"), { render: (row) => <span className={row.gross_profit < 0 ? "text-red-600" : ""}>{fmt(row.gross_profit)}{row.unpriced_lines ? <span title={tr("{0} سطر بلا كلفة", row.unpriced_lines)} className="ms-1 text-amber-600">⚠</span> : null}</span> }),
     money("fuel", tr("المحروقات")),
     money("maintenance", tr("الصيانة")),
-    money("insurance", tr("التأمين والترخيص")),
+    money("insurance", tr("التأمين")),
+    money("license", tr("الترخيص")),
     money("salary", tr("راتب المندوب"), { render: (row) => <span title={tr(SALARY_SOURCE[row.salary_source])} className={row.salary_source === "no_employee" ? "text-amber-600" : ""}>{fmt(row.salary)}</span> }),
     money("net_profit", tr("صافي الربح / الخسارة"), { minWidth: 110, render: (row) => <span className={`font-bold ${row.net_profit < 0 ? "text-red-600" : "text-emerald-700"}`}>{fmt(row.net_profit)}</span> }),
     { key: "result", label: tr("النتيجة"), minWidth: 72, value: (row) => row.result === "profit" ? tr("ربح") : tr("خسارة"),
@@ -275,6 +277,7 @@ function CarProfitPanel() {
         { label: tr("رواتب المندوبين"), value: fmt(totals.salary) },
         { label: totals.net >= 0 ? tr("صافي الربح") : tr("صافي الخسارة"), value: fmt(totals.net) },
       ]} />
+      <p className="px-1 text-xs text-slate-500">{tr("التأمين والترخيص سنويان: يُحمَّل على الفترة (صافي حسابهما في آخر 365 يوماً حتى «إلى تاريخ») × أيام الفترة ÷ 365")}</p>
       {missingEmployee && <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" />{tr("بعض المندوبين غير مرتبطين بموظف — اربطهم من تعريف المندوبين («الموظف المرتبط») ليُحتسب الراتب")}</p>}
       {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
       <div className="relative">

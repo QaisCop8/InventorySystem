@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const amount = Number(body.amount)
     if (body.action === "expense") {
       const kind = String(body.kind) as CarExpenseKind
-      if (!["insurance", "fuel", "maintenance"].includes(kind)) return NextResponse.json({ error: "نوع المصروف غير صالح" }, { status: 400 })
+      if (!["insurance", "license", "fuel", "maintenance"].includes(kind)) return NextResponse.json({ error: "نوع المصروف غير صالح" }, { status: 400 })
       const journal = await recordCarExpense({ carId: Number(body.car_id), kind, amount, date, paidAccountId: Number(body.paid_account_id) || null, note: String(body.note || ""), userId })
       return NextResponse.json({ journal })
     }

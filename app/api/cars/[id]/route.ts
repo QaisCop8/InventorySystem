@@ -69,7 +69,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       UPDATE cars
       SET car_code = ${carCode}, name = ${name}, plate_number = ${data.plate_number || ""}, model = ${data.model || ""}, licence_expiry = ${data.licence_expiry || null}, status = ${statusValue},
         salesman_id = ${extra.salesman_id}, warehouse_id = ${extra.warehouse_id}, cash_account_id = ${extra.cash_account_id},
-        insurance_account_id = ${extra.insurance_account_id}, fuel_account_id = ${extra.fuel_account_id}, maintenance_account_id = ${extra.maintenance_account_id},
+        insurance_account_id = ${extra.insurance_account_id}, license_account_id = ${extra.license_account_id}, fuel_account_id = ${extra.fuel_account_id}, maintenance_account_id = ${extra.maintenance_account_id},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
       RETURNING ${sql.unsafe(CAR_SELECT_COLUMNS)}

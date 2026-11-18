@@ -23,6 +23,7 @@ const buildEmptyForm = (): CarFormData => ({
   warehouse_id: null,
   cash_account_id: null,
   insurance_account_id: null,
+  license_account_id: null,
   fuel_account_id: null,
   maintenance_account_id: null,
   status: "نشط",
@@ -155,6 +156,7 @@ export default function Cars() {
     warehouse_id: car.warehouse_id ?? null,
     cash_account_id: car.cash_account_id ?? null,
     insurance_account_id: car.insurance_account_id ?? null,
+    license_account_id: car.license_account_id ?? null,
     fuel_account_id: car.fuel_account_id ?? null,
     maintenance_account_id: car.maintenance_account_id ?? null,
   })

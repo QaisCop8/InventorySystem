@@ -141,3 +141,10 @@ On account *
 Enter the payee name when no payee is selected
 Enter the payer name when no payer is selected
 Select «On account»
+Insurance expense account (annual)
+License expense account (annual)
+Insurance expense
+License expense
+Insurance
+License
+Insurance and license are annual: the period is charged (their account net over the last 365 days up to «To date») × period days ÷ 365

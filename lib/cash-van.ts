@@ -8,13 +8,14 @@ import { computeSalesProfitLines, SALES_INVOICE, SALES_RETURN, type PricingWay }
 // التحميل/التفريغ = ارسالية داخلية من/إلى مستودع السيارة، البيع من مستودع السيارة، والنقدية في صندوق السيارة.
 // هنا: ملخص كل سيارة لفترة، وقيدا مصروف السيارة وتسليم النقدية.
 
-export type CarExpenseKind = "insurance" | "fuel" | "maintenance"
+export type CarExpenseKind = "insurance" | "license" | "fuel" | "maintenance"
 export const CAR_EXPENSE_LABELS: Record<CarExpenseKind, string> = {
-  insurance: "مصروف التامين والترخيص",
+  insurance: "مصروف التأمين",
+  license: "مصروف الترخيص",
   fuel: "مصروف المحروقات",
   maintenance: "مصروف صيانة",
 }
-const EXPENSE_COLUMN: Record<CarExpenseKind, string> = { insurance: "insurance_account_id", fuel: "fuel_account_id", maintenance: "maintenance_account_id" }
+const EXPENSE_COLUMN: Record<CarExpenseKind, string> = { insurance: "insurance_account_id", license: "license_account_id", fuel: "fuel_account_id", maintenance: "maintenance_account_id" }
 
 const num = (value: unknown) => Number(value) || 0
 
@@ -72,7 +73,7 @@ export async function cashVanSummary(from: string, to: string) {
       return { debit: num(row?.debit), credit: num(row?.credit), balance: num(row?.balance) }
     }
     const cash = await accountMovement(Number(car.cash_account_id) || null)
-    const expenses: Record<CarExpenseKind, number> = { insurance: 0, fuel: 0, maintenance: 0 }
+    const expenses: Record<CarExpenseKind, number> = { insurance: 0, license: 0, fuel: 0, maintenance: 0 }
     for (const kind of Object.keys(EXPENSE_COLUMN) as CarExpenseKind[]) {
       const movement = await accountMovement(Number(car[EXPENSE_COLUMN[kind]]) || null)
       expenses[kind] = movement.debit - movement.credit
@@ -81,11 +82,11 @@ export async function cashVanSummary(from: string, to: string) {
       id: Number(car.id), car_code: car.car_code, name: car.name, plate_number: car.plate_number,
       salesman_id: car.salesman_id, salesman_name: car.salesman_name || "", warehouse_id: car.warehouse_id, warehouse_name: car.warehouse_name || "",
       cash_account_id: car.cash_account_id, cash_account_name: car.cash_account_name ? `${car.cash_account_name} (${car.cash_account_code})` : "",
-      insurance_account_id: car.insurance_account_id, fuel_account_id: car.fuel_account_id, maintenance_account_id: car.maintenance_account_id,
+      insurance_account_id: car.insurance_account_id, license_account_id: car.license_account_id, fuel_account_id: car.fuel_account_id, maintenance_account_id: car.maintenance_account_id,
       items_count: itemsCount, stock_quantity: stockQuantity, stock_value: stockValue,
       sales: num(sales?.sales), returns: num(sales?.returns), sales_count: num(sales?.sales_count),
       cash_in: cash.debit, cash_out: cash.credit, cash_balance: cash.balance,
-      expenses, expenses_total: expenses.insurance + expenses.fuel + expenses.maintenance,
+      expenses, expenses_total: expenses.insurance + expenses.license + expenses.fuel + expenses.maintenance,
       ready: Boolean(warehouseId && car.salesman_id && car.cash_account_id),
     })
   }
@@ -158,6 +159,19 @@ async function accountNet(accountId: number | null, from: string, to: string) {
 
 const dayMs = 86_400_000
 const utc = (iso: string) => Date.parse(`${iso}T00:00:00Z`)
+const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10)
+
+// التأمين والترخيص سنويان (2026-11-18): لا يُحمَّل على الفترة ما قُيّد فيها، بل حصتها من الكلفة السنوية =
+// (صافي الحساب في الـ365 يوماً المنتهية بـ«إلى تاريخ») × أيام الفترة ÷ 365. مثال: 1600 لفترة 18 يوماً = 1600 × 18 ÷ 365.
+// فترة سنة أو أكثر ⇐ ما قُيّد فعلاً في الفترة.
+const ANNUAL_KINDS = new Set<CarExpenseKind>(["insurance", "license"])
+async function annualShare(accountId: number | null, from: string, to: string) {
+  if (!accountId) return 0
+  const days = Math.round((utc(to) - utc(from)) / dayMs) + 1
+  if (days >= 365) return accountNet(accountId, from, to)
+  const yearly = await accountNet(accountId, isoDay(utc(to) - 364 * dayMs), to)
+  return Math.round(yearly * days / 365 * 1000) / 1000
+}
 
 /** أشهر الفترة مع عدد أيام التداخل وعدد أيام الشهر. */
 function periodMonths(from: string, to: string) {
@@ -236,11 +250,14 @@ export async function carProfitReport(from: string, to: string, pricingWay: Pric
   const rows = []
   for (const car of cars) {
     const items = byWarehouse.get(Number(car.warehouse_id) || -1) || { sales: 0, returns: 0, cost: 0, profit: 0, lines: 0, unpriced: 0 }
-    const expenses: Record<CarExpenseKind, number> = { insurance: 0, fuel: 0, maintenance: 0 }
-    for (const kind of Object.keys(EXPENSE_COLUMN) as CarExpenseKind[]) expenses[kind] = await accountNet(Number(car[EXPENSE_COLUMN[kind]]) || null, from, to)
+    const expenses: Record<CarExpenseKind, number> = { insurance: 0, license: 0, fuel: 0, maintenance: 0 }
+    for (const kind of Object.keys(EXPENSE_COLUMN) as CarExpenseKind[]) {
+      const accountId = Number(car[EXPENSE_COLUMN[kind]]) || null
+      expenses[kind] = ANNUAL_KINDS.has(kind) ? await annualShare(accountId, from, to) : await accountNet(accountId, from, to)
+    }
     const link = employeeOf.get(Number(car.salesman_id))
     const salary = link?.employee_id ? salaries.get(Number(link.employee_id)) : undefined
-    const expensesTotal = expenses.insurance + expenses.fuel + expenses.maintenance
+    const expensesTotal = expenses.insurance + expenses.license + expenses.fuel + expenses.maintenance
     const salaryAmount = salary?.amount || 0
     const net = items.profit - expensesTotal - salaryAmount
     rows.push({
@@ -249,7 +266,7 @@ export async function carProfitReport(from: string, to: string, pricingWay: Pric
       employee_name: link?.full_name ? `${link.full_name} (${link.employee_code})` : "",
       sales: items.sales, returns: items.returns, net_sales: items.sales - items.returns, cost: items.cost, gross_profit: items.profit,
       unpriced_lines: items.unpriced,
-      insurance: expenses.insurance, fuel: expenses.fuel, maintenance: expenses.maintenance, expenses_total: expensesTotal,
+      insurance: expenses.insurance, license: expenses.license, fuel: expenses.fuel, maintenance: expenses.maintenance, expenses_total: expensesTotal,
       salary: salaryAmount, salary_source: !car.salesman_id ? "no_salesman" : !link?.employee_id ? "no_employee" : salary?.source || "none",
       net_profit: net, result: net >= 0 ? "profit" : "loss",
       has_warehouse: Boolean(car.warehouse_id),

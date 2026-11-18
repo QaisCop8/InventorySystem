@@ -26,6 +26,7 @@ export interface Car {
   warehouse_id?: number | null
   cash_account_id?: number | null
   insurance_account_id?: number | null
+  license_account_id?: number | null
   fuel_account_id?: number | null
   maintenance_account_id?: number | null
 }
@@ -43,6 +44,7 @@ export interface CarFormData {
   warehouse_id: number | null
   cash_account_id: number | null
   insurance_account_id: number | null
+  license_account_id: number | null
   fuel_account_id: number | null
   maintenance_account_id: number | null
 }
@@ -343,8 +345,9 @@ function CarVanSection({ form, onFormChange }: { form: CarFormData; onFormChange
         </div>
       </FormSection>
       <FormSection icon={<Wallet className="h-4 w-4" />} title={tr("حسابات مصاريف السيارة")}>
-        <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-3">
-          {account("insurance_account_id", tr("حساب مصروف التامين والترخيص"))}
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-4">
+          {account("insurance_account_id", tr("حساب مصروف التأمين (سنوي)"))}
+          {account("license_account_id", tr("حساب مصروف الترخيص (سنوي)"))}
           {account("fuel_account_id", tr("حساب مصروف المحروقات"))}
           {account("maintenance_account_id", tr("حساب مصروف صيانة"))}
         </div>
