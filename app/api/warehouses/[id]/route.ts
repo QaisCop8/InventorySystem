@@ -59,31 +59,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    await ensureWarehousesTable()
-
-    const id = Number(params.id)
-    // فحص الارتباط قبل الحذف: لا يُحذف تعريف مستخدم في تعريفات أخرى أو حركات (lib/delete-guard.ts)
-    const usageRow = (await sql`SELECT * FROM warehouses WHERE id = ${id}`)[0] as any
-    const usages = await findUsages(id, { idColumns: /^(warehouse_id|.+_warehouse_id|store_id|.+_store_id|default_store|main_stock_id)$/, textColumns: /^warehouse$/, excludeTables: ["warehouses", "product_warehouses"], textValues: [usageRow?.warehouse_name, usageRow?.warehouse_code, id] })
-    if (usages.length) return NextResponse.json({ error: usageMessage("المستودع", String(usageRow?.warehouse_name || ""), usages) }, { status: 400 })
-
-    const result = await sql`
-      UPDATE warehouses
-      SET status = 3, is_active = false, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
-      RETURNING *
-    `
-
-    if (result.length === 0) {
-      return NextResponse.json({ error: "المستودع غير موجود" }, { status: 404 })
-    }
-
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error("Error deleting warehouse:", error)
-    return NextResponse.json({ error: "Failed to delete warehouse" }, { status: 500 })
-  }
+// حذف المستودعات أُلغي (2026-11-18 بطلب المستخدم): المستودع يُوقف بحالة «متوقف» بدل الحذف
+export async function DELETE() {
+  return NextResponse.json({ error: "حذف المستودعات غير متاح — غيّر حالة المستودع إلى «متوقف» بدلاً من حذفه" }, { status: 405 })
 }
-

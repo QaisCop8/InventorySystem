@@ -161,3 +161,13 @@ Search user
 {0} users blocked
 All users allowed
 Could not save warehouse permissions
+Warehouse definitions
+Warehouses, their printers, cost centers and user permissions
+Stopped warehouses
+Search by code, name or location
+No matching warehouses
+No location
+Location and printing
+The warehouse code is generated automatically
+Warehouse name *
+Deleting warehouses is not available — set the warehouse status to «Stopped» instead

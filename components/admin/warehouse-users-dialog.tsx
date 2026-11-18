@@ -58,7 +58,7 @@ export function WarehouseUsersDialog({ warehouse, onClose }: { warehouse: { id: 
 
   return (
     <Dialog open={warehouse !== null} onOpenChange={(open) => { if (!open && !saving) onClose() }}>
-      <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-lg">
+      <DialogContent dir={appDir()} onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()} className="w-[calc(100vw-1rem)] max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-emerald-600" />{tr("صلاحيات المستخدمين — {0}", warehouse?.name || "")}</DialogTitle>
         </DialogHeader>
