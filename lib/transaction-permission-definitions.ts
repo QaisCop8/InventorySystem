@@ -444,6 +444,7 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "manufacturing-components-import": "manufacturing_components_import",
   "salesman-commissions": "salesman_commission",
   "cash-van": "cash_van",
+  "quick-sales-order": "sales_order",
   "employee-jobs": "hr_jobs",
   "salary-items": "hr_salary_items",
   "tax-rules": "hr_tax_rules",

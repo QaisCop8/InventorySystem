@@ -189,3 +189,6 @@ NoonERP-System.apk — the full system on mobile
 Not available yet
 NoonERP-Cashier.zip — unzip and run NoonERP-Cashier.exe (cashier only, works offline)
 NoonERP-Restaurant.zip — unzip and run NoonERP-Restaurant.exe (restaurant screen only)
+{0} orders saved in this session
+Enter a sales order quickly
+Cannot run the program from inside the zip.

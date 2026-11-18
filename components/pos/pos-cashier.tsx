@@ -535,7 +535,7 @@ export default function PosCashier(){
   {noPoints&&<div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center text-lg font-bold text-amber-800">{tr("يجب تعريف نقطة بيع اولا")}</div>}
   <div className="pos-topbar">
   <header className="pos-toolbar">
-   <div className="pos-identity"><span className="pos-brand"><ShoppingBag size={25}/></span><div><span className="pos-eyebrow">{tr("مساحة البيع")}</span><h1>{tr("الكاشير")}</h1></div></div>
+   <div className="pos-identity"><span className="pos-brand"><ShoppingBag size={25}/></span><div><h1>{tr("الكاشير")}</h1></div></div>
    <nav className="pos-toolbar-actions" aria-label={tr("إجراءات نقطة البيع")}>
     <button type="button" onClick={()=>requestTransactionAction(()=>{resetTransaction();setMode("sale");setHistorySelected(null);requestAnimationFrame(()=>searchRef.current?.focus())})} disabled={saving||draftSaving||pricingBusy}><Plus size={16}/>{tr("جديد")}</button>
     <button type="button" className="pos-primary-tool" onClick={openCheckout} disabled={!cart.length||saving}><CreditCard size={16}/>{tr("الدفع والحفظ ")}<kbd>F3</kbd></button>

@@ -290,6 +290,7 @@ export const menuItems: MenuItem[] = [
     icon: Truck,
     submenu: [
       { title: tr("طلبية مبيعات"), section: "sales-orders", icon: ClipboardList },
+      { title: tr("طلبية سريعة"), section: "quick-sales-order", icon: ShoppingCart },
       { title: tr("إرسالية مبيعات"), section: "sales-delivery", icon: Truck },
       { title: tr("فاتورة مبيعات"), section: "sales-invoices", icon: FileText },
       { title: tr("إرسالية برسم البيع"), section: "delivery-consignment-sale", icon: ArrowUpCircle },

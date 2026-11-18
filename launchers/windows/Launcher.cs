@@ -42,6 +42,14 @@ static class NoonLauncher
         // ذلك النمط (Assembly.Load من الموارد + كتابة DLL في LocalAppData) جعل Windows Defender يعدّ الملف فيروساً
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
+        // تشغيل الملف من داخل الملف المضغوط مباشرة (ويندوز ينسخ الملف التنفيذي وحده لمجلد مؤقت) ⇐ المكتبات غير موجودة بجانبه
+        string folder = AppDomain.CurrentDomain.BaseDirectory;
+        if (!File.Exists(Path.Combine(folder, "Microsoft.Web.WebView2.Core.dll")) || !File.Exists(Path.Combine(folder, "Microsoft.Web.WebView2.WinForms.dll")) || !Directory.Exists(Path.Combine(folder, Environment.Is64BitProcess ? "x64" : "x86")))
+        {
+            MessageBox.Show("لا يمكن تشغيل البرنامج من داخل الملف المضغوط.\n\nانقر بزر الفأرة الأيمن على الملف المضغوط ← «استخراج الكل» (Extract All)، ثم شغّل " + Title + " من المجلد الناتج — يجب أن تبقى ملفات DLL ومجلدا x64 و x86 بجانبه.\n\nCannot run from inside the zip: extract all files first, then run the program from the extracted folder.",
+                Title, MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1, Rtl);
+            return;
+        }
         Run();
     }
 

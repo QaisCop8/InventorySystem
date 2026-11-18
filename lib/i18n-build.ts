@@ -1,2 +1,2 @@
 // يُولَّد بواسطة scripts/i18n/build-locale.mjs — رقم نسخة القاموس لتجاوز ذاكرة المتصفح بعد كل تحديث للترجمة
-export const I18N_BUILD = "7d10e25bcb"
+export const I18N_BUILD = "a28888167a"

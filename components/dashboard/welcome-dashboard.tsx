@@ -241,12 +241,6 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
           </button>
         </div>
       </div>
-      <nav className="relative mt-5 grid grid-cols-2 gap-2 pb-1 sm:flex sm:flex-wrap" aria-label={tr("إجراءات سريعة")}>
-        {actions.map(action => <button key={action.label} type="button" onClick={() => open(action.section, action.onClick)}
-          className="flex min-w-0 shrink-0 items-center gap-2 rounded-xl bg-white/95 py-1.5 pe-3.5 ps-1.5 text-start text-xs font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white">
-          <span className={cn("grid h-7 w-7 place-items-center rounded-lg", action.tone)}><action.icon className="h-4 w-4" /></span>{action.label}
-        </button>)}
-      </nav>
     </header>
 
     {error && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
