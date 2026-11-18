@@ -68,7 +68,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon, FileSpreadsheet, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound, Eye, Factory, KeyRound, HeartHandshake, HandCoins, MinusCircle, PieChart, Banknote } from "lucide-react"
+  LucideIcon, FileSpreadsheet, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound, Eye, Factory, KeyRound, HeartHandshake, HandCoins, MinusCircle, PieChart, Banknote, ChefHat } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 import { PoweredBy } from "@/components/brand/powered-by"
@@ -409,6 +409,7 @@ export const menuItems: MenuItem[] = [
       { title: tr("المواقع"), section: "restaurant-locations", icon: MapPin },
       { title: tr("الطاولات"), section: "restaurant-tables", icon: LayoutGrid },
       { title: tr("شاشة المطعم"), section: "restaurant-pos", icon: UtensilsCrossed },
+      { title: tr("شاشة المطبخ"), section: "restaurant-kitchen", icon: ChefHat },
       {
         title: tr("التقارير"),
         section: "restaurant-reports",

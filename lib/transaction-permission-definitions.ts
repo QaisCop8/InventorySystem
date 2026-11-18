@@ -174,6 +174,8 @@ export const RESTAURANT_PERMISSIONS = {
   // (يرى الكل). منحها لمرة لكل من لديه الدخول لشاشة المطعم وقت إضافتها (ترحيل في lib/restaurant-waiters.ts)
   manageAllTables: "العمل على طاولات النوادل الآخرين - مطاعم",
   assignWaiter: "تحويل الطاولة لنادل آخر - مطاعم",
+  // شاشة المطبخ (2026-11-18): مستقلة عن «الدخول لشاشة المطعم» — موظف المطبخ لا يحتاج شاشة الطاولات
+  kitchenScreen: "شاشة المطبخ - مطاعم",
 } as const
 
 /** دور «نادل» الافتراضي: يفتح الطاولات ويرسل الطلبات للمطبخ ويطلب الحساب — بلا دفع ولا عهدة ولا خصم ولا حذف بعد الإرسال */
@@ -181,6 +183,14 @@ export const RESTAURANT_WAITER_PERMISSIONS = ["access", "openTable", "takeaway",
 
 export type RestaurantPermission = keyof typeof RESTAURANT_PERMISSIONS
 export const RESTAURANT_SCREEN_SECTION = "restaurant-pos"
+
+export const RESTAURANT_KITCHEN_SECTION = "restaurant-kitchen"
+export function canAccessKitchenScreen(entries: TransactionAccessEntry[] | null): boolean {
+  if (!entries) return true
+  const matches = entries.filter((entry) => String(entry.access_name || "").trim() === RESTAURANT_PERMISSIONS.kitchenScreen)
+  if (!matches.length) return true
+  return matches.every((entry) => entry.is_granted === true || entry.is_granted === 1 || entry.is_granted === "true")
+}
 
 /** الدخول لشاشة المطعم من قائمة صلاحيات المستخدم المخزّنة — قبل وصول الصلاحية للقائمة (لم تُحدَّث بعد) تبقى الشاشة متاحة والخادم يفرضها. */
 export function canAccessRestaurantScreen(entries: TransactionAccessEntry[] | null): boolean {

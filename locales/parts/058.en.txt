@@ -75,3 +75,39 @@ Some salesmen are not linked to an employee — link them in the salesmen defini
 Vans profit and loss
 No cars
 Items profit = sales invoices − returns from the car's warehouse, less their cost (as in the items profit report). Expenses come from the car's expense accounts. Salary comes from the payroll of the employee linked to the salesman for the covered months (or the basic salary if payroll was not run), prorated over the period's days.
+Kitchen display
+Kitchen display - restaurants
+Orders sent to the kitchen — changed orders in a different colour; «Done» when ready or «Cancel» with a reason
+In preparation
+Completed
+Mute sound alert
+Turn on sound alert
+Exit full screen
+Full screen
+Changed orders
+Cancelled by floor
+Late (+20 min)
+Could not load the kitchen display
+No orders in preparation
+No completed orders in the last 12 hours
+Cancel order from the kitchen
+The cancellation and its reason appear on the restaurant screen so the cashier can remove the items or cancel the order.
+Item out of stock
+Order mistake
+Customer request
+Kitchen problem
+Cancellation reason
+Sent at {0}
+{0} min
+Order changed
+Cancelled by floor — stop preparing
+Cancelled by kitchen
+Decrease
+Acknowledged
+Back to preparation
+Cancelled order — acknowledged
+Ready from kitchen
+Kitchen: done
+Kitchen: order cancelled
+Kitchen: cancelled order acknowledged
+Kitchen: back to preparation

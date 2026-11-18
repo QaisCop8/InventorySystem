@@ -6,6 +6,8 @@ import { Lock } from "lucide-react"
 import { useAuth } from "./auth-context"
 import {
   canAccessRestaurantScreen,
+  canAccessKitchenScreen,
+  RESTAURANT_KITCHEN_SECTION,
   canAccessTransactionScreen,
   canAccessUserAdminScreen,
   isUserAdminSection,
@@ -40,6 +42,7 @@ export function useTransactionSectionAccess() {
   }, [user, activeBranchId, permissionVersion])
   return useCallback((section: string | null | undefined) => {
     if (section === RESTAURANT_SCREEN_SECTION) return canAccessRestaurantScreen(entries)
+    if (section === RESTAURANT_KITCHEN_SECTION) return canAccessKitchenScreen(entries)
     // إعدادات المستخدمين والصلاحيات: للمسؤول أو لمن يملك الصلاحية صراحةً (الغياب = منع)
     if (isUserAdminSection(section)) return canAccessUserAdminScreen(entries, user as any)
     const family = transactionFamilyForSection(section)

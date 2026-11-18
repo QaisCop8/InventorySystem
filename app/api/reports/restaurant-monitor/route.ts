@@ -176,6 +176,8 @@ export async function GET(request: NextRequest) {
           description = `إلى ${table(details.to_table_id)} (طلب #${num(details.to_order_id)})`
           break
         }
+        case "kitchen_done": description = (Array.isArray(details.items) ? details.items : []).map((item: any) => `${item.name} × ${qtyText(item.quantity)}`).join("، "); break
+        case "kitchen_reject": description = `السبب: ${details.reason || "—"}`; break
         case "cancel": description = `السبب: ${details.reason || row.cancel_reason || "—"}`; break
         case "pay": case "pay_partial":
           amount = row.pay_amount === null ? null : num(row.pay_amount)

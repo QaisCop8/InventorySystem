@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         SELECT t.id, t.name, t.seats, t.shape, t.location_id,
                o.id AS order_id, o.order_no, o.guests, o.opened_at, o.revision, ot.is_primary,
                COALESCE(us.full_name, us.username, o.opened_by) AS opened_by_name,
-               o.waiter_id, COALESCE(NULLIF(wu.full_name, ''), wu.username, o.waiter_id) AS waiter_name, o.bill_requested_at,
+               o.waiter_id, COALESCE(NULLIF(wu.full_name, ''), wu.username, o.waiter_id) AS waiter_name, o.bill_requested_at, o.kitchen_status, o.kitchen_reason,
                COALESCE(totals.remaining, 0) AS remaining, COALESCE(totals.items, 0) AS items_count,
                COALESCE(paid.amount, 0) AS paid_amount,
                mates.names AS merged_with
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       sql`
         SELECT o.id AS order_id, o.order_no, o.takeaway_name, o.location_id, o.opened_at, o.revision,
                COALESCE(us.full_name, us.username, o.opened_by) AS opened_by_name,
-               o.waiter_id, COALESCE(NULLIF(wu.full_name, ''), wu.username, o.waiter_id) AS waiter_name, o.bill_requested_at,
+               o.waiter_id, COALESCE(NULLIF(wu.full_name, ''), wu.username, o.waiter_id) AS waiter_name, o.bill_requested_at, o.kitchen_status, o.kitchen_reason,
                COALESCE(totals.remaining, 0) AS remaining, COALESCE(totals.items, 0) AS items_count,
                COALESCE(paid.amount, 0) AS paid_amount
         FROM restaurant_orders_tbl o

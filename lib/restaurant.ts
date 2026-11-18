@@ -7,6 +7,7 @@ import { getSessionUser } from "@/lib/tenant-auth"
 import { resolvePosAccounts } from "@/lib/pos-accounts"
 import { getPosCurrencies } from "@/lib/pos-currencies"
 import { actingWaiter, ensureWaiterTables, WAITER_HEADER } from "@/lib/restaurant-waiters"
+import { ensureKitchenColumns } from "@/lib/restaurant-kitchen"
 import {
   RESTAURANT_PERMISSION_CATEGORY,
   RESTAURANT_PERMISSIONS,
@@ -158,6 +159,8 @@ export async function ensureRestaurantTables() {
     `
     // النادل: ملكية الطاولة، طلب الحساب، رمز PIN وتبديل المستخدم، طابور المطبخ (lib/restaurant-waiters.ts)
     await ensureWaiterTables()
+    // شاشة المطبخ: حالة الطلب في المطبخ ولقطة ما رآه (lib/restaurant-kitchen.ts)
+    await ensureKitchenColumns()
   })
 }
 
@@ -183,7 +186,8 @@ export async function restaurantPermissionsFor(userId: string, branchId: number)
   `
   const granted = new Map<number, boolean>(rows.map((row: any) => [Number(row.id), row.is_granted === true]))
   const access = granted.get(ids[0]) === true
-  return Object.fromEntries(keys.map((key, index) => [key, access && granted.get(ids[index]) === true])) as Record<RestaurantPermission, boolean>
+  // شاشة المطبخ لا تتطلب الدخول لشاشة المطعم (موظف المطبخ)
+  return Object.fromEntries(keys.map((key, index) => [key, (access || key === "kitchenScreen") && granted.get(ids[index]) === true])) as Record<RestaurantPermission, boolean>
 }
 
 /**
@@ -213,7 +217,8 @@ export async function authorizeRestaurant(
   }
   const permissions = await restaurantPermissionsFor(user.user_id, branchId)
   // غير ممنوحة ⇐ موافقة لمرة برمز تفعيل من مدير النظام/المسؤول (lib/permission-approvals.ts)، وإلا رفض يحمل permission_required
-  for (const key of ["access", ...required] as RestaurantPermission[]) {
+  const needed = (required.length === 1 && required[0] === "kitchenScreen" ? required : ["access", ...required]) as RestaurantPermission[]
+  for (const key of needed) {
     if (permissions[key]) continue
     // الموافقة تُطلب بجلسة الجهاز ⇐ تُقبل للنادل المبدَّل إليه أو لمستخدم الجهاز
     if (await hasPermissionApproval(user.user_id, "restaurant", key, request.headers.get(APPROVAL_HEADER))

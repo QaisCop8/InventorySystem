@@ -17,6 +17,7 @@ export default function SalesmenPages() {
   const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [loadKey, setLoadKey] = useState(0)
   const [selected, setSelected] = useState<SalesmanRecord | null>(null)
   const [status, setStatus] = useState("active")
   const [defaultParent, setDefaultParent] = useState<Pick<SalesmanRecord, "parent_account_id" | "parent_account_code" | "parent_account_name">>({ parent_account_id: null, parent_account_code: "", parent_account_name: "" })
@@ -37,7 +38,7 @@ export default function SalesmenPages() {
   }
   useEffect(() => { void load(); void loadDefaultParent().catch(() => undefined) }, [])
   const generateCode = async () => { const response = await fetch("/api/salesmen?generate=1"); const data = await response.json(); return response.ok ? String(data.code || "") : "" }
-  const show = async (row?: SalesmanRecord) => { const parent = row ? undefined : await loadDefaultParent().catch(() => defaultParent); setForm(row ? { ...row } : { ...blank(parent), code: await generateCode() }); setOpen(true) }
+  const show = async (row?: SalesmanRecord) => { const parent = row ? undefined : await loadDefaultParent().catch(() => defaultParent); setForm(row ? { ...row } : { ...blank(parent), code: await generateCode() }); setLoadKey((key) => key + 1); setOpen(true) }
   const adjustCode = (value: string) => { const code = value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10); const match = code.match(/^([A-Z]*)(\d*)$/); return match ? `${match[1]}${match[2].padStart(Math.max(0, 10 - match[1].length), "0")}`.slice(0, 10) : code.padEnd(10, "0") }
   const handleCodeBlur = async () => {
     const code = adjustCode(form.code)
@@ -48,17 +49,20 @@ export default function SalesmenPages() {
     }
     const response = await fetch(`/api/salesmen?code=${encodeURIComponent(code)}`)
     const data = await response.json()
-    setForm(data.data ? { ...data.data } : (current) => ({ ...current, code }))
+    // نفس السجل ⇐ تعديل الرمز فقط (لا استبدال النموذج وإلا ظهر كأنه معدّل وأوقف التنقل)
+    if (data.data && Number(data.data.id) !== Number(form.id || 0)) { setForm({ ...data.data }); setLoadKey((key) => key + 1) }
+    else setForm((current) => current.code === code ? current : { ...current, code })
   }
   const navigate = (index: number) => { if (rows[index]) void show(rows[index]) }
-  const save = async () => {
-    if (!form.code.trim() || !form.name.trim()) return messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("رقم واسم المندوب مطلوبان"), life: 5000 }])
+  const save = async (keepOpen = false): Promise<boolean> => {
+    if (!form.code.trim() || !form.name.trim()) { messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("رقم واسم المندوب مطلوبان"), life: 5000 }]); return false }
     setSaving(true)
     const response = await fetch("/api/salesmen", { method: form.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
     const data = await response.json()
     if (!response.ok) messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || tr("تعذر الحفظ"), life: 5000 }])
-    else { await load(); setOpen(false); messagesRef.current?.show?.([{ severity: "success", summary: "", detail: tr("تم حفظ المندوب بنجاح"), life: 4000 }]) }
+    else { await load(); if (!keepOpen) setOpen(false); messagesRef.current?.show?.([{ severity: "success", summary: "", detail: tr("تم حفظ المندوب بنجاح"), life: 4000 }]) }
     setSaving(false)
+    return response.ok
   }
   const remove = async () => { if (!form.id) return; const response = await fetch(`/api/salesmen?id=${form.id}`, { method: "DELETE" }); const data = await response.json(); if (!response.ok) return messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || tr("تعذر حذف المندوب"), life: 5000 }]); await load(); setOpen(false); messagesRef.current?.show?.([{ severity: "success", summary: "", detail: tr("تم حذف المندوب بنجاح"), life: 4000 }]) }
   const filtered = rows.filter((row) => (status === "all" || row.is_active === (status === "active")) && `${row.code} ${row.name} ${row.job_title || ""} ${row.classification || ""} ${row.region || ""}`.toLowerCase().includes(query.toLowerCase()))
@@ -69,6 +73,6 @@ export default function SalesmenPages() {
     <ListActions onEdit={() => selected && void show(selected)} onRefresh={load} onPrint={() => void printReportFrom(document.activeElement as HTMLElement | null)} />
     <FilterBar search={query} onSearch={setQuery} status={status} onStatus={setStatus} count={filtered.length} />
     <Grid rows={filtered} columns={columns} onSelect={setSelected} onDoubleClick={(row) => void show(row)} />
-    <UnifiedSalesmen open={open} form={form} rows={rows} saving={saving} messagesRef={messagesRef} onOpenChange={setOpen} onFormChange={setForm} onCodeBlur={() => void handleCodeBlur()} onNew={() => void show()} onSave={save} onDelete={() => void remove()} onNavigate={navigate} />
+    <UnifiedSalesmen open={open} form={form} rows={rows} saving={saving} messagesRef={messagesRef} onOpenChange={setOpen} onFormChange={setForm} onCodeBlur={() => void handleCodeBlur()} onNew={() => void show()} onSave={save} onDelete={() => void remove()} onNavigate={navigate} loadKey={loadKey} />
   </HrPage>
 }

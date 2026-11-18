@@ -50,17 +50,28 @@ interface UnifiedSalesmenProps {
   onFormChange: (form: SalesmanRecord) => void
   onCodeBlur: () => void
   onNew: () => void
-  onSave: () => void
+  /** keepOpen: حفظ من نافذة «تم تعديل البيانات» ثم متابعة التنقل — يعيد true عند النجاح */
+  onSave: (keepOpen?: boolean) => Promise<boolean | void> | void
   onDelete: () => void
   onNavigate: (index: number) => void
+  /** يزداد مع كل تحميل سجل (فتح/تنقل/جديد) ليُعاد ضبط مرجع التغييرات غير المحفوظة */
+  loadKey: number
 }
 
-export default function UnifiedSalesmen({ open, form, rows, saving, messagesRef, onOpenChange, onFormChange, onCodeBlur, onNew, onSave, onDelete, onNavigate }: UnifiedSalesmenProps) {
+// مقارنة التغييرات: null/""/undefined متساوية والأرقام كنص، ورمز/اسم الحساب الأب مشتقان من رقمه
+const DERIVED_KEYS = new Set(["parent_account_code", "parent_account_name"])
+const dirtyKey = (record: SalesmanRecord) => JSON.stringify(Object.entries(record)
+  .filter(([key, value]) => !DERIVED_KEYS.has(key) && value != null && value !== "")
+  .map(([key, value]) => [key, String(value)])
+  .sort(([a], [b]) => a.localeCompare(b)))
+
+export default function UnifiedSalesmen({ open, form, rows, saving, messagesRef, onOpenChange, onFormChange, onCodeBlur, onNew, onSave, onDelete, onNavigate, loadKey }: UnifiedSalesmenProps) {
   const workspaceTabActive = useWorkspaceTabActive()
   const { fullscreenEnabled } = useWorkspace()
   const index = rows.findIndex((row) => row.id === form.id)
   const nameRef = useRef<HTMLInputElement>(null)
   const initialHashRef = useRef("")
+  const initialNameRef = useRef("")
   const [pendingAction, setPendingAction] = useState<null | (() => void)>(null)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   // الموظف المرتبط بالمندوب: راتبه يُحمَّل على سيارته في تقرير ربح/خسارة البيع المتجول
@@ -74,15 +85,17 @@ export default function UnifiedSalesmen({ open, form, rows, saving, messagesRef,
     return () => { alive = false }
   }, [open])
   const set = (key: keyof SalesmanRecord, value: any) => onFormChange({ ...form, [key]: value })
-  const field = (label: string, key: keyof SalesmanRecord, type = "text", span = "") => <label className={`space-y-2 text-sm ${span}`}><span className="font-medium text-slate-600">{label}</span><Input ref={key === "name" ? nameRef : undefined} className="h-10 rounded-xl border-slate-200 bg-white shadow-sm" type={type} maxLength={key === "code" ? 10 : undefined} value={(form[key] as string | number) ?? ""} onChange={(event) => set(key, key === "code" ? event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) : event.target.value)} onBlur={key === "code" ? onCodeBlur : key === "name" && !form.other_name?.trim() ? () => set("other_name", form.name) : undefined} /></label>
-  const formHash = JSON.stringify(form)
-  useEffect(() => { if (!open) return; initialHashRef.current = JSON.stringify(form); window.requestAnimationFrame(() => nameRef.current?.focus()) }, [open, form.id])
-  const guarded = (action: () => void) => formHash !== initialHashRef.current ? setPendingAction(() => action) : action()
+  const field = (label: string, key: keyof SalesmanRecord, type = "text", span = "") => <label className={`space-y-2 text-sm ${span}`}><span className="font-medium text-slate-600">{label}</span><Input ref={key === "name" ? nameRef : undefined} className="h-10 rounded-xl border-slate-200 bg-white shadow-sm" type={type} maxLength={key === "code" ? 10 : undefined} value={(form[key] as string | number) ?? ""} onChange={(event) => set(key, key === "code" ? event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) : event.target.value)} onBlur={key === "code" ? onCodeBlur : key === "name" && !form.other_name?.trim() && form.name.trim() && form.name !== initialNameRef.current ? () => set("other_name", form.name) : undefined} /></label>
+  const formHash = dirtyKey(form)
+  // نقطة المقارنة تتجدد مع كل تحميل سجل (loadKey) — لا مع form.id فقط، وإلا بقي «جديد» بعد «جديد» متسخاً دائماً
+  useEffect(() => { if (!open) return; initialHashRef.current = dirtyKey(form); initialNameRef.current = form.name; window.requestAnimationFrame(() => nameRef.current?.focus()) }, [open, loadKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const isDirty = () => Boolean(open && formHash !== initialHashRef.current)
+  const guarded = (action: () => void) => isDirty() ? setPendingAction(() => action) : action()
 
   // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
   // التحقق من التغييرات — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
   useNavigationGuard(
-    () => Boolean(open && formHash !== initialHashRef.current),
+    isDirty,
     (continueNavigation) => guarded(continueNavigation),
   )
   // F3 حفظ / F9 حذف وبقية الاختصارات الموحّدة: UniversalToolbar (lib/hotkeys.ts)
@@ -90,10 +103,12 @@ export default function UnifiedSalesmen({ open, form, rows, saving, messagesRef,
 
   return <Dialog open={open} onOpenChange={(next) => next ? onOpenChange(true) : guarded(() => onOpenChange(false))}>
     <DialogContent inline={fullscreenEnabled && open} className="flex max-h-[94vh] w-[98vw] max-w-6xl flex-col overflow-hidden p-0" dir={appDir()}>
-      <UniversalToolbar currentRecord={index >= 0 ? index + 1 : 0} totalRecords={rows.length} onNew={() => guarded(onNew)} onSave={onSave} onDelete={form.id ? () => setDeleteConfirm(true) : undefined} onFirst={() => guarded(() => onNavigate(0))} onPrevious={() => guarded(() => onNavigate(Math.max(0, index - 1)))} onNext={() => guarded(() => onNavigate(Math.min(rows.length - 1, index + 1)))} onLast={() => guarded(() => onNavigate(rows.length - 1))} isSaving={saving} canSave canDelete={!!form.id} isFirstRecord={rows.length === 0 || index === 0} isLastRecord={rows.length === 0 || index === rows.length - 1} />
+      <UniversalToolbar currentRecord={index >= 0 ? index + 1 : 0} totalRecords={rows.length} onNew={() => guarded(onNew)} onSave={() => void onSave()}onDelete={form.id ? () => setDeleteConfirm(true) : undefined} onFirst={() => guarded(() => onNavigate(0))} onPrevious={() => guarded(() => onNavigate(Math.max(0, index - 1)))} onNext={() => guarded(() => onNavigate(Math.min(rows.length - 1, index + 1)))} onLast={() => guarded(() => onNavigate(rows.length - 1))} isSaving={saving} canSave canDelete={!!form.id} isFirstRecord={rows.length === 0 || index === 0} isLastRecord={rows.length === 0 || index === rows.length - 1} />
       <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/60 p-4" onKeyDown={enterAsTab}><Messages innerRef={messagesRef} /><DialogHeader className="mb-4 rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-5 py-3 shadow"><DialogTitle className="text-start text-white">{tr("المندوبين ")}{!form.id && <span className="text-emerald-50">{tr("(إضافة)")}</span>}</DialogTitle></DialogHeader><Card className="border-slate-200 shadow-sm"><CardContent className="space-y-5 p-5"><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{field(tr("رقم المندوب *"), "code")}{field(tr("اسم المندوب *"), "name")}{field(tr("الاسم بالإنجليزي"), "other_name")}{field(tr("الوظيفة"), "job_title")}{field(tr("التصنيف"), "classification")}{field(tr("المنطقة"), "region")}{field(tr("الجوال"), "mobile")}{field(tr("البريد الإلكتروني"), "email")}{field(tr("عمولة المبيعات %"), "sales_commission_percent", "number")}{field(tr("عمولة التحصيل %"), "collection_commission_percent", "number")}<label className="space-y-2 text-sm"><span className="font-medium text-slate-600">{tr("حساب الأب (الحساب الرئيسي)")}</span><AutoCompleteAccount label="" leafOnly={false} value={form.parent_account_code || ""} placeholder={tr("حساب أب المندوبين")} showCostCenterButton={false} requiredTypeValues={[1]} onValueChange={(value) => { if (!value) onFormChange({ ...form, parent_account_id: null, parent_account_code: "", parent_account_name: "" }) }} onAccountSelect={(account) => onFormChange({ ...form, parent_account_id: account?.id ?? null, parent_account_code: account?.code || "", parent_account_name: account?.name || "" })} /></label><label className="fa-field space-y-2 text-sm"><span className="font-medium text-slate-600">{tr("الموظف المرتبط (للراتب)")}</span><PrimeDropdown value={form.employee_id ?? null} options={[{ label: tr("بلا"), value: null }, ...employees]} optionLabel="label" optionValue="value" filter className="invoice-currency-dropdown w-full" panelClassName="invoice-currency-dropdown-panel" appendTo={() => document.body} onChange={(e: any) => set("employee_id", e.value ?? null)} /></label></div><div className="grid gap-4 md:grid-cols-2">{field(tr("العنوان"), "address")}<label className="space-y-2 text-sm"><span className="font-medium text-slate-600">{tr("ملاحظات")}</span><textarea className="min-h-24 w-full rounded-xl border border-slate-200 bg-white p-3 shadow-sm" value={form.notes || ""} onChange={(event) => set("notes", event.target.value)} /></label></div></CardContent></Card></div>
-      <ConfirmDialogYesNo visible={!!pendingAction} message={tr("تم تعديل البيانات، هل تريد الحفظ؟")} showBack onConfirm={() => { const action = pendingAction; setPendingAction(null); onSave(); action?.() }} onCancel={() => { const action = pendingAction; setPendingAction(null); action?.() }} onBack={() => setPendingAction(null)} />
-      <ConfirmDialogYesNo visible={deleteConfirm} message={tr("هل أنت متأكد من حذف المندوب؟")} onConfirm={() => { setDeleteConfirm(false); onDelete() }} onCancel={() => setDeleteConfirm(false)} />
+      <ConfirmDialogYesNo useAppDialog visible={!!pendingAction} message={tr("تم تعديل البيانات، هل تريد الحفظ؟")} showBack
+        onConfirm={() => { const action = pendingAction; setPendingAction(null); void (async () => { if (await onSave(true)) action?.() })() }}
+        onCancel={() => { const action = pendingAction; setPendingAction(null); action?.() }} onBack={() => setPendingAction(null)} onDismiss={() => setPendingAction(null)} />
+      <ConfirmDialogYesNo useAppDialog onDismiss={() => setDeleteConfirm(false)} visible={deleteConfirm} message={tr("هل أنت متأكد من حذف المندوب؟")} onConfirm={() => { setDeleteConfirm(false); onDelete() }} onCancel={() => setDeleteConfirm(false)} />
     </DialogContent>
   </Dialog>
 }

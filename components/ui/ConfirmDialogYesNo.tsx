@@ -29,7 +29,7 @@ interface ConfirmDialogProps {
 
 const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
   visible,
-  title = "تأكيد حذف سند القيد",
+  title: titleProp,
   message = "هل أنت متأكد من الحذف؟",
   onConfirm,
   onCancel,
@@ -45,6 +45,9 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
   hideCancel = false,
 }) => {
   const workspaceTabActive = useWorkspaceTabActive()
+  // العنوان الافتراضي حسب الوضع: «حفظ/لا/رجوع» = تغييرات غير محفوظة، زر واحد = تنبيه، وإلا تأكيد
+  // (كان «تأكيد حذف سند القيد» لكل الشاشات حتى في سؤال حفظ التعديلات)
+  const title = titleProp ?? (showBack ? "تغييرات غير محفوظة" : hideCancel ? "تنبيه" : "تأكيد")
 
   // أول Escape لا يُغلق النافذة — فقط "يُسلّحها"، ويُغلقها الضغط الثاني المتتالي. هذا يمنع
   // إغلاقها فوراً وبشكل غير مقصود بنفس ضغطة الـ Escape التي فتحتها (مثلاً عند تعليق حفظ التغييرات).
@@ -121,7 +124,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
       {/* داخل مساحة الشاشة يضع DialogContent maxWidth كـ style فيُلغي max-w-md وتمتد النافذة بعرض الشاشة كلها أعلى الصفحة؛ نحدّها ونوسّطها هنا */}
       <DialogContent dir={appDir()} hideCloseButton className="top-1/2 z-[1100] max-w-md -translate-y-1/2 rounded-2xl p-6 text-center" style={{ maxWidth: "min(28rem, calc(100% - 1.5rem))" }} onPointerDownOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
         <ShieldAlert className="mx-auto h-10 w-10 text-rose-600" aria-hidden="true" />
-        <DialogTitle>{title}</DialogTitle>
+        <DialogTitle>{tr(title)}</DialogTitle>
         <DialogDescription className="text-center leading-7">{message}</DialogDescription>
         {footer}
       </DialogContent>

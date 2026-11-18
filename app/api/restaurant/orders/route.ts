@@ -20,6 +20,7 @@ import {
   touchOrder,
   restaurantPermissionsFor,
 } from "@/lib/restaurant"
+import { mergeKitchen, splitKitchen, syncKitchen } from "@/lib/restaurant-kitchen"
 import { enqueueTickets, ownsOrder, waiterName, type QueuedTicket } from "@/lib/restaurant-waiters"
 import type { RestaurantPermission } from "@/lib/transaction-permission-definitions"
 import { savePosSaleCore } from "@/app/api/pos/_sale-core"
@@ -70,6 +71,7 @@ const ACTION_PERMISSIONS: Record<string, RestaurantPermission[]> = {
 
 // إجراءات تخص صاحب الطاولة (النادل): بلا «العمل على طاولات النوادل الآخرين» تُرفض على طاولة نادل آخر.
 // الدفع والإغلاق للكاشير على أي طاولة؛ تحويل الطاولة لنادل آخر بصلاحيته المستقلة.
+const KITCHEN_SYNC_ACTIONS = new Set(["add_items", "update_item", "remove_item", "merge", "split", "cancel"])
 const OWNED_ACTIONS = new Set(["update_order", "add_items", "update_item", "remove_item", "transfer", "merge", "unmerge", "split", "cancel", "print"])
 
 async function assertOwns(ctx: Ctx, order: any) {
@@ -308,6 +310,8 @@ async function handleMerge(ctx: Ctx, order: any) {
     const sourceTables = await activeTables(sourceId)
     await sql`UPDATE restaurant_order_items_tbl SET order_id = ${Number(order.id)}, updated_at = NOW() WHERE order_id = ${sourceId}`
     await sql`UPDATE restaurant_order_payments_tbl SET order_id = ${Number(order.id)} WHERE order_id = ${sourceId}`
+    // ما رآه المطبخ من الطلب المدموج ينتقل للهدف (لا يظهر كطلب جديد يُحضَّر مرتين)
+    await mergeKitchen(Number(order.id), sourceId)
     await releaseOrderTables(sourceId)
     for (const row of sourceTables) await attachTable(Number(order.id), Number(row.table_id), false)
     await sql`
@@ -349,21 +353,27 @@ async function handleSplit(ctx: Ctx, order: any) {
   let targetOrderId = Number(target.order_id) || 0
   if (targetOrderId) await assertOwns(ctx, await lockOpenOrder(targetOrderId))
   else targetOrderId = await createOrder(target, ctx, 1, null, String(order.waiter_id || ctx.userId))
+  const kitchenMoves: { fromItemId: number; toItemId: number; quantity: number }[] = []
   for (const line of lines) {
     const item = await orderItem(Number(order.id), line.itemId)
     const remaining = remainingQuantity(item)
     if (line.quantity > remaining + 0.00001) throw fail(`الكمية المفصولة من ${item.product_name} أكبر من غير المدفوع (${remaining})`)
     if (Math.abs(line.quantity - remaining) < 0.00001 && qty(item.paid_quantity) === 0) {
       await sql`UPDATE restaurant_order_items_tbl SET order_id = ${targetOrderId}, updated_at = NOW() WHERE id = ${Number(item.id)}`
+      kitchenMoves.push({ fromItemId: Number(item.id), toItemId: Number(item.id), quantity: line.quantity })
       continue
     }
     await sql`UPDATE restaurant_order_items_tbl SET quantity = quantity - ${line.quantity}, updated_at = NOW() WHERE id = ${Number(item.id)}`
-    await sql`
+    const [copy] = await sql`
       INSERT INTO restaurant_order_items_tbl (order_id, product_id, product_code, product_name, unit_id, unit_name, price, quantity, discount, note, addons, added_by)
       SELECT ${targetOrderId}, product_id, product_code, product_name, unit_id, unit_name, price, ${line.quantity}, discount, note, addons, ${ctx.userId}
       FROM restaurant_order_items_tbl WHERE id = ${Number(item.id)}
+      RETURNING id
     `
+    kitchenMoves.push({ fromItemId: Number(item.id), toItemId: Number(copy.id), quantity: line.quantity })
   }
+  await splitKitchen(Number(order.id), targetOrderId, kitchenMoves)
+  await syncKitchen(targetOrderId)
   await touchOrder(targetOrderId)
   await logRestaurant(Number(order.id), "split", { to_table_id: Number(target.id), to_order_id: targetOrderId, lines }, ctx.userId)
   return { target_order_id: targetOrderId }
@@ -598,6 +608,8 @@ export async function POST(request: NextRequest) {
       const order = await lockOpenOrder(positiveId(data.order_id))
       if (OWNED_ACTIONS.has(action)) await assertOwns(ctx, order)
       const extra = await HANDLERS[action](ctx, order)
+      // شاشة المطبخ: أول إرسال/تعديل بعد ما رآه المطبخ/إلغاء الطلب وهو قيد التحضير (lib/restaurant-kitchen.ts)
+      if (KITCHEN_SYNC_ACTIONS.has(action)) await syncKitchen(Number(order.id))
       if (action !== "print") await touchOrder(Number(order.id))
       return { order_id: Number(order.id), ...(extra || {}) }
     })

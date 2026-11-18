@@ -29,6 +29,10 @@ export const RESTAURANT_MONITOR_ACTIONS = [
   { key: "pay_partial", label: "دفعة جزئية", tone: "success" },
   { key: "close", label: "إغلاق طلب", tone: "success" },
   { key: "cancel", label: "إلغاء طلب", tone: "danger" },
+  { key: "kitchen_done", label: "المطبخ: تم التجهيز", tone: "success" },
+  { key: "kitchen_reject", label: "المطبخ: إلغاء الطلب", tone: "danger" },
+  { key: "kitchen_dismiss", label: "المطبخ: اطلاع على طلب ملغى", tone: "neutral" },
+  { key: "kitchen_recall", label: "المطبخ: إرجاع للتحضير", tone: "warning" },
 ] as const satisfies readonly { key: string; label: string; tone: RestaurantMonitorTone }[]
 
 export type RestaurantMonitorAction = (typeof RESTAURANT_MONITOR_ACTIONS)[number]["key"]

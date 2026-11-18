@@ -63,9 +63,16 @@ export default function Cars() {
   const navigationContinuationRef = useRef<(() => void) | null>(null)
   const initialFormHashRef = useRef("")
 
-  const getFormHash = useCallback((value: CarFormData) => JSON.stringify(value), [])
+  const initialFormRef = useRef<CarFormData | null>(null)
+
+  // null/""/undefined متساوية والأرقام كنص — حتى لا يُعدّ النموذج «معدّلاً» بلا تعديل حقيقي
+  const getFormHash = useCallback((value: CarFormData) => JSON.stringify(Object.entries(value)
+    .filter(([, field]) => field != null && field !== "")
+    .map(([key, field]) => [key, String(field)])
+    .sort(([a], [b]) => a.localeCompare(b))), [])
 
   const syncInitialFormHash = useCallback((value: CarFormData) => {
+    initialFormRef.current = value
     initialFormHashRef.current = getFormHash(value)
   }, [getFormHash])
 
@@ -165,12 +172,12 @@ export default function Cars() {
 
   // السجل كما حُمِّل (للمقارنة): تغيير رقم السيارة وحده لا يُعدّ تعديلاً عند الانتقال بالرقم
   const loadedForm = useCallback((): CarFormData | null => {
-    try { return initialFormHashRef.current ? JSON.parse(initialFormHashRef.current) : null } catch { return null }
+    return initialFormRef.current
   }, [])
   const isDirtyExceptCode = useCallback(() => {
     const base = loadedForm()
-    return Boolean(base) && JSON.stringify({ ...form, car_code: base!.car_code }) !== initialFormHashRef.current
-  }, [form, loadedForm])
+    return Boolean(base) && getFormHash({ ...form, car_code: base!.car_code }) !== initialFormHashRef.current
+  }, [form, getFormHash, loadedForm])
 
   // تبديل السجل (تنقل/رقم السيارة) بعد فحص التغييرات غير المحفوظة: حفظ ثم انتقال / انتقال بلا حفظ / رجوع
   const runGuarded = useCallback((action: () => void) => {

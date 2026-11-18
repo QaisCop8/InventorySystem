@@ -2,11 +2,11 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import type { ReactNode } from "react"
-import { AlertTriangle, Clock, Combine, LayoutGrid, Loader2, Plus, ReceiptText, RefreshCw, ShoppingBag, UserRound, Users, UtensilsCrossed, Wallet } from "lucide-react"
+import { AlertTriangle, Clock, Combine, LayoutGrid, Loader2, Plus, ReceiptText, RefreshCw, ShoppingBag, UserRound, Users, UtensilsCrossed, Wallet, ChefHat } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { money, type FloorLocation, type FloorTable } from "./restaurant-dialogs"
 
-export type Takeaway = { order_id: number; order_no: string; takeaway_name: string | null; location_id: number; opened_at: string; opened_by_name: string | null; remaining: number; items_count: number; paid_amount: number; waiter_id?: string | null; waiter_name?: string | null; bill_requested_at?: string | null }
+export type Takeaway = { order_id: number; order_no: string; takeaway_name: string | null; location_id: number; opened_at: string; opened_by_name: string | null; remaining: number; items_count: number; paid_amount: number; waiter_id?: string | null; waiter_name?: string | null; bill_requested_at?: string | null; kitchen_status?: string | null; kitchen_reason?: string | null }
 export type FloorStatusFilter = "all" | "free" | "busy" | "mine"
 
 export const elapsed = (from: string | null, now: number) => {
@@ -155,6 +155,7 @@ export function RestaurantFloor(p: Props) {
                   {row.paid_amount > 0 && <div className="text-[11px] text-emerald-700">{tr("مدفوع ")}{money(row.paid_amount)}</div>}
                   {row.waiter_name && <div className="truncate text-[11px] text-muted-foreground"><UserRound className="me-0.5 inline h-3 w-3" />{row.waiter_name}</div>}
                   {row.bill_requested_at && <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"><ReceiptText className="h-3 w-3" />{tr("طُلب الحساب")}</div>}
+                  <KitchenBadge status={row.kitchen_status} reason={row.kitchen_reason} />
                 </button>
               ))}
             </div>
@@ -191,6 +192,7 @@ export function RestaurantFloor(p: Props) {
                           {table.paid_amount > 0 && <div className="text-[11px] text-emerald-700">{tr("مدفوع ")}{money(table.paid_amount)}</div>}
                           {table.waiter_name && <div className={`truncate text-[11px] ${mine(table.waiter_id) ? "font-bold text-rose-700" : "text-muted-foreground"}`}><UserRound className="me-0.5 inline h-3 w-3" />{table.waiter_name}</div>}
                           {billRequested && <div className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"><ReceiptText className="h-3 w-3" />{tr("طُلب الحساب")}</div>}
+                          <KitchenBadge status={table.kitchen_status} reason={table.kitchen_reason} />
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-1 text-sm font-bold text-emerald-700"><Plus className="h-4 w-4" />{tr("فتح · ")}{table.seats}{tr(" مقاعد")}</div>
@@ -206,4 +208,11 @@ export function RestaurantFloor(p: Props) {
       </div>
     </div>
   )
+}
+
+/** حالة الطلب في شاشة المطبخ: جاهز (تم) أو ألغاه المطبخ بسبب */
+function KitchenBadge({ status, reason }: { status?: string | null; reason?: string | null }) {
+  if (status === "done") return <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"><ChefHat className="h-3 w-3" />{tr("جاهز من المطبخ")}</div>
+  if (status === "rejected") return <div title={reason || ""} className="mt-1 inline-flex max-w-full items-center gap-1 truncate rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700 dark:bg-red-950 dark:text-red-300"><ChefHat className="h-3 w-3 shrink-0" /><span className="truncate">{tr("ألغاه المطبخ")}{reason ? `: ${reason}` : ""}</span></div>
+  return null
 }

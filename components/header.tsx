@@ -306,6 +306,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
     "restaurant-locations": tr("مواقع المطعم"),
     "restaurant-tables": tr("طاولات المطعم"),
     "restaurant-pos": tr("شاشة المطعم"),
+    "restaurant-kitchen": tr("شاشة المطبخ"),
     "restaurant-monitor-report": tr("مراقبة المطعم"),
     "restaurant-tables-report": tr("تقرير الطاولات"),
     "restaurant-orders-report": tr("طلبات المطعم تفصيلي"),
