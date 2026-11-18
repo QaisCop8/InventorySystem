@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { storedOrderWarehouseIds, storedVoucherWarehouseIds, voucherWarehouseIds, warehouseAccessError } from "@/lib/warehouse-access"
 import { withVoucherAudit } from "@/lib/voucher-audit"
 import { getSalesOrders, getPurchaseOrders, createOrder, createPurchaseOrder } from "@/lib/orders"
 import { createOrderWorkflowStatus } from "@/lib/workflow"
@@ -148,6 +149,9 @@ async function postHandler(request: NextRequest) {
     const authorization = await authorizeTransaction(request, orderFamily, action, orderData?.branch_id)
     if (!authorization.ok) return authorization.response
     orderData.branch_id = authorization.branchId
+    // صلاحيات المستخدمين على المستودعات (lib/warehouse-access.ts)
+    const warehouseError = await warehouseAccessError(request, [...voucherWarehouseIds(orderData, items), ...await storedOrderWarehouseIds(Number(orderData?.id) || 0)])
+    if (warehouseError) return NextResponse.json({ error: warehouseError }, { status: 403 })
 
     if (!orderData) return NextResponse.json({ error: "بيانات الطلبية مطلوبة" }, { status: 400 });
     if (!orderData.customer_name && !orderData.customer_id)

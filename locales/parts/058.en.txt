@@ -155,3 +155,9 @@ Table view
 Show results as a table
 Show items as picture cards
 Double-click to choose
+User permissions — {0}
+Ticked users can save stock, sales, purchase vouchers and orders on this warehouse. Untick to block a user.
+Search user
+{0} users blocked
+All users allowed
+Could not save warehouse permissions

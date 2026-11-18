@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import PrimeDropdown from "@/components/common/FocusDropdown"
-import { Edit, Plus } from "lucide-react"
+import { Edit, Plus, ShieldCheck } from "lucide-react"
+import { WarehouseUsersDialog } from "./warehouse-users-dialog"
 import CostCenterDefaultsEditor, { type CostCenterDefaultValue } from "@/components/common/cost-center-defaults-editor"
 
 interface Warehouse {
@@ -54,6 +55,8 @@ export default function Warehouses() {
   const [loading, setLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState<WarehouseForm>(initialForm)
+  // صلاحيات المستخدمين على المستودع (lib/warehouse-access.ts)
+  const [usersFor, setUsersFor] = useState<{ id: number; name: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
@@ -323,9 +326,14 @@ export default function Warehouses() {
           </div>
           <DialogFooter className="flex items-center justify-between sm:justify-between">
             {form.id > 0 ? (
-              <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
-                {tr("حذف")}
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
+                  {tr("حذف")}
+                </Button>
+                <Button variant="outline" className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={() => setUsersFor({ id: form.id, name: form.warehouse_name })}>
+                  <ShieldCheck className="h-4 w-4" />{tr("صلاحيات المستخدمين")}
+                </Button>
+              </div>
             ) : (
               <div />
             )}
@@ -341,6 +349,7 @@ export default function Warehouses() {
         </DialogContent>
       </Dialog>
 
+      <WarehouseUsersDialog warehouse={usersFor} onClose={() => setUsersFor(null)} />
       <ConfirmDialogYesNo useAppDialog
         visible={showDeleteConfirm}
         message={tr("هل أنت متأكد من حذف هذا المستودع؟")}

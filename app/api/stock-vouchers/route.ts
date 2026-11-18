@@ -1,4 +1,5 @@
 import { validateAccountStops } from "@/lib/account-stops"
+import { storedOrderWarehouseIds, storedVoucherWarehouseIds, voucherWarehouseIds, warehouseAccessError } from "@/lib/warehouse-access"
 import { type NextRequest, NextResponse } from "next/server"
 import { withVoucherAudit } from "@/lib/voucher-audit"
 import { validateNegativeStock } from "@/lib/negative-stock-guard"
@@ -66,6 +67,9 @@ async function postHandler(request: NextRequest) {
     if (!family) return NextResponse.json({ error: "نوع الحركة غير صالح" }, { status: 400 })
     const authorization = await authorizeTransaction(request, family, "create", data.branch_id)
     if (!authorization.ok) return authorization.response
+    // صلاحيات المستخدمين على المستودعات (lib/warehouse-access.ts)
+    const warehouseError = await warehouseAccessError(request, voucherWarehouseIds(data))
+    if (warehouseError) return NextResponse.json({ error: warehouseError }, { status: 403 })
     if (Number(data.status || 1) === 2) {
       const posting = await authorizeTransaction(request, family, "post", authorization.branchId)
       if (!posting.ok) return posting.response
@@ -226,6 +230,9 @@ async function putHandler(request: NextRequest) {
     const action = Number(data.status) === 3 ? "delete" : "update"
     const authorization = await authorizeTransaction(request, family, action, data.branch_id)
     if (!authorization.ok) return authorization.response
+    // صلاحيات المستخدمين على المستودعات (lib/warehouse-access.ts)
+    const warehouseError = await warehouseAccessError(request, [...voucherWarehouseIds(data), ...await storedVoucherWarehouseIds(Number(data.id) || 0)])
+    if (warehouseError) return NextResponse.json({ error: warehouseError }, { status: 403 })
     if (Number(data.status) === 2) {
       const posting = await authorizeTransaction(request, family, "post", authorization.branchId)
       if (!posting.ok) return posting.response

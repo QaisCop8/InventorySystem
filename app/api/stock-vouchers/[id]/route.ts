@@ -1,4 +1,5 @@
 import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
+import { storedOrderWarehouseIds, storedVoucherWarehouseIds, voucherWarehouseIds, warehouseAccessError } from "@/lib/warehouse-access"
 import { type NextRequest, NextResponse } from "next/server"
 import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql from "@/lib/database"
@@ -67,6 +68,9 @@ async function deleteHandler(request: NextRequest, { params }: { params: { id: s
     }
     const authorization = await authorizeStoredVoucher(request, id, "delete")
     if (!authorization.ok) return authorization.response
+    // صلاحيات المستخدمين على المستودعات (lib/warehouse-access.ts)
+    const warehouseError = await warehouseAccessError(request, await storedVoucherWarehouseIds(id))
+    if (warehouseError) return NextResponse.json({ error: warehouseError }, { status: 403 })
     const linkError = await productionLinkError(id)
     if (linkError) return NextResponse.json({ error: linkError }, { status: 409 })
 
