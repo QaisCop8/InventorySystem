@@ -126,3 +126,10 @@ export async function removePosSale(id: string) {
 export async function markPosSaleFailed(sale: PosQueuedSale, error: string) {
   return queuePosSale({ ...sale, attempts: sale.attempts + 1, lastError: error })
 }
+
+/** عمليات العهدة (فتح/استلام/إيداع/سحب/تسليم/إغلاق) تحتاج الخادم — رسالة واضحة دون اتصال بدل "Failed to fetch" (كاشير ومطعم) */
+export function custodyOfflineMessage(action: string) {
+  if (action === "close" || action === "handover") return "لا يمكن تسليم العهدة في حالة العمل دون اتصال"
+  if (action === "cash_in" || action === "cash_out") return "لا يمكن الإيداع أو السحب من العهدة في حالة العمل دون اتصال"
+  return "لا يمكن استلام العهدة في حالة العمل دون اتصال"
+}

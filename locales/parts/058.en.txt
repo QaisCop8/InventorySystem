@@ -132,3 +132,6 @@ Decrease
 Show chat
 Hide bubble
 Drag to move
+Custody cannot be handed over while working offline
+Custody deposits and withdrawals are not possible while working offline
+Custody cannot be received while working offline

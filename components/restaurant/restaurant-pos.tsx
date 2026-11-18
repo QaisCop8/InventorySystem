@@ -2,7 +2,7 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
-import { currentPosTenantKey, loadPosCatalog, savePosCatalog } from "@/lib/pos-offline"
+import { currentPosTenantKey, custodyOfflineMessage, loadPosCatalog, savePosCatalog } from "@/lib/pos-offline"
 import {
   applyOffline, cacheCustody, cachedCustody, cacheFloor, cacheOrder, discardFailedOps, hasOfflineChanges, hasQueuedOps, isNetworkError, OFFLINE_ACTIONS,
   offlineFloor, offlineOps, offlineOrder, setRestaurantOfflineScope, syncRestaurantOffline, type OfflineOp,
@@ -478,7 +478,7 @@ export default function RestaurantPos() {
           action, location_id: custodyLocation, shift_guid: shiftGuid, source_session_id: sourceId, note: custodyNote, amount: custodyAmount,
           currency_amounts: action === "cash_in" || action === "cash_out" ? amountsFor(movementAmounts).filter((row) => row.amount > 0) : amountsFor(custodyAmounts),
         }),
-      })
+      }).catch(() => { throw new Error(tr(custodyOfflineMessage(action))) })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(String(data?.error || "فشلت عملية العهدة"))
       // إيصال تسليم/إغلاق العهدة بنفس طريقة الكاشير
