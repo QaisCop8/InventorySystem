@@ -562,6 +562,10 @@ export default function UnifiedReceiptVoucher({
   const forceChequeBookLeaf = isPayment && disallowManualChequeEntryInPayment
   const customerLabel = isReceipt ? tr("المقبوض منه") : tr("المدفوع له")
   const customerNameLabel = isReceipt ? tr("اسم المقبوض منه") : tr("اسم المدفوع له")
+  // آخر اسم عبّأه اختيار الحساب تلقائياً (لا يُستبدل اسم كتبه المستخدم)
+  const autoNameRef = useRef("")
+  // سند محفوظ: اسمه الحالي يُعامل كاسم معبّأ من حسابه (يتحدّث إن تغيّر الحساب)
+  useEffect(() => { autoNameRef.current = form.account_id ? String(form.customer_name || "").trim() : "" }, [form.id]) // eslint-disable-line react-hooks/exhaustive-deps
   // سند مُرحَّل (status=2): مقفل بالكامل، لا يُعدَّل إلا عبر إلغائه منطقياً (زر حذف).
   const isPosted = form.status === 2
   // مقفل بالكامل (نموذج + شبكة الحسابات للقراءة فقط) لكلا الحالتين: مُرحَّل (2) أو ملغي منطقياً
@@ -2338,13 +2342,18 @@ export default function UnifiedReceiptVoucher({
                 <div className="grid gap-3">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
-                      label={`${customerLabel} *`}
+                      label={customerLabel}
                       valueMode="id"
                       value={numberValue(form.account_id)}
                       onValueChange={(v) => onFormChange("account_id", v ? Number(v) : null)}
                       onAccountSelect={(account) => {
                         if (!account) return
-                        onFormChange("customer_name", account.name)
+                        // الاسم يُعبّأ من الحساب فقط إن كان فارغاً أو ما زال الاسم المعبّأ آلياً من حساب سابق — ما كتبه المستخدم يبقى كما هو
+                        const currentName = String(form.customer_name || "").trim()
+                        if (!currentName || currentName === autoNameRef.current) {
+                          onFormChange("customer_name", account.name)
+                          autoNameRef.current = account.name
+                        }
                         // مطابق لـ setAccount('customer_account') في QabdVoucher.js: يعبّئ to_account
                         // والسطر الأول في شبكة الحسابات بنفس الحساب المختار.
                         onFormChange("to_account_id", account.id)
@@ -2355,7 +2364,8 @@ export default function UnifiedReceiptVoucher({
                       disabled={isLocked}
                     />
                     <div className="grid gap-1.5">
-                      <Label>{customerNameLabel}</Label>
+                      {/* إجباري فقط عند عدم اختيار الحساب */}
+                      <Label>{customerNameLabel}{form.account_id ? "" : " *"}</Label>
                       <Input
                         value={form.customer_name}
                         onChange={(e) => onFormChange("customer_name", e.target.value)}
@@ -2365,7 +2375,7 @@ export default function UnifiedReceiptVoucher({
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
-                      label={tr("على حساب")}
+                      label={tr("على حساب *")}
                       valueMode="id"
                       value={numberValue(form.to_account_id)}
                       onValueChange={(v) => onFormChange("to_account_id", v ? Number(v) : null)}

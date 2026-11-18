@@ -655,7 +655,8 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     }
     if (!(Number(data.rate) > 0)) return tr("سعر الصرف يجب أن يكون أكبر من صفر")
 
-    if (!data.account_id) return tr("يجب اختيار {0}", labels.customerLabel)
+    // «المقبوض منه/المدفوع له» اختياري؛ بدونه يجب كتابة الاسم (2026-11-18 — نفس الفحص في api/receipts validateReceiptParty)
+    if (!data.account_id && !String(data.customer_name || "").trim()) return tr("يجب إدخال اسم {0} عند عدم اختيار {0}", labels.customerLabel)
 
     const cashAmount = Number(data.cash_amount || 0)
     const checkAmount = Number(data.check_amount || 0)
@@ -685,7 +686,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
 
     const journalRows = (data.journal || []).filter((row: VoucherJournalRow) => row.account_id && Number(row.amount || 0) > 0)
     if (journalRows.length === 0) {
-      if (!data.to_account_id) return tr("يجب اختيار حساب مقابل (على حساب) أو إضافة سطر في تبويب الحسابات")
+      if (!data.to_account_id) return tr("يجب اختيار «على حساب» أو إضافة سطر في تبويب الحسابات")
     } else {
       const journalTotal = journalRows.reduce((sum: number, row: VoucherJournalRow) => sum + Number(row.amount || 0), 0)
       if (Math.round((totalAmount - journalTotal) * 100) / 100 !== 0) {

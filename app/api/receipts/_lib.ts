@@ -1388,3 +1388,17 @@ export const markVoucherPrinted = async (voucherId: number): Promise<{ error?: s
   if (result.length === 0) return { error: "السند غير موجود أو غير معتمد" }
   return {}
 }
+
+/**
+ * سند قبض/صرف (2026-11-18): «المقبوض منه/المدفوع له» اختياري؛ بدونه يصبح «اسم المقبوض منه/المدفوع له» إجبارياً.
+ * «على حساب» (أو سطر في تبويب الحسابات) إجباري دائماً — منه يُبنى طرف القيد المقابل.
+ */
+export const validateReceiptParty = (data: any, vchType: number): string | null => {
+  const payment = Number(vchType) === 5
+  if (!Number(data?.account_id) && !String(data?.customer_name || "").trim()) {
+    return payment ? "يجب إدخال اسم المدفوع له عند عدم اختيار المدفوع له" : "يجب إدخال اسم المقبوض منه عند عدم اختيار المقبوض منه"
+  }
+  const hasJournal = (Array.isArray(data?.journal) ? data.journal : []).some((row: any) => row?.account_id && Number(row?.amount || 0) > 0)
+  if (!Number(data?.to_account_id) && !hasJournal) return "يجب اختيار «على حساب»"
+  return null
+}

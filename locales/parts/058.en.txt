@@ -135,3 +135,9 @@ Drag to move
 Custody cannot be handed over while working offline
 Custody deposits and withdrawals are not possible while working offline
 Custody cannot be received while working offline
+Enter the name of {0} when {0} is not selected
+Select «On account» or add a line in the Accounts tab
+On account *
+Enter the payee name when no payee is selected
+Enter the payer name when no payer is selected
+Select «On account»

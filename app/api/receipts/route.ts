@@ -24,6 +24,7 @@ import {
   getVoucherNumberSettings,
   nextVoucherSequence,
   resolveVoucherBookName,
+  validateReceiptParty,
 } from "./_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
 import { workingPeriodErrorMessage } from "@/lib/working-period"
@@ -97,6 +98,8 @@ async function postHandler(request: NextRequest) {
     if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
     const costCenterError = await validateJournalCostCenters(journalRows)
     if (costCenterError) return NextResponse.json({ error: costCenterError }, { status: 400 })
+    const partyError = validateReceiptParty(data, vchType)
+    if (partyError) return NextResponse.json({ error: partyError }, { status: 400 })
     const stopError = await validateAccountStops(journalRows.map((row: any) => row.account_id), vchType, data.vch_date)
     if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
     const checkAccountError = validateCheckAccount(checkAmount, data.check_account_id || null)
@@ -248,6 +251,8 @@ async function putHandler(request: NextRequest) {
       if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
       const costCenterError = await validateJournalCostCenters(journalRows)
       if (costCenterError) return NextResponse.json({ error: costCenterError }, { status: 400 })
+      const partyError = validateReceiptParty(data, vchType)
+      if (partyError) return NextResponse.json({ error: partyError }, { status: 400 })
       const stopError = await validateAccountStops(journalRows.map((row: any) => row.account_id), vchType, data.vch_date)
       if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
       const checkAccountError = validateCheckAccount(checkAmount, data.check_account_id || null)
