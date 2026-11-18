@@ -9,6 +9,8 @@ import sql, {
   toCar,
   toDbStatus,
   type CarDB,
+  CAR_SELECT_COLUMNS,
+  carExtraFields,
 } from "./_lib"
 
 export async function GET(request: NextRequest) {
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
     if (code) {
       const normalizedCode = normalizeCarCode(code)
       const rows: CarDB[] = await sql`
-        SELECT id, car_code, name, plate_number, model, licence_expiry, status, created_at, updated_at
+        SELECT ${sql.unsafe(CAR_SELECT_COLUMNS)}
         FROM cars
         WHERE car_code = ${normalizedCode} AND COALESCE(status, 1) <> 3
         LIMIT 1
@@ -36,7 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     const rows: CarDB[] = await sql`
-      SELECT id, car_code, name, plate_number, model, licence_expiry, status, created_at, updated_at
+      SELECT ${sql.unsafe(CAR_SELECT_COLUMNS)}
       FROM cars
       WHERE COALESCE(status, 1) <> 3
       ORDER BY id
@@ -68,15 +70,18 @@ export async function POST(request: NextRequest) {
     }
 
     const statusValue = toDbStatus(data.status)
+    const extra = carExtraFields(data)
     let carCode = await ensureUniqueCarCode(data.car_code)
     let result: CarDB[] = []
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         result = await sql`
-          INSERT INTO cars (car_code, name, plate_number, model, licence_expiry, status)
-          VALUES (${carCode}, ${name}, ${data.plate_number || ""}, ${data.model || ""}, ${data.licence_expiry || null}, ${statusValue})
-          RETURNING id, car_code, name, plate_number, model, licence_expiry, status, created_at, updated_at
+          INSERT INTO cars (car_code, name, plate_number, model, licence_expiry, status,
+            salesman_id, warehouse_id, cash_account_id, insurance_account_id, fuel_account_id, maintenance_account_id)
+          VALUES (${carCode}, ${name}, ${data.plate_number || ""}, ${data.model || ""}, ${data.licence_expiry || null}, ${statusValue},
+            ${extra.salesman_id}, ${extra.warehouse_id}, ${extra.cash_account_id}, ${extra.insurance_account_id}, ${extra.fuel_account_id}, ${extra.maintenance_account_id})
+          RETURNING ${sql.unsafe(CAR_SELECT_COLUMNS)}
         `
         break
       } catch (error: unknown) {

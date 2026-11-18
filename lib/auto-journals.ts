@@ -28,6 +28,8 @@ export const INTERNAL_VOUCHER = {
   OPENING_BALANCE: 32, // قيود الأرصدة الافتتاحية (استيراد العملاء/الموردين من Excel)
   LANDED_COST: 33, // قيود تحميل تكاليف الشحن والجمارك على الأصناف (lib/landed-costs.ts)
   YEAR_CLOSING: 34, // قيود إقفال السنة المالية (lib/year-end-closing.ts) — لا تظهر في قائمة الدخل
+  CAR_EXPENSE: 35, // مصاريف السيارات (تأمين وترخيص/محروقات/صيانة) — lib/cash-van.ts
+  VAN_CASH_HANDOVER: 36, // تسليم نقدية سيارة البيع المتجول للصندوق الرئيسي — lib/cash-van.ts
 } as const
 
 // The journal voucher screen (receipts/_lib.ts fetchDetails) only loads lines of this type, and every

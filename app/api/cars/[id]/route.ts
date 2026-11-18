@@ -7,6 +7,8 @@ import sql, {
   toCar,
   toDbStatus,
   type CarDB,
+  CAR_SELECT_COLUMNS,
+  carExtraFields,
 } from "../_lib"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     const rows: CarDB[] = await sql`
-      SELECT id, car_code, name, plate_number, model, licence_expiry, status, created_at, updated_at
+      SELECT ${sql.unsafe(CAR_SELECT_COLUMNS)}
       FROM cars
       WHERE id = ${id} AND COALESCE(status, 1) <> 3
       LIMIT 1
@@ -61,12 +63,16 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     const carCode = normalizeCarCode(data.car_code)
     const statusValue = toDbStatus(data.status)
+    const extra = carExtraFields(data)
 
     const rows: CarDB[] = await sql`
       UPDATE cars
-      SET car_code = ${carCode}, name = ${name}, plate_number = ${data.plate_number || ""}, model = ${data.model || ""}, licence_expiry = ${data.licence_expiry || null}, status = ${statusValue}, updated_at = CURRENT_TIMESTAMP
+      SET car_code = ${carCode}, name = ${name}, plate_number = ${data.plate_number || ""}, model = ${data.model || ""}, licence_expiry = ${data.licence_expiry || null}, status = ${statusValue},
+        salesman_id = ${extra.salesman_id}, warehouse_id = ${extra.warehouse_id}, cash_account_id = ${extra.cash_account_id},
+        insurance_account_id = ${extra.insurance_account_id}, fuel_account_id = ${extra.fuel_account_id}, maintenance_account_id = ${extra.maintenance_account_id},
+        updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
-      RETURNING id, car_code, name, plate_number, model, licence_expiry, status, created_at, updated_at
+      RETURNING ${sql.unsafe(CAR_SELECT_COLUMNS)}
     `
 
     if (rows.length === 0) {

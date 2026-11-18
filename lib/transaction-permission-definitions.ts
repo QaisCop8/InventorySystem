@@ -2,6 +2,7 @@ export type TransactionAction = "access" | "view" | "create" | "update" | "delet
 
 export const TRANSACTION_FAMILIES = {
   salesman_commission: "عمولات المندوبين",
+  cash_van: "البيع المتجول",
   sales_invoice: "فاتورة مبيعات",
   sales_delivery: "إرسالية مبيعات",
   consignment_delivery: "إرسالية برسم البيع",
@@ -432,6 +433,7 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "bulk-items": "bulk_items",
   "manufacturing-components-import": "manufacturing_components_import",
   "salesman-commissions": "salesman_commission",
+  "cash-van": "cash_van",
   "employee-jobs": "hr_jobs",
   "salary-items": "hr_salary_items",
   "tax-rules": "hr_tax_rules",

@@ -55,6 +55,7 @@ const ProductGroups = lazyDefault(() => import("@/components/products/product-gr
 const BrandTypes = lazyDefault(() => import("@/components/products/brand-types"))
 const Brands = lazyDefault(() => import("@/components/products/brands"))
 const Cars = lazyDefault(() => import("@/components/products/cars"))
+const CashVan = lazyDefault(() => import("@/components/sales/cash-van"))
 const Drivers = lazyDefault(() => import("@/components/products/drivers"))
 const SalesmenPage = lazyDefault(() => import("@/components/salesmen/salesmen-pages"))
 const SalesmanCommissionPage = lazyDefault(() => import("@/components/salesmen/salesman-commission-page"))
@@ -322,6 +323,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   salesmen: SalesmenPage,
   "salesman-commissions": SalesmanCommissionPage,
   cars: Cars,
+  "cash-van": CashVan,
   drivers: Drivers,
   banks: Banks,
   branches: Branches,

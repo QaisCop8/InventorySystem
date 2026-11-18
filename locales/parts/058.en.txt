@@ -14,3 +14,32 @@ When a posted receipt is saved, its amount is allocated automatically to the cus
 A credit note for the discount is created on the customer when saving
 Requires permission to add a credit note
 The discount must not exceed the voucher amount
+Van sales
+Distribution vans: each van’s stock, sales, cash box and expenses — load/unload via internal delivery
+Define cars
+Vans cash
+Vans stock value
+No vans — define the car, its salesman, warehouse and cash box in the cars screen
+Set salesman, warehouse and cash box
+Cash balance
+Fuel
+Load van
+Unload van
+Car expense
+Hand over cash
+Car definition
+Hand over van cash
+Paid from (default: van cash box)
+Receiving cash box
+Save and create journal
+Journal {0} created
+Failed to load van sales
+Fuel expense
+Maintenance expense
+Insurance and licence expense
+Van sales & accounts
+Van warehouse
+Van cash box
+Insurance & licence expense account
+Fuel expense account
+Maintenance expense account

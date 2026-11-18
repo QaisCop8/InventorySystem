@@ -11,6 +11,7 @@ import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import { useEffect, useRef, useState } from "react"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 
 export interface Car {
   id: number
@@ -20,6 +21,12 @@ export interface Car {
   model?: string | null
   licence_expiry?: string | null
   status: "نشط" | "غير نشط"
+  salesman_id?: number | null
+  warehouse_id?: number | null
+  cash_account_id?: number | null
+  insurance_account_id?: number | null
+  fuel_account_id?: number | null
+  maintenance_account_id?: number | null
 }
 
 export interface CarFormData {
@@ -30,6 +37,13 @@ export interface CarFormData {
   model: string
   licence_expiry: string
   status: "نشط" | "غير نشط"
+  // البيع المتجول: مندوب ومستودع وصندوق السيارة + حسابات مصاريفها
+  salesman_id: number | null
+  warehouse_id: number | null
+  cash_account_id: number | null
+  insurance_account_id: number | null
+  fuel_account_id: number | null
+  maintenance_account_id: number | null
 }
 
 interface UnifiedCarsProps {
@@ -297,6 +311,8 @@ export default function UnifiedCars({
                 </div>
               </div>
 
+              <CarVanSection form={form} onFormChange={onFormChange as any} />
+
               {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
             </div>
           </div>
@@ -310,5 +326,55 @@ export default function UnifiedCars({
         onCancel={onCancelDelete}
       />
     </>
+  )
+}
+
+
+/** البيع المتجول (2026-11-18): مندوب السيارة ومستودعها وصندوقها وحسابات مصاريفها. */
+function CarVanSection({ form, onFormChange }: { form: CarFormData; onFormChange: (field: keyof CarFormData, value: any) => void }) {
+  const [salesmen, setSalesmen] = useState<{ label: string; value: number }[]>([])
+  const [warehouses, setWarehouses] = useState<{ label: string; value: number }[]>([])
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/salesmen", { cache: "no-store" }).then((r) => r.ok ? r.json() : { data: [] }).then((body) => {
+      if (!cancelled) setSalesmen((body?.data || []).map((row: any) => ({ label: `${row.code ? row.code + " — " : ""}${row.name}`, value: Number(row.id) })))
+    }).catch(() => undefined)
+    fetch("/api/warehouses", { cache: "no-store" }).then((r) => r.ok ? r.json() : []).then((rows) => {
+      if (!cancelled) setWarehouses((Array.isArray(rows) ? rows : []).map((row: any) => ({ label: row.warehouse_name || row.name, value: Number(row.id) })))
+    }).catch(() => undefined)
+    return () => { cancelled = true }
+  }, [])
+  const account = (field: keyof CarFormData, label: string) => (
+    <div className="grid gap-2">
+      <AutoCompleteAccount label={label} value={form[field] ? String(form[field]) : ""} valueMode="id"
+        onValueChange={(value: any) => onFormChange(field, value ? Number(value) : null)}
+        onAccountSelect={(selected: any) => onFormChange(field, selected ? Number(selected.id) : null)}
+        showCostCenterButton={false} showCostCenterDialog={false} placeholder={tr("رقم الحساب أو البحث")} />
+    </div>
+  )
+  return (
+    <div className="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/30 p-3">
+      <div className="text-sm font-semibold text-emerald-800">{tr("البيع المتجول والحسابات")}</div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="grid gap-2">
+          <Label>{tr("المندوب")}</Label>
+          <PrimeDropdown value={form.salesman_id ?? null} options={[{ label: tr("بلا"), value: null }, ...salesmen]} optionLabel="label" optionValue="value" filter
+            className="invoice-currency-dropdown w-full" panelClassName="invoice-currency-dropdown-panel" appendTo="self"
+            onChange={(e: any) => onFormChange("salesman_id", e.value ?? null)} />
+        </div>
+        <div className="grid gap-2">
+          <Label>{tr("مستودع السيارة")}</Label>
+          <PrimeDropdown value={form.warehouse_id ?? null} options={[{ label: tr("بلا"), value: null }, ...warehouses]} optionLabel="label" optionValue="value" filter
+            className="invoice-currency-dropdown w-full" panelClassName="invoice-currency-dropdown-panel" appendTo="self"
+            onChange={(e: any) => onFormChange("warehouse_id", e.value ?? null)} />
+        </div>
+        {account("cash_account_id", tr("صندوق السيارة"))}
+      </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        {account("insurance_account_id", tr("حساب مصروف التامين والترخيص"))}
+        {account("fuel_account_id", tr("حساب مصروف المحروقات"))}
+        {account("maintenance_account_id", tr("حساب مصروف صيانة"))}
+      </div>
+    </div>
   )
 }

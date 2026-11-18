@@ -13,6 +13,13 @@ export interface CarDB {
   model: string | null
   licence_expiry: string | null
   status: number | null
+  // البيع المتجول (2026-11-18): مندوب السيارة، مستودعها، صندوقها، وحسابات مصاريفها
+  salesman_id: number | null
+  warehouse_id: number | null
+  cash_account_id: number | null
+  insurance_account_id: number | null
+  fuel_account_id: number | null
+  maintenance_account_id: number | null
   created_at: string
   updated_at: string
 }
@@ -25,6 +32,12 @@ export interface Car {
   model: string | null
   licence_expiry: string | null
   status: "نشط" | "غير نشط"
+  salesman_id: number | null
+  warehouse_id: number | null
+  cash_account_id: number | null
+  insurance_account_id: number | null
+  fuel_account_id: number | null
+  maintenance_account_id: number | null
   created_at: string
   updated_at: string
 }
@@ -47,7 +60,29 @@ export const ensureCarsTable = async () => { return runSchemaOnce("app/api/cars/
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS model VARCHAR(50)`
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS licence_expiry DATE`
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
+  // البيع المتجول: مندوب/مستودع/صندوق السيارة + حسابات مصروف التأمين والترخيص، المحروقات، الصيانة
+  await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS salesman_id INTEGER`
+  await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS warehouse_id INTEGER`
+  await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS cash_account_id INTEGER`
+  await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS insurance_account_id INTEGER`
+  await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS fuel_account_id INTEGER`
+  await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS maintenance_account_id INTEGER`
 }) }
+
+export const CAR_SELECT_COLUMNS = "id, car_code, name, plate_number, model, licence_expiry, status, salesman_id, warehouse_id, cash_account_id, insurance_account_id, fuel_account_id, maintenance_account_id, created_at, updated_at"
+
+/** حقول السيارة الإضافية من الطلب (أرقام موجبة أو null). */
+export function carExtraFields(data: any) {
+  const id = (value: unknown) => { const n = Number(value); return Number.isInteger(n) && n > 0 ? n : null }
+  return {
+    salesman_id: id(data?.salesman_id),
+    warehouse_id: id(data?.warehouse_id),
+    cash_account_id: id(data?.cash_account_id),
+    insurance_account_id: id(data?.insurance_account_id),
+    fuel_account_id: id(data?.fuel_account_id),
+    maintenance_account_id: id(data?.maintenance_account_id),
+  }
+}
 
 export function toDisplayStatus(status: number | null | undefined): "نشط" | "غير نشط" {
   return status === 2 ? "غير نشط" : "نشط"
@@ -156,6 +191,12 @@ export function toCar(row: CarDB): Car {
   return {
     ...row,
     licence_expiry: row.licence_expiry ? String(row.licence_expiry).slice(0, 10) : null,
+    salesman_id: row.salesman_id == null ? null : Number(row.salesman_id),
+    warehouse_id: row.warehouse_id == null ? null : Number(row.warehouse_id),
+    cash_account_id: row.cash_account_id == null ? null : Number(row.cash_account_id),
+    insurance_account_id: row.insurance_account_id == null ? null : Number(row.insurance_account_id),
+    fuel_account_id: row.fuel_account_id == null ? null : Number(row.fuel_account_id),
+    maintenance_account_id: row.maintenance_account_id == null ? null : Number(row.maintenance_account_id),
     status: toDisplayStatus(row.status),
   }
 }

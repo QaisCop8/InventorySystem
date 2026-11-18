@@ -295,6 +295,7 @@ export const menuItems: MenuItem[] = [
       { title: tr("إرسالية برسم البيع"), section: "delivery-consignment-sale", icon: ArrowUpCircle },
       { title: tr("مرتجع إرسالية برسم البيع"), section: "return-delivery-consignment-sale", icon: ArrowDownCircle },
       { title: tr("مرتجع مبيعات"), section: "return-sell", icon: FileMinus2 },
+      { title: tr("البيع المتجول"), section: "cash-van", icon: Truck },
     ],
   },
   {

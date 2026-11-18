@@ -19,6 +19,12 @@ const buildEmptyForm = (): CarFormData => ({
   plate_number: "",
   model: "",
   licence_expiry: "",
+  salesman_id: null,
+  warehouse_id: null,
+  cash_account_id: null,
+  insurance_account_id: null,
+  fuel_account_id: null,
+  maintenance_account_id: null,
   status: "نشط",
 })
 
@@ -138,6 +144,12 @@ export default function Cars() {
     model: car.model || "",
     licence_expiry: car.licence_expiry || "",
     status: car.status || "نشط",
+    salesman_id: car.salesman_id ?? null,
+    warehouse_id: car.warehouse_id ?? null,
+    cash_account_id: car.cash_account_id ?? null,
+    insurance_account_id: car.insurance_account_id ?? null,
+    fuel_account_id: car.fuel_account_id ?? null,
+    maintenance_account_id: car.maintenance_account_id ?? null,
   })
 
   const openEditCarDialog = useCallback((car: Car, index: number) => {
