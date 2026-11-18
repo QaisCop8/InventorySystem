@@ -170,7 +170,7 @@ export default function RestaurantTables() {
         </>}
       />
 
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute start-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input className="ps-9" placeholder={tr("بحث باسم الطاولة")} value={search} onChange={(e) => setSearch(e.target.value)} />

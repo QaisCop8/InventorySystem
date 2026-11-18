@@ -22,7 +22,8 @@ export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon =
   addDisabled?: boolean
 }) {
   return (
-    <header className="page-hero relative overflow-hidden rounded-2xl px-5 py-5 sm:px-7">
+    // shrink-0: داخل صفحة flex-col بارتفاع ثابت (h-full) كانت الترويسة تنكمش لشريط عند كثرة المحتوى (طاولات المطعم)
+    <header className="page-hero relative shrink-0 overflow-hidden rounded-2xl px-5 py-5 sm:px-7">
       <div className="pointer-events-none absolute -end-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-28 start-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
       <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
