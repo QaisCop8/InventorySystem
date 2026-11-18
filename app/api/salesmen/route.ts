@@ -22,6 +22,8 @@ async function ensureSalesmenSchema() { return runSchemaOnce("app/api/salesmen/r
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS login_code VARCHAR(100)`
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS portal_password VARCHAR(255)`
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS notes TEXT`
+  // الموظف المرتبط بالمندوب (2026-11-18): راتبه يدخل في تقرير ربح/خسارة سيارة البيع المتجول
+  await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS employee_id INTEGER`
 }) }
 
 
@@ -36,6 +38,10 @@ export async function GET(request: NextRequest) {
     if (requestedCode) {
       const found = await sql`SELECT s.*, supervisor.name AS supervisor_name, account.code AS parent_account_code, account.name AS parent_account_name FROM salesmen s LEFT JOIN salesmen supervisor ON supervisor.id=s.supervisor_id LEFT JOIN account_tbl account ON account.id=s.parent_account_id WHERE UPPER(s.code)=${requestedCode} LIMIT 1`
       return NextResponse.json({ success: true, data: found[0] || null })
+    }
+    if (searchParams.get("employees") === "1") {
+      const employees = await sql`SELECT id, employee_code AS code, full_name AS name FROM employees_tbl WHERE COALESCE(status, 1) = 1 ORDER BY employee_code`.catch(() => [])
+      return NextResponse.json({ success: true, data: employees })
     }
     if (searchParams.get("generate") === "1") {
       const settings = await sql`SELECT id,value FROM system_settings WHERE id IN ('salesman_prefix','salesman_start')`
@@ -98,7 +104,8 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `;
 
-    return NextResponse.json({ success: true, data: inserted[0] });
+    if (inserted[0]?.id) await sql`UPDATE salesmen SET employee_id = ${Number(data.employee_id) || null} WHERE id = ${inserted[0].id}`
+    return NextResponse.json({ success: true, data: { ...inserted[0], employee_id: Number(data.employee_id) || null } });
   } catch (error: any) {
     console.error("POST /salesmen error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -129,6 +136,7 @@ export async function PUT(request: NextRequest) {
         is_supervisor = ${!!data.is_supervisor}, supervisor_id = ${data.supervisor_id || null},
         sales_commission_percent = ${Number(data.sales_commission_percent) || 0}, collection_commission_percent = ${Number(data.collection_commission_percent) || 0},
         portal_active = ${!!data.portal_active}, login_code = ${data.login_code || null}, portal_password = ${data.portal_password || null}, notes = ${data.notes || null},
+        employee_id = ${Number(data.employee_id) || null},
         is_active = COALESCE(${is_active}, is_active),
         updated_at = NOW()
       WHERE id = ${id}

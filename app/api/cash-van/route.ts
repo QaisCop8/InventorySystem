@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
-import { cashVanSummary, handOverVanCash, recordCarExpense, type CarExpenseKind } from "@/lib/cash-van"
+import { carProfitReport, cashVanSummary, handOverVanCash, recordCarExpense, type CarExpenseKind } from "@/lib/cash-van"
 
 export const dynamic = "force-dynamic"
 
@@ -15,6 +15,12 @@ export async function GET(request: NextRequest) {
     const params = request.nextUrl.searchParams
     const from = isoDate(params.get("from"), today)
     const to = isoDate(params.get("to"), today)
+    if (params.get("view") === "profit") {
+      // ربح/خسارة كل سيارة: ربح الأصناف − المصاريف − راتب المندوب
+      const way = params.get("pricing")
+      const pricing = way === "last" || way === "fifo" ? way : "average"
+      return NextResponse.json({ from, to, pricing, rows: await carProfitReport(from <= to ? from : to, to, pricing) }, { headers: { "Cache-Control": "no-store" } })
+    }
     return NextResponse.json({ from, to, rows: await cashVanSummary(from <= to ? from : to, to) }, { headers: { "Cache-Control": "no-store" } })
   } catch (error) {
     console.error("cash van GET", error)

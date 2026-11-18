@@ -49,3 +49,29 @@ Fetch remaining balance
 Choose the customer first
 Remaining ({0}) exceeds the voucher amount — discount capped at the voucher amount
 Customer remaining balance after this voucher — if positive it is put in the discount, otherwise 0
+Car details
+The car's salesman, warehouse and cash box — used by the cash van screen
+Car expense accounts
+Linked employee (for salary)
+Vans overview
+Vans profit / loss
+Payroll + basic salary
+No salary
+No salesman for the car
+Salesman not linked to an employee
+Cost of sales
+Items profit
+{0} lines without cost
+Fuel
+Maintenance
+Insurance & licensing
+Salesman salary
+Net profit / loss
+Salary source
+Costing method
+Car expenses
+Salesmen salaries
+Some salesmen are not linked to an employee — link them in the salesmen definition («Linked employee») so their salary is counted
+Vans profit and loss
+No cars
+Items profit = sales invoices − returns from the car's warehouse, less their cost (as in the items profit report). Expenses come from the car's expense accounts. Salary comes from the payroll of the employee linked to the salesman for the covered months (or the basic salary if payroll was not run), prorated over the period's days.

@@ -90,6 +90,7 @@ const VOUCHER_SECTIONS: { title: string; icon: any; gradient: string; vouchers: 
       { name: "مرتجع إرسالية برسم البيع", icon: Undo2 },
       { name: "مرتجع مبيعات", icon: Undo2 },
       { name: "عمولات المندوبين", icon: Wallet },
+      { name: "البيع المتجول", icon: Truck },
     ],
   },
   {

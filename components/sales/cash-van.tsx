@@ -2,7 +2,7 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Truck, RefreshCw, Fuel, Wrench, ShieldCheck, Banknote, PackagePlus, PackageMinus, Loader2, AlertTriangle, Settings2 } from "lucide-react"
+import { Truck, RefreshCw, Fuel, Wrench, ShieldCheck, Banknote, PackagePlus, PackageMinus, Loader2, AlertTriangle, Settings2, LayoutGrid, Scale } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +11,8 @@ import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { openSectionInNewTab } from "@/lib/new-tab-handoff"
 import { formatAmount } from "@/lib/decimals"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 
 // البيع المتجول (2026-11-18): السيارة = مستودع متنقل + مندوب + صندوق + حسابات مصاريف (تعريف السيارات).
 // التحميل والتفريغ بالارسالية الداخلية، البيع من مستودع السيارة، ومن هنا: متابعة كل سيارة، مصاريفها، وتسليم نقديتها.
@@ -20,6 +22,22 @@ type Van = {
   cash_account_id: number | null; items_count: number; stock_quantity: number; stock_value: number; sales: number; returns: number; sales_count: number
   cash_in: number; cash_out: number; cash_balance: number; expenses: { insurance: number; fuel: number; maintenance: number }; expenses_total: number; ready: boolean
 }
+type ProfitRow = {
+  id: number; car_code: string; name: string; plate_number: string; salesman_name: string; warehouse_name: string; employee_name: string
+  sales: number; returns: number; net_sales: number; cost: number; gross_profit: number; unpriced_lines: number
+  insurance: number; fuel: number; maintenance: number; expenses_total: number
+  salary: number; salary_source: "payroll" | "basic" | "mixed" | "none" | "no_salesman" | "no_employee"
+  net_profit: number; result: "profit" | "loss"; has_warehouse: boolean
+}
+const SALARY_SOURCE: Record<ProfitRow["salary_source"], string> = {
+  payroll: "كشف الرواتب", basic: "الراتب الأساسي", mixed: "كشف الرواتب + الأساسي", none: "لا يوجد راتب",
+  no_salesman: "لا مندوب للسيارة", no_employee: "المندوب غير مرتبط بموظف",
+}
+const PRICING = [
+  { label: "متوسط الكلفة", value: "average" },
+  { label: "آخر سعر شراء", value: "last" },
+  { label: "داخل أول خارج أول", value: "fifo" },
+]
 type Kind = "insurance" | "fuel" | "maintenance"
 const KINDS: { value: Kind; label: string; icon: any }[] = [
   { value: "fuel", label: "مصروف المحروقات", icon: Fuel },
@@ -30,6 +48,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 const fmt = (value: number) => formatAmount(value)
 
 export default function CashVan() {
+  const [tab, setTab] = useState<"vans" | "profit">("vans")
   const [from, setFrom] = useState(today())
   const [to, setTo] = useState(today())
   const [rows, setRows] = useState<Van[]>([])
@@ -97,6 +116,15 @@ export default function CashVan() {
         { label: tr("قيمة مخزون السيارات"), value: fmt(totals.stock) },
         { label: tr("المصاريف"), value: fmt(totals.expenses) },
       ]} />
+      <div className="inline-flex rounded-xl border bg-white p-1 dark:bg-slate-950">
+        {([["vans", tr("متابعة السيارات"), LayoutGrid], ["profit", tr("ربح / خسارة السيارات"), Scale]] as const).map(([value, label, Icon]) => (
+          <button key={value} type="button" onClick={() => setTab(value)}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${tab === value ? "bg-emerald-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900"}`}>
+            <Icon className="h-4 w-4" />{label}
+          </button>
+        ))}
+      </div>
+      {tab === "profit" ? <CarProfitPanel /> : <>
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border bg-white p-3 dark:bg-slate-950">
         <div className="grid gap-1"><Label>{tr("من تاريخ")}</Label><Input type="date" dir="ltr" value={from} onChange={(event) => setFrom(event.target.value)} className="h-9 w-40" /></div>
         <div className="grid gap-1"><Label>{tr("إلى تاريخ")}</Label><Input type="date" dir="ltr" value={to} onChange={(event) => setTo(event.target.value)} className="h-9 w-40" /></div>
@@ -135,6 +163,7 @@ export default function CashVan() {
           </div>
         ))}
       </div>
+      </>}
 
       <Dialog open={Boolean(dialog)} onOpenChange={(open) => { if (!open) setDialog(null) }}>
         <DialogContent dir={appDir()} className="max-w-lg">
@@ -175,6 +204,82 @@ function Tile({ label, value, sub }: { label: string; value: string; sub?: strin
       <div className="text-[11px] text-slate-500">{label}</div>
       <div className="font-bold tabular-nums">{value}</div>
       {sub ? <div className="truncate text-[10px] text-slate-400">{sub}</div> : null}
+    </div>
+  )
+}
+
+const monthStart = () => `${today().slice(0, 8)}01`
+
+/** ربح/خسارة كل سيارة في الفترة: ربح الأصناف (فواتير − مرتجعات من مستودعها) − مصاريفها − راتب مندوبها. */
+function CarProfitPanel() {
+  const [from, setFrom] = useState(monthStart())
+  const [to, setTo] = useState(today())
+  const [pricing, setPricing] = useState("average")
+  const [rows, setRows] = useState<ProfitRow[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  const run = useCallback(async () => {
+    setLoading(true); setError("")
+    try {
+      const response = await fetch(`/api/cash-van?view=profit&from=${from}&to=${to}&pricing=${pricing}`, { cache: "no-store" })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || tr("تعذر تحميل التقرير"))
+      setRows(body.rows || [])
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : tr("تعذر تحميل التقرير"))
+    } finally { setLoading(false) }
+  }, [from, to, pricing])
+  useEffect(() => { void run() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const totals = useMemo(() => rows.reduce((sum, row) => ({
+    gross: sum.gross + row.gross_profit, expenses: sum.expenses + row.expenses_total, salary: sum.salary + row.salary, net: sum.net + row.net_profit,
+  }), { gross: 0, expenses: 0, salary: 0, net: 0 }), [rows])
+
+  const money = (key: keyof ProfitRow, label: string, extra: Partial<ReportGridColumn<ProfitRow>> = {}): ReportGridColumn<ProfitRow> =>
+    ({ key, label, type: "number", total: true, minWidth: 110, ...extra })
+  const columns: ReportGridColumn<ProfitRow>[] = [
+    { key: "car_code", label: tr("رقم السيارة"), minWidth: 110 },
+    { key: "name", label: tr("السيارة"), minWidth: 140, render: (row) => <span className="font-semibold">{row.name}{row.plate_number ? <span className="ms-1 text-xs text-slate-500">({row.plate_number})</span> : null}</span> },
+    { key: "salesman_name", label: tr("المندوب"), minWidth: 150 },
+    money("net_sales", tr("صافي المبيعات")),
+    money("cost", tr("كلفة المبيعات")),
+    money("gross_profit", tr("ربح الأصناف"), { render: (row) => <span className={row.gross_profit < 0 ? "text-red-600" : ""}>{fmt(row.gross_profit)}{row.unpriced_lines ? <span title={tr("{0} سطر بلا كلفة", row.unpriced_lines)} className="ms-1 text-amber-600">⚠</span> : null}</span> }),
+    money("fuel", tr("المحروقات")),
+    money("maintenance", tr("الصيانة")),
+    money("insurance", tr("التأمين والترخيص")),
+    money("salary", tr("راتب المندوب"), { render: (row) => <span title={tr(SALARY_SOURCE[row.salary_source])} className={row.salary_source === "no_employee" ? "text-amber-600" : ""}>{fmt(row.salary)}</span> }),
+    money("net_profit", tr("صافي الربح / الخسارة"), { minWidth: 140, render: (row) => <span className={`font-bold ${row.net_profit < 0 ? "text-red-600" : "text-emerald-700"}`}>{fmt(row.net_profit)}</span> }),
+    { key: "result", label: tr("النتيجة"), minWidth: 90, value: (row) => row.result === "profit" ? tr("ربح") : tr("خسارة"),
+      render: (row) => <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${row.result === "profit" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"}`}>{row.result === "profit" ? tr("ربح") : tr("خسارة")}</span> },
+    { key: "salary_source", label: tr("مصدر الراتب"), minWidth: 150, value: (row) => tr(SALARY_SOURCE[row.salary_source]) },
+  ]
+  const missingEmployee = rows.some((row) => row.salary_source === "no_employee")
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl border bg-white p-3 dark:bg-slate-950">
+        <div className="grid gap-1"><Label>{tr("من تاريخ")}</Label><Input type="date" dir="ltr" value={from} onChange={(event) => setFrom(event.target.value)} className="h-9 w-40" /></div>
+        <div className="grid gap-1"><Label>{tr("إلى تاريخ")}</Label><Input type="date" dir="ltr" value={to} onChange={(event) => setTo(event.target.value)} className="h-9 w-40" /></div>
+        <div className="fa-field grid w-48 gap-1"><Label>{tr("طريقة احتساب الكلفة")}</Label>
+          <PrimeDropdown value={pricing} options={PRICING.map((option) => ({ ...option, label: tr(option.label) }))} optionLabel="label" optionValue="value"
+            className="invoice-currency-dropdown w-full" panelClassName="invoice-currency-dropdown-panel" appendTo="self" onChange={(e: any) => setPricing(e.value || "average")} />
+        </div>
+        <Button data-report-apply className="h-9 bg-emerald-600 hover:bg-emerald-700" disabled={loading} onClick={() => void run()}>
+          {loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <RefreshCw className="me-2 h-4 w-4" />}{tr("عرض التقرير")}
+        </Button>
+      </div>
+      <VoucherStats stats={[
+        { label: tr("ربح الأصناف"), value: fmt(totals.gross) },
+        { label: tr("مصاريف السيارات"), value: fmt(totals.expenses) },
+        { label: tr("رواتب المندوبين"), value: fmt(totals.salary) },
+        { label: totals.net >= 0 ? tr("صافي الربح") : tr("صافي الخسارة"), value: fmt(totals.net) },
+      ]} />
+      {missingEmployee && <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" />{tr("بعض المندوبين غير مرتبطين بموظف — اربطهم من تعريف المندوبين («الموظف المرتبط») ليُحتسب الراتب")}</p>}
+      {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
+      <ReportGrid rows={rows} columns={columns} exportFileName={tr("ربح وخسارة السيارات")} totalLabel={tr("المجموع")}
+        rowClassName={(row) => row.result === "loss" ? "bg-red-50/40" : undefined} emptyText={tr("لا توجد سيارات")} />
+      <p className="text-xs text-muted-foreground">{tr("ربح الأصناف = فواتير المبيعات − المرتجعات من مستودع السيارة مطروحاً منها الكلفة (كتقرير أرباح الأصناف). المصاريف من حسابات مصاريف السيارة. الراتب من كشف رواتب الموظف المرتبط بالمندوب للأشهر المشمولة (أو راتبه الأساسي إن لم يُصرف)، موزّعاً على أيام الفترة.")}</p>
     </div>
   )
 }

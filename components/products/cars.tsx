@@ -59,7 +59,7 @@ export default function Cars() {
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState("هل تريد حذف هذه السيارة؟")
   const [validationError, setValidationError] = useState("")
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
-  const [pendingAction, setPendingAction] = useState<"new" | "close" | null>(null)
+  const [pendingAction, setPendingAction] = useState<"new" | "close" | "switch" | null>(null)
   const navigationContinuationRef = useRef<(() => void) | null>(null)
   const initialFormHashRef = useRef("")
 
@@ -163,28 +163,67 @@ export default function Cars() {
     setDialogOpen(true)
   }, [canView, syncInitialFormHash])
 
-  const handleCarCodeBlur = useCallback(async (car_code: string) => {
-    const normalized = normalizeCarCode(car_code)
-    setForm((prev) => ({ ...prev, car_code: normalized }))
+  // السجل كما حُمِّل (للمقارنة): تغيير رقم السيارة وحده لا يُعدّ تعديلاً عند الانتقال بالرقم
+  const loadedForm = useCallback((): CarFormData | null => {
+    try { return initialFormHashRef.current ? JSON.parse(initialFormHashRef.current) : null } catch { return null }
+  }, [])
+  const isDirtyExceptCode = useCallback(() => {
+    const base = loadedForm()
+    return Boolean(base) && JSON.stringify({ ...form, car_code: base!.car_code }) !== initialFormHashRef.current
+  }, [form, loadedForm])
 
-    if (!normalized || !canView) return
-
-    try {
-      const response = await fetch(`/api/cars?code=${encodeURIComponent(normalized)}`)
-      if (!response.ok) return
-
-      const existingCar = await response.json()
-      if (!existingCar?.id) return
-
-      const targetIndex = cars.findIndex((car) => car.id === existingCar.id)
-      setForm(carToForm(existingCar))
-      setCurrentIndex(targetIndex >= 0 ? targetIndex : 0)
-      setIsNewMode(false)
-      setDeleteError("")
-    } catch (error) {
-      console.error(error)
+  // تبديل السجل (تنقل/رقم السيارة) بعد فحص التغييرات غير المحفوظة: حفظ ثم انتقال / انتقال بلا حفظ / رجوع
+  const runGuarded = useCallback((action: () => void) => {
+    if (dialogOpen && isDirtyExceptCode()) {
+      navigationContinuationRef.current = action
+      setPendingAction("switch")
+      setShowUnsavedConfirm(true)
+      return
     }
-  }, [canView, cars])
+    action()
+  }, [dialogOpen, isDirtyExceptCode])
+
+  const loadRecord = useCallback((car: Car, index: number) => {
+    const nextForm = carToForm(car)
+    setForm(nextForm)
+    syncInitialFormHash(nextForm)
+    setCurrentIndex(index >= 0 ? index : 0)
+    setIsNewMode(false)
+    setDeleteError("")
+    setValidationError("")
+  }, [syncInitialFormHash])
+
+  const handleCarCodeBlur = useCallback((car_code: string) => {
+    const normalized = normalizeCarCode(car_code)
+    const originalCode = loadedForm()?.car_code || ""
+    if (!normalized || normalized === originalCode || !canView) {
+      setForm((prev) => ({ ...prev, car_code: normalized || originalCode }))
+      return
+    }
+    const match = cars.find((car) => car.car_code.trim().toUpperCase() === normalized)
+    if (match) {
+      if (match.id === form.id) return
+      // يُعاد رقم السجل الحالي قبل السؤال حتى لا يُحفظ برقم سيارة أخرى
+      setForm((prev) => ({ ...prev, car_code: originalCode }))
+      runGuarded(() => loadRecord(match, filteredCars.findIndex((car) => car.id === match.id)))
+      return
+    }
+    if (form.id > 0) {
+      // رقم غير موجود أثناء عرض سيارة ⇐ سجل جديد بهذا الرقم (كشاشة البنوك)
+      setForm((prev) => ({ ...prev, car_code: originalCode }))
+      runGuarded(() => {
+        const next = { ...buildEmptyForm(), car_code: normalized }
+        setForm(next)
+        syncInitialFormHash(next)
+        setCurrentIndex(0)
+        setIsNewMode(true)
+        setDeleteError("")
+        setValidationError("")
+      })
+      return
+    }
+    setForm((prev) => ({ ...prev, car_code: normalized }))
+  }, [canView, cars, filteredCars, form.id, loadRecord, loadedForm, runGuarded, syncInitialFormHash])
 
   const normalizedCarCode = useMemo(() => normalizeCarCode(form.car_code), [form.car_code])
 
@@ -200,7 +239,7 @@ export default function Cars() {
 
   const canSaveForm = !!form.name.trim() && !hasDuplicateName
 
-  const saveCar = useCallback(async (options?: { afterSaveAction?: "new" | "close" }) => {
+  const saveCar = useCallback(async (options?: { afterSaveAction?: "new" | "close" | "stay" }) => {
     if (!(form.id > 0 ? canUpdate : canCreate)) return false
     if (!canSaveForm) {
       if (hasDuplicateName) {
@@ -238,6 +277,8 @@ export default function Cars() {
       }
 
       await fetchCars({ silent: true })
+      // "stay": حفظ قبل تبديل السجل (التنقل/رقم السيارة) — السجل التالي يحمّله الإجراء المؤجَّل
+      if (options?.afterSaveAction === "stay") return true
       if (options?.afterSaveAction === "close" || !canCreate) {
         setDialogOpen(false)
         return true
@@ -245,9 +286,11 @@ export default function Cars() {
 
       await initializeNewCarForm()
       setDialogOpen(true)
+      return true
     } catch (error) {
       console.error(error)
       setValidationError(error instanceof Error ? error.message : tr("فشل في حفظ السيارة"))
+      return false
     } finally {
       setIsSaving(false)
     }
@@ -293,16 +336,18 @@ export default function Cars() {
     }
   }, [canDelete, currentIndex, fetchCars, form.id, syncInitialFormHash])
 
-  const handleNavigateRecord = useCallback((record: Car) => {
-    if (!canView) return
-    const nextForm = carToForm(record)
-    setForm(nextForm)
-    syncInitialFormHash(nextForm)
-    const targetIndex = filteredCars.findIndex((car) => car.id === record.id)
-    setCurrentIndex(targetIndex >= 0 ? targetIndex : 0)
-    setIsNewMode(false)
-    setDialogOpen(true)
-  }, [canView, filteredCars, syncInitialFormHash])
+  // الأول/السابق/التالي/الأخير من قائمة السيارات المعروضة (نفس ترتيب الجدول والعداد) — سجل جديد: السابق ⇐ الأخير، التالي ⇐ الأول
+  const handleNavigate = useCallback((direction: "first" | "previous" | "next" | "last") => {
+    if (!canView || filteredCars.length === 0) return
+    const last = filteredCars.length - 1
+    const current = filteredCars.findIndex((car) => car.id === form.id)
+    const target = current < 0
+      ? (direction === "first" || direction === "next" ? 0 : last)
+      : direction === "first" ? 0 : direction === "last" ? last : direction === "previous" ? Math.max(0, current - 1) : Math.min(last, current + 1)
+    const record = filteredCars[target]
+    if (!record || record.id === form.id) return
+    runGuarded(() => loadRecord(record, target))
+  }, [canView, filteredCars, form.id, loadRecord, runGuarded])
 
   const handleRequestNew = useCallback(() => {
     if (!canCreate) return
@@ -333,8 +378,8 @@ export default function Cars() {
     setShowUnsavedConfirm(false)
     if (pendingAction === "new") {
       await saveCar({ afterSaveAction: "new" })
-    } else if (pendingAction === "close") {
-      const saved = await saveCar({ afterSaveAction: "close" })
+    } else if (pendingAction === "close" || pendingAction === "switch") {
+      const saved = await saveCar({ afterSaveAction: pendingAction === "switch" ? "stay" : "close" })
       const continuation = navigationContinuationRef.current
       navigationContinuationRef.current = null
       if (saved && continuation) continuation()
@@ -350,6 +395,10 @@ export default function Cars() {
     } else if (pendingAction === "close") {
       void fetchCars()
       setDialogOpen(false)
+      const continuation = navigationContinuationRef.current
+      navigationContinuationRef.current = null
+      continuation?.()
+    } else if (pendingAction === "switch") {
       const continuation = navigationContinuationRef.current
       navigationContinuationRef.current = null
       continuation?.()
@@ -495,7 +544,7 @@ export default function Cars() {
         onNew={handleRequestNew}
         onSave={async (options) => { await saveCar(options) }}
         onDelete={handleDelete}
-        onNavigateRecord={handleNavigateRecord}
+        onNavigate={handleNavigate}
         onFormChange={handleFormChange}
         onCodeBlur={handleCarCodeBlur}
         canSave={canSaveForm}
@@ -518,6 +567,8 @@ export default function Cars() {
         onCancel={handleDiscardUnsaved}
         onBack={handleCancelUnsaved}
         showBack={true}
+        useAppDialog
+        onDismiss={handleCancelUnsaved}
       />
     </div>
   )
