@@ -179,3 +179,22 @@ export async function removeSettlement(settlementId: number) {
 export async function settlementBranch(voucherId: number) {
   return Number((await sql`SELECT branch_id FROM voucher_header_tbl WHERE id = ${voucherId}`)[0]?.branch_id || 0) || null
 }
+
+/**
+ * إعداد «تسديد الفواتير الآلي» (invoice_settlement_mode: none | fifo | lifo — إعدادات عامة/القبض والصرف والقيد):
+ * بعد حفظ سند قبض معتمد يُوزَّع رصيده غير المخصَّص على فواتير المبيعات المفتوحة لنفس العميل من الأقدم أو الأحدث.
+ * لا يُفشل حفظ السند — الخطأ يُسجَّل فقط. حفظ لاحق للسند يوزّع المتبقي فقط (2026-11-18).
+ */
+export async function autoSettleReceipt(voucherId: number, userId: number) {
+  try {
+    const { getSystemSettingValue } = await import("@/lib/system-settings")
+    const mode = String(await getSystemSettingValue<unknown>("invoice_settlement_mode", "none") || "none")
+    if (mode !== "fifo" && mode !== "lifo") return { created: 0 }
+    const voucher = await loadVoucher(voucherId)
+    if (!voucher || Number(voucher.vch_type) !== 4 || Number(voucher.status) !== 2 || !voucher.party_id) return { created: 0 }
+    return await autoDistribute({ voucherId, order: mode, userId })
+  } catch (error) {
+    console.error("[invoice-settlements] auto settle failed:", error)
+    return { created: 0 }
+  }
+}

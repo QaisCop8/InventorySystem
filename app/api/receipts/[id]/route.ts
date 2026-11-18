@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { cancelReceiptDiscountNote, receiptDiscountNoteCode } from "@/lib/receipt-discount"
 import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql from "@/lib/database"
 import { ensureTables, fetchDetails, archiveAndDeleteVoucher, markVoucherPrinted } from "../_lib"
@@ -20,7 +21,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const details = await fetchDetails(id)
-    return NextResponse.json({ ...rows[0], ...details })
+    const discountNoteCode = Number(rows[0]?.vch_type) === 4 ? await receiptDiscountNoteCode(id).catch(() => null) : null
+    return NextResponse.json({ ...rows[0], ...details, discount_note_code: discountNoteCode })
   } catch (error) {
     console.error("Error fetching voucher:", error)
     return NextResponse.json({ error: "Failed to fetch voucher" }, { status: 500 })
@@ -38,6 +40,8 @@ async function deleteHandler(request: NextRequest, { params }: { params: Promise
     const authorization = await authorizeStoredVoucher(request, id, "delete")
     if (!authorization.ok) return authorization.response
 
+    // إشعار الدائن الناتج عن خصم السند يُلغى قبل حذف السند (الربط يُحذف مع السند)
+    await cancelReceiptDiscountNote(id).catch((error) => console.error("cancel receipt discount note failed:", error))
     const result = await archiveAndDeleteVoucher(id)
     if (result.error) {
       return NextResponse.json({ error: result.error }, { status: 400 })

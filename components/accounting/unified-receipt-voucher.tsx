@@ -116,6 +116,9 @@ export interface VoucherRecord {
   account_id: number | null
   customer_name: string
   to_account_id: number | null
+  // خصم سند القبض ⇐ إشعار دائن على العميل عند الحفظ (lib/receipt-discount.ts)
+  receipt_discount?: number | null
+  discount_note_code?: string | null
   cash_amount: number | null
   cash_account_id: number | null
   cash_account_cost_centers?: JournalCostCenterSelection[]
@@ -518,6 +521,16 @@ export default function UnifiedReceiptVoucher({
   const [postDialogOpen, setPostDialogOpen] = useState(false)
   const doHotKeys = useRef(true)
   const isReceipt = form.vch_type === 4 // per voucher_types_tbl: 4 = سند قبض, 5 = سند صرف
+  // خصم سند القبض متاح فقط لمن يملك صلاحية إضافة إشعار دائن على فرع السند
+  const [discountBranches, setDiscountBranches] = useState<number[] | null>(null)
+  useEffect(() => {
+    if (!isReceipt || discountBranches) return
+    fetch("/api/transaction-permissions/branches?family=credit_note&action=create", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : { branches: [] })
+      .then((data) => setDiscountBranches((data.branches || []).map((branch: any) => Number(branch.id))))
+      .catch(() => setDiscountBranches([]))
+  }, [isReceipt, discountBranches])
+  const canDiscount = Boolean(discountBranches && (form.branch_id ? discountBranches.includes(Number(form.branch_id)) : discountBranches.length > 0))
   // تسديد الفواتير: توزيع سند القبض المحفوظ على فواتير العميل المفتوحة.
   const [billsPaymentOpen, setBillsPaymentOpen] = useState(false)
   const isPayment = form.vch_type === 5
@@ -2355,6 +2368,30 @@ export default function UnifiedReceiptVoucher({
                         }}
                       />
                     </div>
+                    {isReceipt && (
+                      <div className="grid gap-1.5">
+                        <Label title={canDiscount ? tr("يُنشأ إشعار دائن على العميل بمبلغ الخصم عند الحفظ") : tr("يلزم صلاحية إضافة إشعار دائن")}>
+                          {tr("خصم")}{form.discount_note_code ? <span className="ms-1 text-[11px] font-normal text-emerald-700">({tr("إشعار دائن")} {form.discount_note_code})</span> : null}
+                        </Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={numberValue(form.receipt_discount ?? null)}
+                          disabled={isLocked || !canDiscount}
+                          onKeyDown={blockNonNumericKey}
+                          onChange={(e) => onFormChange("receipt_discount" as any, e.target.value ? Number(e.target.value) : null)}
+                          {...selectAllProps}
+                          onBlur={() => {
+                            const discount = Number(form.receipt_discount || 0)
+                            const total = Number(form.amount || 0)
+                            if (discount < 0 || discount > total) {
+                              onFormChange("receipt_discount" as any, null)
+                              toast({ variant: "destructive", title: tr("الخصم يجب ألا يتجاوز مبلغ السند") })
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
                     <div className="grid gap-1.5">
                       <Label>{tr("نقدي")}</Label>
                       <Input

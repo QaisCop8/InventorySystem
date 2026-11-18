@@ -6,3 +6,11 @@ Delivery number
 Voucher or manual number — ignores dates
 Employees
 Item group is required — choose the item group, then save
+Automatic invoice settlement
+No settlement
+Settle oldest first
+Settle newest first
+When a posted receipt is saved, its amount is allocated automatically to the customer’s open sales invoices
+A credit note for the discount is created on the customer when saving
+Requires permission to add a credit note
+The discount must not exceed the voucher amount

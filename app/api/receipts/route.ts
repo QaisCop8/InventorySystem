@@ -28,6 +28,8 @@ import {
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
 import { workingPeriodErrorMessage } from "@/lib/working-period"
 import { queueAutoSms, voucherDocKey } from "@/lib/sms"
+import { autoSettleReceipt } from "@/lib/invoice-settlements"
+import { syncReceiptDiscountNote, validateReceiptDiscount } from "@/lib/receipt-discount"
 
 export async function GET(request: NextRequest) {
   try {
@@ -110,6 +112,10 @@ async function postHandler(request: NextRequest) {
     const chequeLeavesError = await validateChequeBookLeaves(null, data.cheques)
     if (chequeLeavesError) return NextResponse.json({ error: chequeLeavesError }, { status: 400 })
 
+    // خصم سند القبض ⇐ إشعار دائن (lib/receipt-discount.ts)
+    const discountError = await validateReceiptDiscount(request, data, authorization.branchId, amount)
+    if (discountError) return NextResponse.json({ error: discountError.error }, { status: discountError.status })
+
     const status = Number(data.status || 1)
     const numberSettings = await getVoucherNumberSettings(request.url, vchType)
     const bookId = data.vch_book_id ? Number(data.vch_book_id) : null
@@ -164,8 +170,11 @@ async function postHandler(request: NextRequest) {
 
     // رسالة SMS تلقائية (سند قبض/صرف) إن فُعّلت لنوعه (lib/sms.ts)
     await queueAutoSms(voucherDocKey(vchType), Number(voucher.id), String(authorization.userId))
+    const discountNoteCode = await syncReceiptDiscountNote(request, voucher, data, Number(authorization.userId) || null)
+    // تسديد الفواتير الآلي حسب الإعداد (سند قبض معتمد فقط)
+    if (status === 2) await autoSettleReceipt(Number(voucher.id), Number(authorization.userId) || 0)
     const details = await fetchDetails(voucher.id)
-    return NextResponse.json({ ...voucher, ...details }, { status: 201 })
+    return NextResponse.json({ ...voucher, ...details, receipt_discount: Number(data.receipt_discount || 0) || null, discount_note_code: discountNoteCode }, { status: 201 })
   } catch (error) {
     console.error("Error creating voucher:", error)
     return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to create voucher" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
@@ -210,6 +219,10 @@ async function putHandler(request: NextRequest) {
     const creditCardAmount = Number(data.credit_card_amount || 0)
     const amount = Number(data.amount || cashAmount + checkAmount + creditCardAmount)
     const status = Number(data.status ?? 1)
+    if (status !== 3) {
+      const discountError = await validateReceiptDiscount(request, data, authorization.branchId, amount)
+      if (discountError) return NextResponse.json({ error: discountError.error }, { status: discountError.status })
+    }
 
     // سند مُرحَّل (status=2) مقفل: التعديل العادي عليه ممنوع من الواجهة، ونمنعه هنا أيضاً كخط
     // دفاع ثانٍ — الاستثناء الوحيد هو إلغاؤه منطقياً (status=3) عبر تأكيد الحذف.
@@ -298,9 +311,11 @@ async function putHandler(request: NextRequest) {
       // إلغاء منطقي — تحرير أي أوراق شيكات كانت محجوزة لهذا السند.
       await releaseChequeBookLeaves(voucher.id)
     }
+    const discountNoteCode = await syncReceiptDiscountNote(request, voucher, data, Number(authorization.userId) || null)
+    if (status === 2) await autoSettleReceipt(Number(voucher.id), Number(authorization.userId) || 0)
 
     const details = await fetchDetails(voucher.id)
-    return NextResponse.json({ ...voucher, ...details })
+    return NextResponse.json({ ...voucher, ...details, receipt_discount: status === 3 ? null : Number(data.receipt_discount || 0) || null, discount_note_code: discountNoteCode })
   } catch (error) {
     console.error("Error updating voucher:", error)
     return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to update voucher" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })

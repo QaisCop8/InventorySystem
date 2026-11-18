@@ -15,6 +15,13 @@ import { useToast } from "@/hooks/use-toast"
 import { SPECIAL_PRICE_CATEGORIES } from "@/components/inventory/unified-stock-voucher"
 import { syncSystemSettingsToLocalStorage } from "@/lib/system-settings-sync"
 
+// تسديد الفواتير الآلي عند حفظ سند قبض معتمد (lib/invoice-settlements.ts autoSettleReceipt)
+const INVOICE_SETTLEMENT_MODES = [
+  { value: "none", label: tr("عدم التسديد") },
+  { value: "fifo", label: tr("تسديد من الاقدم فالاحدث") },
+  { value: "lifo", label: tr("تسديد من الاحدث فالاقدم") },
+]
+
 const CHEQUE_CHECK_MODES = [
   { value: "no_check", label: tr("عدم التشييك") },
   { value: "check_on_entry", label: tr("التشييك عند ادخال الشيك") },
@@ -60,6 +67,7 @@ const PRICE_SOURCE_OPTIONS = [
 interface VouchersGeneralSettingsState {
   fetchChequeNoOnBankAccount: boolean
   chequeStatusCheckMode: string
+  invoiceSettlementMode: string
   allowPaymentExceedingCashBalance: boolean
   disallowManualChequeEntryInPayment: boolean
   returnedChequeStatusAlwaysRaje: boolean
@@ -94,6 +102,7 @@ interface VouchersGeneralSettingsState {
 const defaultSettings: VouchersGeneralSettingsState = {
   fetchChequeNoOnBankAccount: false,
   chequeStatusCheckMode: "no_check",
+  invoiceSettlementMode: "none",
   allowPaymentExceedingCashBalance: false,
   disallowManualChequeEntryInPayment: false,
   returnedChequeStatusAlwaysRaje: false,
@@ -181,6 +190,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
           payload.fetch_cheque_no_on_bank_account_receipt ?? prev.fetchChequeNoOnBankAccount,
         ),
         chequeStatusCheckMode: payload.cheque_status_check_mode || prev.chequeStatusCheckMode,
+        invoiceSettlementMode: payload.invoice_settlement_mode || prev.invoiceSettlementMode,
         allowPaymentExceedingCashBalance: Boolean(
           payload.allow_payment_exceeding_cash_balance ?? prev.allowPaymentExceedingCashBalance,
         ),
@@ -280,6 +290,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
         body: JSON.stringify({
           fetch_cheque_no_on_bank_account_receipt: settings.fetchChequeNoOnBankAccount,
           cheque_status_check_mode: settings.chequeStatusCheckMode,
+          invoice_settlement_mode: settings.invoiceSettlementMode,
           allow_payment_exceeding_cash_balance: settings.allowPaymentExceedingCashBalance,
           disallow_manual_cheque_entry_in_payment: settings.disallowManualChequeEntryInPayment,
           returned_cheque_status_always_raje: settings.returnedChequeStatusAlwaysRaje,
@@ -428,6 +439,22 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                     panelStyle={{ zIndex: 10000 }}
                     onChange={(e: any) => setSettings((s) => ({ ...s, chequeStatusCheckMode: e.value }))}
                   />
+                </div>
+
+                <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                  <span className="text-sm">{tr("تسديد الفواتير الي")}</span>
+                  <PrimeDropdown
+                    value={settings.invoiceSettlementMode}
+                    options={INVOICE_SETTLEMENT_MODES}
+                    optionLabel="label"
+                    optionValue="value"
+                    className="invoice-currency-dropdown w-full"
+                    panelClassName="invoice-currency-dropdown-panel"
+                    appendTo="self"
+                    panelStyle={{ zIndex: 10000 }}
+                    onChange={(e: any) => setSettings((s) => ({ ...s, invoiceSettlementMode: e.value }))}
+                  />
+                  <span className="text-[11px] text-muted-foreground">{tr("عند حفظ سند قبض معتمد يُوزَّع مبلغه تلقائياً على فواتير المبيعات المفتوحة للعميل")}</span>
                 </div>
 
                 <label className="flex items-center gap-3 cursor-pointer">
