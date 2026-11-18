@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { DownloadsMenu } from "@/components/dashboard/downloads-menu"
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -212,15 +213,6 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
   ]
   const open = (section?: string, onClick?: () => void) => (onClick ? onClick() : section && onOpenSection?.(section))
 
-  // زر "تطبيق أندرويد" يظهر فقط إن كان ملف APK متوفراً (lib/mobile-app.ts)
-  const [androidApk, setAndroidApk] = useState<string | null>(null)
-  useEffect(() => {
-    let active = true
-    fetch("/api/mobile-app", { cache: "no-store" }).then(response => response.json())
-      .then(result => { if (active) setAndroidApk(result?.android?.download || null) })
-      .catch(() => undefined)
-    return () => { active = false }
-  }, [])
 
   const today = new Date()
   const dateText = today.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
@@ -243,9 +235,7 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
             <button type="button" onClick={() => setScopeAll(false)} className={cn("rounded-lg px-3 py-1.5 transition", !scopeAll ? "bg-white text-emerald-700 shadow-sm" : "text-white/90 hover:bg-white/15")}>{tr("الفرع الحالي")}</button>
             <button type="button" onClick={() => setScopeAll(true)} className={cn("rounded-lg px-3 py-1.5 transition", scopeAll ? "bg-white text-emerald-700 shadow-sm" : "text-white/90 hover:bg-white/15")}>{tr("كل الفروع")}</button>
           </div>}
-          {androidApk && <a href={androidApk} download className="flex h-9 items-center gap-1.5 rounded-xl bg-white px-3 text-xs font-bold text-emerald-700 shadow-sm transition hover:-translate-y-0.5" title={tr("تنزيل تطبيق NoonERP System لأجهزة أندرويد (APK)")}>
-            <Smartphone className="h-4 w-4" />{tr("تطبيق أندرويد")}<Download className="h-3.5 w-3.5 opacity-70" />
-          </a>}
+          <DownloadsMenu />
           <button type="button" onClick={() => void load()} disabled={loading} className="flex h-9 items-center gap-1.5 rounded-xl bg-white/15 px-3 text-xs font-bold ring-1 ring-white/20 backdrop-blur transition hover:bg-white/25 disabled:opacity-60" title={tr("تحديث")}>
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />{data ? new Date(data.generatedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : tr("تحديث")}
           </button>

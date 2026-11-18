@@ -171,3 +171,19 @@ Location and printing
 The warehouse code is generated automatically
 Warehouse name *
 Deleting warehouses is not available — set the warehouse status to «Stopped» instead
+Downloads
+Download the cashier, restaurant, Android apps and print service
+Windows
+Print & payment service
+Android
+Cashier for Windows
+Restaurant for Windows
+CashService
+System — Android
+Cashier — Android
+Restaurant — Android
+NoonERP-Cashier.exe — cashier window only, works offline
+NoonERP-Restaurant.exe — restaurant screen only
+Direct printing, PinPad, cheque reader — unzip and run CashierWinService.exe
+NoonERP-System.apk — the full system on mobile
+Not available yet
