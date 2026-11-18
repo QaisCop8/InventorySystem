@@ -532,6 +532,28 @@ export default function UnifiedReceiptVoucher({
       .catch(() => setDiscountBranches([]))
   }, [isReceipt, discountBranches])
   const canDiscount = Boolean(discountBranches && (form.branch_id ? discountBranches.includes(Number(form.branch_id)) : discountBranches.length > 0))
+  // «جلب الرصيد المتبقي»: رصيد العميل بعد هذا السند — موجب ⇐ يُوضع في الخصم (حتى مبلغ السند)، وإلا 0.
+  // السند المعتمد المحفوظ داخل الرصيد أصلاً (ومعه إشعار خصمه)، فلا يُطرح مبلغه ويُعاد خصمه المحفوظ.
+  const [loadingRemaining, setLoadingRemaining] = useState(false)
+  const fillRemainingBalance = async () => {
+    const partyId = Number(form.to_account_id || form.account_id) || 0
+    if (!partyId) { toast({ variant: "destructive", title: tr("اختر العميل أولاً") }); return }
+    setLoadingRemaining(true)
+    try {
+      const response = await fetch(`/api/accounts/${partyId}/balance`, { cache: "no-store" })
+      const data = await response.json()
+      if (!response.ok || data?.allowed === false) throw new Error(data?.error || tr("لا تملك صلاحية «السماح بمشاهدة رصيد الحساب في الحركات»"))
+      const savedPosted = Number(form.id) > 0 && Number(form.status) === 2
+      const amount = Number(form.amount || 0)
+      const remaining = Number(data.balance || 0) - (savedPosted ? 0 : amount) + (savedPosted ? Number(form.receipt_discount || 0) : 0)
+      const rounded = Math.round(remaining * 1000) / 1000
+      if (rounded <= 0) { onFormChange("receipt_discount" as any, 0); return }
+      if (rounded > amount) toast({ title: tr("المتبقي ({0}) أكبر من مبلغ السند — الخصم يُحدَّد بمبلغ السند", rounded) })
+      onFormChange("receipt_discount" as any, Math.min(rounded, amount))
+    } catch (error) {
+      toast({ variant: "destructive", title: error instanceof Error ? error.message : tr("تعذر جلب الرصيد") })
+    } finally { setLoadingRemaining(false) }
+  }
   // تسديد الفواتير: توزيع سند القبض المحفوظ على فواتير العميل المفتوحة.
   const [billsPaymentOpen, setBillsPaymentOpen] = useState(false)
   const isPayment = form.vch_type === 5
@@ -2429,6 +2451,7 @@ export default function UnifiedReceiptVoucher({
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                        <div className="flex gap-1.5">
                         <Input
                           type="number"
                           min={0}
@@ -2446,6 +2469,12 @@ export default function UnifiedReceiptVoucher({
                             }
                           }}
                         />
+                        <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 whitespace-nowrap px-2 text-xs"
+                          disabled={isLocked || !canDiscount || loadingRemaining} onClick={() => void fillRemainingBalance()}
+                          title={tr("رصيد العميل المتبقي بعد هذا السند — إن كان موجباً يوضع في الخصم وإلا 0")}>
+                          {loadingRemaining ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : tr("جلب الرصيد المتبقي")}
+                        </Button>
+                        </div>
                       </div>
                     )}
                   </div>
