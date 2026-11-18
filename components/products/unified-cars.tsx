@@ -345,7 +345,7 @@ function CarVanSection({ form, onFormChange }: { form: CarFormData; onFormChange
         </div>
       </FormSection>
       <FormSection icon={<Wallet className="h-4 w-4" />} title={tr("حسابات مصاريف السيارة")}>
-        <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
           {account("insurance_account_id", tr("حساب مصروف التأمين (سنوي)"))}
           {account("license_account_id", tr("حساب مصروف الترخيص (سنوي)"))}
           {account("fuel_account_id", tr("حساب مصروف المحروقات"))}
