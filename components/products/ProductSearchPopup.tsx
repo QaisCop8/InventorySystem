@@ -14,7 +14,7 @@ const PRODUCT_TYPE_OPTIONS: ReportOption[] = [
   { id: 2, name: "الخدمات" },
 ];
 import { useTranslation } from 'react-i18next';
-import { Boxes, Package, Plus, RotateCcw, ListFilter } from "lucide-react";
+import { Boxes, Package, Plus, RotateCcw, ListFilter, LayoutGrid, List } from "lucide-react";
 import { normalizeArabicSearch } from "@/lib/arabic-search";
 import {
   SearchDialogHeader,
@@ -94,10 +94,21 @@ const productListCache = new Map<string, { at: number; data: any[] }>()
 
 const roundPrice = (value: number) => Math.round((Number(value) || 0) * 10000) / 10000
 
+// الصورة مخزّنة رابطاً أو data URL أو base64 خاماً (ترحيل الشامل: BMP) — تُحوَّل لمصدر صالح للعرض
+const imageSrc = (image?: string | null) => {
+  const value = String(image || "").trim()
+  if (!value) return ""
+  return /^(https?:|data:|\/|blob:)/i.test(value) ? value : `data:image/bmp;base64,${value}`
+}
+const productImage = (product: { display_image?: string | null; product_image?: string | null; image_url?: string | null }) =>
+  imageSrc(product.display_image || product.product_image || product.image_url)
 const productThumb = (image?: string | null, alt = "") =>
   image
-    ? <img src={image} alt={alt} className="mx-auto h-7 w-7 rounded-md border object-cover" />
+    ? <img src={imageSrc(image)} alt={alt} className="mx-auto h-7 w-7 rounded-md border object-cover" />
     : <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-300"><Package className="h-3.5 w-3.5" /></div>
+
+// «كتالوج الأصناف»: عرض النتائج كبطاقات بصورها بدل الجدول (يُحفظ الاختيار على الجهاز)
+const CATALOG_VIEW_KEY = "product-search-catalog-view"
 
 const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title, selectBaseProduct = false, customerAccountId = null, transactionDate = null, priceSource = "sale", defaultUnitRole, voucherNumberType = "barcode" }) => {
   const visible = visibleProp ?? open ?? false;
@@ -729,6 +740,9 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     return () => window.removeEventListener("keydown", handleEscape, true);
   }, [visible, onClose]);
 
+  const [catalogView, setCatalogView] = useState(() => { try { return localStorage.getItem(CATALOG_VIEW_KEY) === "1" } catch { return false } })
+  const [activeCardKey, setActiveCardKey] = useState<string | number | null>(null)
+
   const resultColumns = useMemo<SearchColumn<Product>[]>(() => [
     ...(ShowSelect ? [{
       key: "selected",
@@ -800,6 +814,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
 
   if (!visible) return null;
 
+  const toggleCatalog = () => setCatalogView((value) => { const next = !value; try { localStorage.setItem(CATALOG_VIEW_KEY, next ? "1" : "0") } catch {} return next })
+
   const checkedCount = products.reduce((count, product) => count + (product.selected ? 1 : 0), 0);
   const showingAttributes = selectedAttributeRows.length > 0;
 
@@ -832,6 +848,17 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
             >
               <ListFilter className="h-3.5 w-3.5" />
               <span>{templateLoading ? tr("جاري التحميل...") : templateFilter ? tr("كل الأصناف") : tr("من نموذج")}</span>
+            </Button>
+            <Button
+              type="button"
+              tabIndex={-1}
+              onClick={toggleCatalog}
+              aria-pressed={catalogView}
+              title={catalogView ? tr("عرض النتائج كجدول") : tr("عرض الأصناف كبطاقات بصورها")}
+              className={`h-8 gap-1.5 rounded-lg px-2.5 text-xs font-bold ${catalogView ? "bg-emerald-500 text-white hover:bg-emerald-600" : "bg-white text-emerald-700 hover:bg-emerald-50"}`}
+            >
+              {catalogView ? <List className="h-3.5 w-3.5" /> : <LayoutGrid className="h-3.5 w-3.5" />}
+              <span>{catalogView ? tr("عرض الجدول") : tr("كتالوج الأصناف")}</span>
             </Button>
             <Button
               type="button"
@@ -927,6 +954,49 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
                 {checkedCount > 0 && <span className="ms-2 rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">{tr("مؤشَّر ")}{checkedCount}</span>}
               </span>
             </div>
+            {catalogView ? (
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2">
+                {visibleProducts.length === 0 ? (
+                  <div className="flex h-full items-center justify-center p-8 text-sm text-slate-400">{productsLoading && products.length === 0 ? tr("جاري تحميل البيانات...") : tr("لا توجد أصناف مطابقة")}</div>
+                ) : (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
+                    {visibleProducts.map((product) => {
+                      const key = product._variant_key || product.id
+                      const src = productImage(product)
+                      const active = activeCardKey === key
+                      return (
+                        <div key={key} role="button" tabIndex={0}
+                          onClick={() => { setActiveCardKey(key); handleActiveProductChange(product) }}
+                          onDoubleClick={() => void handleProductDoubleClick(product)}
+                          onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void handleProductDoubleClick(product) } else if (event.key === " " && ShowSelect) { event.preventDefault(); setProducts((current) => current.map((item) => item._variant_key === product._variant_key ? { ...item, selected: !item.selected } : item)) } }}
+                          title={tr("نقر مزدوج للاختيار")}
+                          className={`group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-white text-start shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${product.selected ? "border-emerald-500 ring-2 ring-emerald-200" : active ? "border-sky-400 ring-2 ring-sky-100" : "border-slate-200"}`}>
+                          {ShowSelect && (
+                            <input type="checkbox" checked={!!product.selected} aria-label={tr("اختيار {0}", product.product_name)} tabIndex={-1}
+                              onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}
+                              onChange={(event) => toggleProductChecked(event, product)}
+                              className="absolute start-2 top-2 z-10 h-4 w-4 cursor-pointer accent-emerald-600" />
+                          )}
+                          <div className="flex aspect-square items-center justify-center bg-slate-50">
+                            {src
+                              ? <img src={src} alt={product.product_name} loading="lazy" decoding="async" className="h-full w-full object-contain p-1.5" />
+                              : <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 text-xl font-black text-white">{String(product.product_name || "").trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join("")}</span>}
+                          </div>
+                          <div className="flex flex-1 flex-col gap-0.5 p-2">
+                            <span className="line-clamp-2 text-xs font-bold leading-snug text-slate-800">{product.product_name}</span>
+                            <span className="font-mono text-[10px] text-slate-400">{product.product_code}</span>
+                            <span className="mt-auto flex items-center justify-between gap-1 pt-1">
+                              <span className="text-sm font-black tabular-nums text-emerald-700">{displayPrice(product).toLocaleString("en-US")}</span>
+                              <span className="truncate text-[10px] text-slate-500">{product.first_unit}</span>
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
             <SearchResultsTable<Product>
               ref={resultsRef}
               rows={visibleProducts}
@@ -938,6 +1008,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               isRowMarked={(product) => !!product.selected}
               emptyText={productsLoading && products.length === 0 ? tr("جاري تحميل البيانات...") : tr("لا توجد أصناف مطابقة")}
             />
+            )}
           </div>
 
           <div className="flex h-[240px] min-w-0 flex-col gap-1.5 lg:h-auto lg:min-h-[160px] lg:w-[300px] lg:shrink-0">

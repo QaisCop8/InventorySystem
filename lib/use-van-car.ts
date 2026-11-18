@@ -7,7 +7,7 @@ import { useEffect, useState } from "react"
 //   useVanCar(salesman, warehouses) ⇐ سيارة السند الحالي: حقل الصندوق يُقفل على صندوقها
 export type VanCar = {
   id: number; car_code: string; name: string; salesman_id: number | null; salesman_name: string
-  warehouse_id: number | null; warehouse_name: string; cash_account_id: number; cash_account_code: string; cash_account_name: string
+  warehouse_id: number | null; warehouse_name: string; cash_account_id: number | null; cash_account_code: string; cash_account_name: string
 }
 export type MyVan = { salesman_id: number; salesman_name: string; car: VanCar | null }
 

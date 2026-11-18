@@ -150,3 +150,8 @@ License
 Insurance and license are annual: the period is charged (their account net over the last 365 days up to «To date») × period days ÷ 365
 Linked user (van sales)
 Cash account is locked to the van cash box «{0}»
+Item catalog
+Table view
+Show results as a table
+Show items as picture cards
+Double-click to choose

@@ -572,19 +572,19 @@ export default function UnifiedReceiptVoucher({
   // مقفل بالكامل (نموذج + شبكة الحسابات للقراءة فقط) لكلا الحالتين: مُرحَّل (2) أو ملغي منطقياً
   // (3) — لا فرق بينهما من ناحية إمكانية التعديل، الفرق فقط في نص رسالة تأكيد الحذف أدناه.
   const isLocked = form.status === 2 || form.status === 3
-  // ───── البيع المتجول (2026-11-18): سند قبض جديد لمستخدم مرتبط بمندوب ⇐ مندوبه؛ سند قبض لمندوب سيارة ⇐ حساب
+  // ───── البيع المتجول (2026-11-18): سند قبض/صرف جديد لمستخدم مرتبط بمندوب ⇐ مندوبه؛ سند قبض/صرف لمندوب سيارة ⇐ حساب
   // الصندوق مقفل على صندوق السيارة (الخادم يفرضه أيضاً — lib/van-car.ts)
-  const myVan = useMyVan(dialogOpen && isReceipt)
-  const vanCar = useVanCar(form.salesman_id, [], dialogOpen && isReceipt)
+  const myVan = useMyVan(dialogOpen && (isReceipt || isPayment))
+  const vanCar = useVanCar(form.salesman_id, [], dialogOpen && (isReceipt || isPayment))
   const vanDefaultAppliedRef = useRef("")
   useEffect(() => {
-    if (!dialogOpen || !isReceipt || form.id || isLocked || !myVan) return
+    if (!dialogOpen || !(isReceipt || isPayment) || form.id || isLocked || !myVan) return
     const key = String(form.vch_code || "new")
     if (vanDefaultAppliedRef.current === key) return
     vanDefaultAppliedRef.current = key
     if (!form.salesman_id) onFormChange("salesman_id", myVan.salesman_id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, isReceipt, form.id, form.vch_code, myVan, isLocked])
+  }, [dialogOpen, isReceipt, isPayment, form.id, form.vch_code, myVan, isLocked])
   useEffect(() => {
     if (!vanCar || isLocked || Number(form.cash_account_id) === vanCar.cash_account_id) return
     onFormChange("cash_account_id", vanCar.cash_account_id)

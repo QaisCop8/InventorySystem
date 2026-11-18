@@ -957,6 +957,8 @@ export default function UnifiedSalesDelivery({
   const vanCar = useVanCar(form.salesman_id, items.map((row: any) => row.warehouse_id ?? row.store_id), dialogOpen && vanCashTypes && !form.account_id)
   const vanWarehouseIdRef = useRef<number | null>(null)
   vanWarehouseIdRef.current = !form.id && myVan?.car?.warehouse_id ? myVan.car.warehouse_id : null
+  const vanWarehouseNameRef = useRef("")
+  vanWarehouseNameRef.current = myVan?.car?.warehouse_name || ""
   const vanDefaultAppliedRef = useRef("")
   useEffect(() => {
     if (!dialogOpen || form.id || isLocked || !myVan) return
@@ -1796,7 +1798,7 @@ export default function UnifiedSalesDelivery({
     if (candidateId) {
       const match = currentWarehouses.find((w) => Number(w.id) === candidateId)
       if (match) return { id: match.id, name: match.warehouse_name }
-      return { id: candidateId, name: "" }
+      return { id: candidateId, name: candidateId === vanWarehouseIdRef.current ? vanWarehouseNameRef.current : "" }
     }
     const first = currentWarehouses[0]
     return first ? { id: first.id, name: first.warehouse_name } : null
