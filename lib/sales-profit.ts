@@ -278,3 +278,23 @@ export async function salesProfitMeta() {
   ])
   return { products, groups, warehouses, branches, customers, salesmen }
 }
+
+/**
+ * عمولات المندوبين تقرأ vi.cost_price المخزّنة، وكانت لا تُملأ إلا بزر حفظ الكلفة في تقرير الأرباح فتظهر
+ * الكلفة صفراً والربح 100% (2026-11-18). تملأ هذه الدالة كلفة أسطر المبيعات/المرتجعات الناقصة في الفترة فقط
+ * (أصناف هذه الأسطر وحدها تُعاد حركة مخزونها) — لا تمس الأسطر المسعّرة سابقاً.
+ */
+export async function fillMissingSalesCosts(from: string, to: string, pricingWay: PricingWay = "average") {
+  const missing = await sql`SELECT vi.id, vi.item_id FROM voucher_items_tbl vi JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+    WHERE vh.vch_type IN (${SALES_INVOICE}, ${SALES_RETURN}) AND vh.status IS DISTINCT FROM 3 AND vh.salesman_id IS NOT NULL
+      AND vh.vch_date >= ${from}::date AND vh.vch_date < (${to}::date + INTERVAL '1 day')
+      AND COALESCE(vi.cost_price, 0) = 0 AND COALESCE(vi.qnty, 0) <> 0 AND vi.item_id IS NOT NULL`
+  if (!missing.length) return 0
+  const ids = new Set(missing.map((row: any) => Number(row.id)))
+  const lines = await computeSalesProfitLines({
+    from, to, pricingWay, types: [SALES_INVOICE, SALES_RETURN],
+    productIds: [...new Set<number>(missing.map((row: any) => Number(row.item_id)))],
+    groupIds: [], warehouseIds: [], branchIds: [], customerIds: [], salesmanIds: [], voucherCode: "",
+  })
+  return saveSalesCostPrices(lines.filter((line) => ids.has(line.line_id)))
+}

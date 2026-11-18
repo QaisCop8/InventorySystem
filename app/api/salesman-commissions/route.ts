@@ -5,6 +5,7 @@ import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { calculateCommission, reverseCommission, selectCommissionRule, type CommissionRule } from "@/lib/salesman-commission"
 import { ensureTables as ensureSalesVoucherTables } from "@/app/api/sales-vouchers/_lib"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { fillMissingSalesCosts } from "@/lib/sales-profit"
 
 async function ensureTables() { return runSchemaOnce("app/api/salesman-commissions/route.ts#ensureTables", async () => {
   await sql`CREATE TABLE IF NOT EXISTS salesman_commission_rules (
@@ -95,6 +96,8 @@ export async function GET(request: NextRequest) {
     if (!validDate(from) || !validDate(to) || from > to) return NextResponse.json({ error: "فترة التقرير غير صالحة" }, { status: 400 })
     const salesmanId = num(params.get("salesman_id"))
     const customerId=num(params.get("customer_id")),itemId=num(params.get("item_id")),itemGroupId=num(params.get("item_group_id")),warehouseId=num(params.get("warehouse_id")),branchId=num(params.get("branch_id")),currencyId=num(params.get("currency_id")),invoiceType=num(params.get("invoice_type"))
+    // كلفة الأسطر غير المسعّرة تُحسب قبل الكشف، وإلا تظهر الكلفة صفراً والربح 100%
+    await fillMissingSalesCosts(from, to)
     const [salesmen, customers, products, groups, warehouses, branches, currencies, rules, transactions, targets, collections, performance] = await Promise.all([
       sql`SELECT id,code,name,is_active,sales_commission_percent,collection_commission_percent FROM salesmen WHERE COALESCE(is_active,true) ORDER BY name`,
       sql`SELECT id,code,name FROM account_tbl WHERE COALESCE(status,1)<>3 AND type IN (2,3,5) ORDER BY name`,
@@ -318,6 +321,7 @@ async function calculatePeriod(data: any, access: { userId: string; branchIds: n
   const from=String(data.from||""),to=String(data.to||"")
   if (!validDate(from)||!validDate(to)||from>to) return NextResponse.json({ error: "فترة الحساب غير صالحة" }, { status: 400 })
   await sql`SELECT pg_advisory_xact_lock(hashtext('salesman-commission-calculation'))`
+  await fillMissingSalesCosts(from, to)
   const branchIds=access.branchIds.map(Number)
   const rules=(await sql`SELECT * FROM salesman_commission_rules WHERE is_active=true AND effective_from<=${to}::date AND (effective_to IS NULL OR effective_to>=${from}::date)
     AND (branch_id IS NULL OR branch_id=ANY(${access.branchIds}::int[])) ORDER BY id`) as CommissionRule[]
