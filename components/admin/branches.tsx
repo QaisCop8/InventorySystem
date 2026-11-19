@@ -340,9 +340,11 @@ export default function Branches() {
     }
   }
 
+  const sameScope = (b: any) => Number(b.bank_id || 0) === Number((form as any).bank_id || 0)
   const hasDuplicateName = (name: string, id = 0) => {
     if (!name.trim()) return false
-    return branches.some((b) => b.branch_name.trim().toLowerCase() === name.trim().toLowerCase() && b.id !== id)
+    // فرع بنك: الاسم مكرر فقط داخل نفس البنك (قلقيلية لبنك القدس ولبنك فلسطين مسموح)
+    return branches.some((b) => sameScope(b) && b.branch_name.trim().toLowerCase() === name.trim().toLowerCase() && b.id !== id)
   }
 
 
@@ -483,10 +485,10 @@ export default function Branches() {
           // فروع البنوك بلا رمز (الرمز لفروع الشركة فقط — يُحفَظ null دائماً هنا)
           !!form.bank_id &&
           Number(form.bank_id) > 0 &&
-          !branches.some((b) => b.branch_code === form.branch_code && b.id !== form.id) &&
+          !branches.some((b) => sameScope(b) && b.branch_code === form.branch_code && b.id !== form.id) &&
           !hasDuplicateName(form.branch_name, form.id)
         }
-        hasDuplicateCode={branches.some((b) => b.branch_code === form.branch_code && b.id !== form.id)}
+        hasDuplicateCode={branches.some((b) => sameScope(b) && b.branch_code === form.branch_code && b.id !== form.id)}
         hasDuplicateName={hasDuplicateName(form.branch_name, form.id)}
         usedSymbols={branches.filter((b) => b.id !== form.id && b.branch_symbol).map((b) => String(b.branch_symbol).toUpperCase())}
         showSymbolValidationError={showSymbolValidationError}

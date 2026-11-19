@@ -9,6 +9,7 @@ import { saveAIReceiptDraft } from "@/lib/ai-receipt-direct-save"
 import { voucherHref } from "@/lib/voucher-links"
 import { cn } from "@/lib/utils"
 import { voucherPrefillSessionItems, type VoucherPrefill } from "@/lib/ai-voucher-prefill"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { openSectionInNewTab } from "@/lib/new-tab-handoff"
 import { useSectionIntent } from "@/lib/section-intents"
 import { saveAIJournalDraft } from "@/lib/ai-journal-direct-save"
@@ -744,42 +745,35 @@ export function AIChat() {
   const canSend = !isLoading && !isListening && Boolean(input.trim())
 
   return (
-    <section className="flex h-[calc(100dvh-8rem)] min-h-[480px] w-full min-w-0 gap-4" dir={appDir()} aria-label={tr("المساعد الذكي")}>
+    // رأس النظام الموحّد (VoucherListHero — أخضر/أبيض كبقية الصفحات) ثم المحادثة واللوحة الجانبية
+    <div className="flex h-[calc(100dvh-8rem)] min-h-[560px] w-full min-w-0 flex-col gap-4" dir={appDir()}>
+    <VoucherListHero
+      title={tr("المساعد الذكي")}
+      subtitle={tr("سندات، طلبيات واستعلامات بلغة طبيعية")}
+      category={tr("الأدوات")}
+      icon={Sparkles}
+      actions={<>
+        {activeBranchName && (
+          <span className="hidden h-10 items-center gap-1.5 rounded-xl bg-white/15 px-3 text-sm font-semibold text-white ring-1 ring-white/25 md:inline-flex">
+            <Building2 className="h-4 w-4" />
+            {activeBranchName}
+          </span>
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={resetConversation}
+          disabled={isLoading || !messages.length}
+          className="h-10 gap-1.5 rounded-xl bg-white/15 px-4 font-bold text-white ring-1 ring-white/25 hover:bg-white/25 hover:text-white disabled:opacity-50"
+        >
+          <RotateCcw className="h-4 w-4" />
+          {tr("محادثة جديدة")}
+        </Button>
+      </>}
+    />
+    <section className="flex min-h-0 w-full min-w-0 flex-1 gap-4" aria-label={tr("المساعد الذكي")}>
       {/* ── المحادثة ── */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950">
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-l from-emerald-600 to-teal-600 px-4 py-3 text-white sm:px-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-base font-extrabold">{tr("المساعد الذكي")}</h1>
-              <p className="flex items-center gap-1.5 truncate text-xs text-emerald-50/90">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-200" />
-                {tr("سندات، طلبيات واستعلامات بلغة طبيعية")}
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {activeBranchName && (
-              <span className="hidden items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/20 md:inline-flex">
-                <Building2 className="h-3.5 w-3.5" />
-                {activeBranchName}
-              </span>
-            )}
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={resetConversation}
-              disabled={isLoading || !messages.length}
-              className="h-8 gap-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 hover:text-white disabled:opacity-50"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              {tr("محادثة جديدة")}
-            </Button>
-          </div>
-        </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50/60 px-3 py-5 dark:bg-transparent sm:px-6">
           {messages.length === 0 ? (
@@ -1153,5 +1147,6 @@ export function AIChat() {
         </div>
       </aside>
     </section>
+    </div>
   )
 }

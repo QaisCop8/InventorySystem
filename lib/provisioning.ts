@@ -484,7 +484,7 @@ async function seedDefaultBranchAndSection(tenantClient: ReturnType<typeof getPo
   const branchResult = await tenantClient.query(
     `INSERT INTO branches (branch_code, branch_name, branch_symbol, is_active, status)
      VALUES ($1, $2, $3, true, 1)
-     ON CONFLICT (branch_code) DO UPDATE SET
+     ON CONFLICT (branch_code) WHERE NOT COALESCE(is_bank_branch, false) DO UPDATE SET
        -- اسم الفرع قابل للتعديل (البداية السريعة/الفروع) — لا يُعاد للاسم الافتراضي
        branch_name = COALESCE(NULLIF(branches.branch_name, ''), EXCLUDED.branch_name),
        branch_symbol = COALESCE(branches.branch_symbol, EXCLUDED.branch_symbol),

@@ -1,3 +1,4 @@
+import { ensureBranchCodeIndexes } from "@/lib/branch-codes"
 import sql, { resolveCurrentDbName } from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 import { ensureUsersCurrenciesDefaultTable } from "@/lib/users-currencies-default"
@@ -532,8 +533,12 @@ export async function processBankBranches(rows: Row[], ctx: StepContext) {
     const name = text(r.name) || shamelCode
     const existing = (await sql`SELECT id FROM branches WHERE bank_id = ${bankId} AND TRIM(branch_name) = ${name} LIMIT 1`)[0] as any
     if (existing) { await mapSet("bank_branch", shamelCode, Number(existing.id)); return "updated" }
-    let code = await fitCode("branches", "branch_code", shamelCode, shamelCode)
-    if ((await sql`SELECT 1 FROM branches WHERE branch_code = ${code}`).length) code = `${shamelCode}B`
+    // رقم الفرع وحده (br."Branch ID") — لا يُدمج مع رقم البنك؛ فريد داخل البنك فقط (lib/branch-codes.ts)
+    await ensureBranchCodeIndexes()
+    const rawOwn = text(r.code)
+    const ownCode = /^\d{1,4}$/.test(rawOwn) ? rawOwn.padStart(4, "0") : rawOwn || shamelCode
+    let code = await fitCode("branches", "branch_code", ownCode, ownCode)
+    if ((await sql`SELECT 1 FROM branches WHERE branch_code = ${code} AND bank_id = ${bankId} AND COALESCE(is_bank_branch, false)`).length) code = shamelCode
     const id = await insertRow("branches", {
       branch_code: code, branch_name: name, address: text(r.address) || null, manager: text(r.manager_name) || null, phone: text(r.phone) || null,
       is_active: true, bank_id: bankId, status: num(r.is_stopped) ? 2 : 1, is_bank_branch: true,

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { ensureBranchCodeIndexes } from "@/lib/branch-codes"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { isSystemAdmin } from "@/lib/permissions"
 import { ensureBranchSymbolColumn, validateBranchSymbol } from "@/lib/branch-symbol"
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
     await sql`ALTER TABLE branches ADD COLUMN IF NOT EXISTS bank_id INTEGER`
     await sql`ALTER TABLE branches ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
     await ensureBranchSymbolColumn()
+    await ensureBranchCodeIndexes()
 
     const { searchParams } = new URL(request.url)
     const bankIdParam = searchParams.get("bank_id")
@@ -95,7 +97,7 @@ export async function POST(request: NextRequest) {
     const quick = data.quick === true
     let branchCode = String(data.branch_code || "").trim()
     if (quick && !branchCode) {
-      const row = (await sql`SELECT COALESCE(MAX(branch_code::int), 0) + 1 AS next, COALESCE(MAX(LENGTH(branch_code)), 4) AS width FROM branches WHERE branch_code ~ '^[0-9]{1,4}$'`)[0]
+      const row = (await sql`SELECT COALESCE(MAX(branch_code::int), 0) + 1 AS next, COALESCE(MAX(LENGTH(branch_code)), 4) AS width FROM branches WHERE branch_code ~ '^[0-9]{1,4}$' AND NOT COALESCE(is_bank_branch, false)`)[0]
       // نفس تنسيق الأرقام القائمة (مثل 0001 ← 0002)؛ الافتراضي 4 خانات.
       branchCode = String(row?.next || 1).padStart(Math.min(4, Number(row?.width) || 4), "0")
     }
@@ -109,6 +111,7 @@ export async function POST(request: NextRequest) {
     // فرع البنك: بلا رمز فرع (الرمز لترقيم سندات فروع الشركة) ولا يُحسب من ترخيص الفروع
     const bankBranch = data.bank_branch === true
     await ensureBranchSymbolColumn()
+    await ensureBranchCodeIndexes()
     const symbolCheck = bankBranch ? { symbol: null, error: null } : await validateBranchSymbol(data.branch_symbol)
     if (symbolCheck.error) return NextResponse.json({ error: symbolCheck.error }, { status: 400 })
     if (!bankBranch) try {
@@ -166,6 +169,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
     }
     await ensureBranchSymbolColumn()
+    await ensureBranchCodeIndexes()
     const existing = (await sql`SELECT COALESCE(is_bank_branch, false) AS is_bank_branch FROM branches WHERE id = ${Number(data.id)}`)[0]
     const bankBranch = data.bank_branch === true || Boolean(existing?.is_bank_branch)
     const symbolCheck = bankBranch ? { symbol: null, error: null } : await validateBranchSymbol(data.branch_symbol, Number(data.id))
