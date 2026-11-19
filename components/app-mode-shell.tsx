@@ -101,16 +101,17 @@ export function AppModeShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative flex h-dvh min-h-0 flex-col overflow-hidden bg-background" dir={appDir()}>
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">{activeBranchId ? children : null}</div>
-      <div className="fixed bottom-2 start-2 z-[60] flex items-center gap-2 print:hidden">
+      {/* الجوال: فوق شريط الكاشير/المطعم السفلي (الأصناف/السلة) — كان يغطيه — وأيقونة فقط */}
+      <div className="fixed bottom-[calc(96px+env(safe-area-inset-bottom))] start-2 z-[60] flex items-center gap-2 print:hidden sm:bottom-2">
         <button
           type="button"
           title={user?.fullName ? `${tr("تسجيل الخروج")} — ${user.fullName}` : tr("تسجيل الخروج")}
           disabled={loggingOut}
           onClick={handleLogout}
-          className="flex h-8 items-center gap-1.5 rounded-full bg-rose-600 px-3 text-xs font-bold text-white shadow-md transition hover:bg-rose-700 disabled:opacity-50"
+          className="flex h-9 items-center gap-1.5 rounded-full bg-rose-600 px-2.5 text-xs font-bold text-white shadow-md transition hover:bg-rose-700 disabled:opacity-50 sm:h-8 sm:px-3"
         >
           <LogOut className="h-3.5 w-3.5" />
-          {loggingOut ? tr("جارٍ تسجيل الخروج...") : tr("تسجيل الخروج")}
+          <span className="hidden sm:inline">{loggingOut ? tr("جارٍ تسجيل الخروج...") : tr("تسجيل الخروج")}</span>
         </button>
         {syncWarning ? <span className="rounded-md bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900 shadow">{tr("عاد الاتصال — سجّل الخروج ثم الدخول لمزامنة مبيعات دون الاتصال")}</span> : null}
         {blocked ? <span className="rounded-md bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900 shadow">{blocked}</span> : null}
