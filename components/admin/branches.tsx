@@ -289,6 +289,18 @@ export default function Branches() {
     setDialogOpen(true)
   }
 
+  const navigateList = (direction: "first" | "previous" | "next" | "last") => {
+    const count = filteredBranches.length
+    if (!count) return
+    const atNew = !(form.id > 0)
+    const index = direction === "first" ? 0
+      : direction === "last" ? count - 1
+      : direction === "next" ? (atNew ? 0 : Math.min(currentIndex + 1, count - 1))
+      : (atNew ? count - 1 : Math.max(currentIndex - 1, 0))
+    if (!atNew && index === currentIndex) return
+    openBranchAtIndex(index)
+  }
+
   const openBranchAtIndex = (index: number) => {
     if (!filteredBranches[index]) return
     const b = filteredBranches[index]
@@ -435,6 +447,7 @@ export default function Branches() {
         onSave={handleSave}
         onDelete={handleDelete}
         onNavigateRecord={handleNavigateRecord}
+        onNavigateList={navigateList}
         onFormChange={(field, value) => {
           if (field === "branch_code") {
             const numericValue = sanitizeNumericCode(value).slice(0, 4)

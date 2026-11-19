@@ -48,6 +48,8 @@ interface UnifiedBranchesProps {
   onSave: () => void
   onDelete?: () => void
   onNavigateRecord?: (record: Branch) => void
+  /** التنقل في القائمة المعروضة نفسها (ترتيبها وفلترها) بدل API التنقل بترتيب id */
+  onNavigateList?: (direction: "first" | "previous" | "next" | "last") => void
   onFormChange: (field: string, value: string | number | null) => void
   onConfirmDelete?: () => void
   onCancelDelete?: () => void
@@ -76,6 +78,7 @@ export default function UnifiedBranches({
   onSave,
   onDelete,
   onNavigateRecord,
+  onNavigateList,
   onFormChange,
   onConfirmDelete = () => undefined,
   onCancelDelete = () => undefined,
@@ -116,6 +119,7 @@ export default function UnifiedBranches({
   useNavigationGuard(() => dialogOpen && isDirty(), (continueNavigation) => guardedAction(continueNavigation))
 
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
+    if (onNavigateList) { onNavigateList(direction); return }
     try {
       const currentId = form.id > 0 ? form.id : 0
       const isNewRecord = form.id <= 0

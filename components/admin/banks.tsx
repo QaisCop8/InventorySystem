@@ -265,6 +265,18 @@ export default function Banks() {
   const handleNew = () => openNewBankDialog()
   const handleSave = async () => await saveBank()
   const handleDelete = () => setShowDeleteConfirm(true)
+  const navigateList = (direction: "first" | "previous" | "next" | "last") => {
+    const count = filteredBanks.length
+    if (!count) return
+    const atNew = !(form.id > 0)
+    const index = direction === "first" ? 0
+      : direction === "last" ? count - 1
+      : direction === "next" ? (atNew ? 0 : Math.min(currentIndex + 1, count - 1))
+      : (atNew ? count - 1 : Math.max(currentIndex - 1, 0))
+    if (!atNew && index === currentIndex) return
+    handleNavigateRecord(filteredBanks[index].bank)
+  }
+
   const handleNavigateRecord = (record: Bank) => {
     setForm({
       id: record.id,
@@ -384,6 +396,7 @@ export default function Banks() {
         onSave={handleSave}
         onDelete={handleDelete}
         onNavigateRecord={handleNavigateRecord}
+        onNavigateList={navigateList}
         isNewMode={isNewMode}
         onFormChange={(field, value) => setForm((prev) => ({ ...prev, [field]: value }))}
         onCodeBlur={handleBankCodeBlur}

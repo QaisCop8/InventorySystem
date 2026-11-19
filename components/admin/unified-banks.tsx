@@ -38,6 +38,8 @@ interface UnifiedBanksProps {
   onSave: () => void
   onDelete?: () => void
   onNavigateRecord?: (record: Bank) => void
+  /** التنقل في القائمة المعروضة نفسها (ترتيبها وفلترها) بدل API التنقل بترتيب id */
+  onNavigateList?: (direction: "first" | "previous" | "next" | "last") => void
   onFormChange: (field: string, value: string | number) => void
   onConfirmDelete: () => void
   onCancelDelete: () => void
@@ -64,6 +66,7 @@ export default function UnifiedBanks({
   onSave,
   onDelete,
   onNavigateRecord,
+  onNavigateList,
   onFormChange,
   onConfirmDelete,
   onCancelDelete,
@@ -100,6 +103,7 @@ export default function UnifiedBanks({
   useNavigationGuard(() => dialogOpen && isDirty(), (continueNavigation) => guardedAction(continueNavigation))
 
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
+    if (onNavigateList) { onNavigateList(direction); return }
     try {
       const currentId = form.id > 0 ? form.id : 0
       const isNewRecord = form.id <= 0

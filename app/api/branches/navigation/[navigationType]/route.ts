@@ -57,14 +57,14 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
           ? await sql`
               SELECT id, branch_code, branch_name, branch_symbol, bank_id, status
               FROM branches
-              WHERE id < ${currentId || 0} AND status != 3 AND bank_id = ${Number(bankId)}
+              WHERE id < ${currentId || 0} AND status != 3 AND COALESCE(is_bank_branch, false) = true AND bank_id = ${Number(bankId)}
               ORDER BY id DESC
               LIMIT 1
             `
           : await sql`
               SELECT id, branch_code, branch_name, branch_symbol, bank_id, status
               FROM branches
-              WHERE id < ${currentId || 0} AND status != 3
+              WHERE id < ${currentId || 0} AND status != 3 AND COALESCE(is_bank_branch, false) = true
               ORDER BY id DESC
               LIMIT 1
             `
@@ -74,14 +74,14 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
           ? await sql`
               SELECT id, branch_code, branch_name, branch_symbol, bank_id, status
               FROM branches
-              WHERE id > ${currentId || 0} AND status != 3 AND bank_id = ${Number(bankId)}
+              WHERE id > ${currentId || 0} AND status != 3 AND COALESCE(is_bank_branch, false) = true AND bank_id = ${Number(bankId)}
               ORDER BY id ASC
               LIMIT 1
             `
           : await sql`
               SELECT id, branch_code, branch_name, branch_symbol, bank_id, status
               FROM branches
-              WHERE id > ${currentId || 0} AND status != 3
+              WHERE id > ${currentId || 0} AND status != 3 AND COALESCE(is_bank_branch, false) = true
               ORDER BY id ASC
               LIMIT 1
             `
