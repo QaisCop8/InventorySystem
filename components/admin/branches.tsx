@@ -307,9 +307,16 @@ export default function Branches() {
       setForm((f) => ({ ...f, branch_code: padded }))
     }
 
-    const foundIndex = branches.findIndex((b) => b.branch_code === padded)
+    // البحث في الفروع غير المحذوفة، والموضع في القائمة المعروضة (filteredBranches) — كان من branches كلها (فيها المحذوفة
+    // وفروع البنوك الأخرى) فيختلف الموضع عن السجل المعروض. فرع مخفي بفلتر البنك ⇐ «الكل» فيصبح موضعه في القائمة الكاملة
+    let foundIndex = filteredBranches.findIndex((b) => b.branch_code === padded)
+    let source = filteredBranches
+    if (foundIndex === -1) {
+      foundIndex = visibleBranches.findIndex((b) => b.branch_code === padded)
+      if (foundIndex !== -1) { setSelectedBankId("all"); source = visibleBranches }
+    }
     if (foundIndex !== -1) {
-      const b = branches[foundIndex]
+      const b = source[foundIndex]
       setForm({ id: b.id, branch_code: b.branch_code, branch_name: b.branch_name, branch_symbol: b.branch_symbol || "", bank_id: b.bank_id, status: b.status })
       setCurrentIndex(foundIndex)
       setIsNewMode(false)

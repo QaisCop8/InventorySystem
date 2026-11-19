@@ -117,12 +117,18 @@ export default function Banks() {
     const paddedCode = trimmedCode.padStart(4, "0")
     setForm((prev) => ({ ...prev, bank_code: paddedCode }))
 
-    const matchedIndex = banks.findIndex(
-      (bank) => bank.bank_code.trim().toLowerCase() === paddedCode.toLowerCase(),
-    )
+    // البحث في البنوك غير المحذوفة، والموضع في القائمة المعروضة (filteredBanks) — كان من banks كلها فيختلف الموضع
+    // عن السجل المعروض بعد أول بنك محذوف. بنك مخفي بالبحث ⇐ يُمسح البحث فيصبح موضعه في القائمة الكاملة
+    const sameCode = (bank: Bank) => bank.bank_code.trim().toLowerCase() === paddedCode.toLowerCase()
+    let source = filteredBanks.map(({ bank }) => bank)
+    let matchedIndex = source.findIndex(sameCode)
+    if (matchedIndex === -1) {
+      matchedIndex = visibleBanks.findIndex(sameCode)
+      if (matchedIndex !== -1) { setSearchText(""); source = visibleBanks }
+    }
 
     if (matchedIndex !== -1) {
-      const matchedBank = banks[matchedIndex]
+      const matchedBank = source[matchedIndex]
       setForm({
         id: matchedBank.id,
         bank_code: matchedBank.bank_code,
@@ -142,7 +148,9 @@ export default function Banks() {
 
   useEffect(() => {
     if (!dialogOpen || isNewMode) return
-    const bank = banks[currentIndex]
+    // currentIndex = الموضع في القائمة المعروضة (filteredBanks: بلا المحذوفة وبعد البحث) — كان يُقرأ من banks (فيها المحذوفة)
+    // فيُستبدل السجل المعروض بغيره بعد أول بنك محذوف: «تغييرات غير محفوظة» عند التنقل، و«الأول» يذهب لسجل في المنتصف
+    const bank = filteredBanks[currentIndex]?.bank
     if (bank) {
       setForm({
         id: bank.id,
@@ -153,7 +161,7 @@ export default function Banks() {
         status: bank.status,
       })
     }
-  }, [currentIndex, dialogOpen, banks, isNewMode])
+  }, [currentIndex, dialogOpen, filteredBanks, isNewMode])
 
   const hasDuplicateCode = banks.some(
     (bank) => bank.id !== form.id && bank.bank_code.trim().toLowerCase() === form.bank_code.trim().toLowerCase() && form.bank_code.trim() !== "",
@@ -333,7 +341,7 @@ export default function Banks() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredBanks.map(({ bank, index }) => (
+            {filteredBanks.map(({ bank }, index) => (
               <TableRow
                 key={bank.id}
                 className="cursor-pointer transition hover:bg-slate-50"
