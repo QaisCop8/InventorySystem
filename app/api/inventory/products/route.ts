@@ -119,6 +119,8 @@ async function ensureProductSchemaColumns(client: any) {
     ["entry_date", "DATE DEFAULT CURRENT_DATE"],
     ["has_colors", "BOOLEAN DEFAULT false"],
     ["attributes", "JSONB NOT NULL DEFAULT '[]'::jsonb"],
+    // اضافات المطعم (2026-11-19): [{ name ≤50, price 0..1000 }] — معالج «مع/بدون» في شاشة المطعم
+    ["restaurant_extras", "JSONB NOT NULL DEFAULT '[]'::jsonb"],
     ["related_items_mode", "INTEGER NOT NULL DEFAULT 1"],
     ["default_printer", "VARCHAR(150)"],
   ]
@@ -292,7 +294,24 @@ function normalizeProductPayload(productData: any) {
           ),
         })).filter((attribute: any) => attribute.name && attribute.values.length > 0)
       : [],
+    // غائب عن الطلب (استيراد Excel/حفظ جزئي) ⇐ لا يُلمس المحفوظ
+    restaurant_extras: Array.isArray(productData?.restaurant_extras) ? cleanRestaurantExtras(productData.restaurant_extras) : undefined,
   }
+}
+
+/** اضافات المطعم: اسم ≤ 50 حرفاً (بلا تكرار) وسعر بين 0 و1000 */
+function cleanRestaurantExtras(input: any) {
+  if (!Array.isArray(input)) return []
+  const seen = new Set<string>()
+  const rows: { name: string; price: number }[] = []
+  for (const entry of input.slice(0, 30)) {
+    const name = safeText(entry?.name, "").trim().slice(0, 50)
+    const price = Math.round(Math.min(1000, Math.max(0, Number(entry?.price) || 0)) * 100) / 100
+    if (!name || seen.has(name)) continue
+    seen.add(name)
+    rows.push({ name, price })
+  }
+  return rows
 }
 
 // حقول نافذة بحث الأصناف (lite=1)
@@ -909,6 +928,7 @@ export async function POST(request: NextRequest) {
         await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_tobacco BOOLEAN NOT NULL DEFAULT FALSE`)
         await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS minimum_order_quantity NUMERIC(15,4) NOT NULL DEFAULT 0`)
         await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`)
+        await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS restaurant_extras JSONB NOT NULL DEFAULT '[]'::jsonb`)
         // تقييد ظهور الصنف بفروع معيّنة (اختياري) — بلا أي صف هنا لهذا الصنف يبقى ظاهراً لكل الفروع
         // (السلوك الحالي دون تغيير)؛ بصف واحد أو أكثر يظهر فقط لمستخدم فرعه أحد هذه الصفوف (انظر تصفية
         // GET أدناه عبر هيدر x-branch-id). نفس نمط product_warehouses تماماً (جدول علاقة بسيط).
@@ -1564,6 +1584,7 @@ export async function POST(request: NextRequest) {
       productId,
     ])
     await persistProductAttributes(client, productId, productData.attributes)
+    if (productData.restaurant_extras !== undefined) await client.query(`UPDATE products SET restaurant_extras=$1::jsonb WHERE id=$2::int`, [JSON.stringify(productData.restaurant_extras || []), productId])
     if (productData.id === 0) await persistNewProductChildren(client, productId, productData)
 
     await client.query("COMMIT");

@@ -13,6 +13,7 @@ function ensureProductExtrasSchema() {
   return runSchemaOnce("app/api/pos/_catalog.ts#ensureProductExtrasSchema", async () => {
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS related_items_mode INTEGER NOT NULL DEFAULT 1`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS restaurant_extras JSONB NOT NULL DEFAULT '[]'::jsonb`
     await sql`CREATE TABLE IF NOT EXISTS product_related_items (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, related_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, UNIQUE(product_id, related_id), CHECK (product_id <> related_id))`
     await sql`ALTER TABLE product_related_items ADD COLUMN IF NOT EXISTS add_price BOOLEAN NOT NULL DEFAULT TRUE`
     await sql`ALTER TABLE product_related_items ADD COLUMN IF NOT EXISTS no_kitchen_print BOOLEAN NOT NULL DEFAULT FALSE`
@@ -27,10 +28,10 @@ export type RelatedItemOption = { related_id: number; add_price: boolean; no_kit
  */
 export async function attachProductExtras<T extends { id: number | string }>(products: T[]) {
   const ids = products.map((product) => Number(product.id)).filter((id) => id > 0)
-  if (!ids.length) return products.map((product) => ({ ...product, addon_groups: [], related_items_mode: 1, related_ids: [] as number[], related_items: [] as RelatedItemOption[] }))
+  if (!ids.length) return products.map((product) => ({ ...product, addon_groups: [], related_items_mode: 1, related_ids: [] as number[], related_items: [] as RelatedItemOption[], restaurant_extras: [] as { name: string; price: number }[] }))
   await ensureProductExtrasSchema()
   const [extras, relations] = await Promise.all([
-    sql`SELECT id, attributes, related_items_mode FROM products WHERE id = ANY(${ids}::int[]) AND (CASE WHEN jsonb_typeof(attributes) = 'array' THEN jsonb_array_length(attributes) ELSE 0 END > 0 OR COALESCE(related_items_mode, 1) > 1)`,
+    sql`SELECT id, attributes, related_items_mode, restaurant_extras FROM products WHERE id = ANY(${ids}::int[]) AND (CASE WHEN jsonb_typeof(attributes) = 'array' THEN jsonb_array_length(attributes) ELSE 0 END > 0 OR COALESCE(related_items_mode, 1) > 1 OR CASE WHEN jsonb_typeof(restaurant_extras) = 'array' THEN jsonb_array_length(restaurant_extras) ELSE 0 END > 0)`,
     sql`SELECT product_id, related_id, add_price, no_kitchen_print FROM product_related_items WHERE product_id = ANY(${ids}::int[]) ORDER BY id`,
   ])
   const extraById = new Map<number, any>((extras as any[]).map((row) => [Number(row.id), row]))
@@ -51,6 +52,9 @@ export async function attachProductExtras<T extends { id: number | string }>(pro
       related_items_mode: Math.min(4, Math.max(1, Number(extra?.related_items_mode || 1))),
       related_ids: (relatedById.get(Number(product.id)) || []).map((row) => row.related_id),
       related_items: relatedById.get(Number(product.id)) || [],
+      // اضافات المطعم: معالج «مع/بدون» (السعر يُجمع في سطر «اضافات» على خدمة الموقع)
+      restaurant_extras: (Array.isArray(extra?.restaurant_extras) ? extra.restaurant_extras : [])
+        .map((row: any) => ({ name: String(row?.name || "").trim(), price: Math.max(0, Number(row?.price) || 0) })).filter((row: any) => row.name) as { name: string; price: number }[],
     }
   })
 }

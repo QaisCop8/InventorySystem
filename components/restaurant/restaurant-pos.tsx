@@ -1,5 +1,6 @@
 "use client"
 
+import { playPosBeep } from "@/lib/pos-beeps"
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import { currentPosTenantKey, custodyOfflineMessage, loadPosCatalog, savePosCatalog } from "@/lib/pos-offline"
@@ -30,7 +31,7 @@ import {
   PosPaymentDetailsDialog, type CurrencyOption, type LookupOption, type PaymentDetail, type PaymentMethod,
 } from "@/components/pos/pos-payment-details-dialog"
 import {
-  AddonsDialog, addonsText, ValueDialog, ItemEditDialog, LineQuantities, money, PayScopeDialog, qtyText, round2, round4, TablePickerDialog,
+  AddonsDialog, addonsText, attributesText, extrasLines, EXTRAS_GROUP, isExtraAddon, ExtrasWizard, ValueDialog, ItemEditDialog, LineQuantities, money, PayScopeDialog, qtyText, round2, round4, TablePickerDialog,
   type Addon, type EditableLine, type FloorLocation, type FloorTable, type OrderItem,
 } from "./restaurant-dialogs"
 import { RestaurantFloor, type FloorStatusFilter, type Takeaway } from "./restaurant-floor"
@@ -48,10 +49,20 @@ type Floor = {
 type Catalog = {
   point: any; taxRate: number; products: Product[]; customers: LookupOption[]; currencies: CurrencyOption[]; banks: LookupOption[]; bankBranches: LookupOption[]
   cardTypes: LookupOption[]; campaigns: PosCampaign[]; campaignUsage: PosCampaignUsage; session: any; canPay: boolean; receiptSettings: Record<string, string>
+  /** خدمة اضافات المطعم للموقع (سطر «اضافات») */
+  extrasService: { id: number; name: string; unitId: number | null; unitName: string } | null
 }
 type Line = { item: OrderItem; quantity: number }
 
 // قسيمة المطبخ (80مم، بلا أسعار/شعار) وورقة الحساب — من إعدادات طباعة فاتورة المبيعات على الجهاز الذي يطبع
+/** مفتاح كتالوج الطلب: الموقع للطاولات، وسالبه للسفري (فئة السعر للسفري) */
+const catalogIdOf = (order: { location_id: number; order_type?: string }) => order.order_type === "takeaway" ? -order.location_id : order.location_id
+/** سطر «اضافات» يتبع كمية صنفه، ويُحذف إن حُذف الصنف */
+const syncExtras = (rows: Pending[]) => rows.flatMap((row) => {
+  if (!row.extrasOf) return [row]
+  const parent = rows.find((other) => other.key === row.extrasOf)
+  return parent ? [parent.quantity === row.quantity ? row : { ...row, quantity: parent.quantity }] : []
+})
 const kitchenSlip = (settings: any) => ({ ...settings, paper_size: "Receipt80" as const, orientation: "portrait" as const, print_method: "service" as const, copies: 1, copy_labels: "", show_logo: false, show_company_info: false, header_text: "", show_fields: true, show_row_numbers: true, hidden_columns: [], show_totals: false, show_amount_in_words: false, show_notes: false, show_barcode: false, show_signatures: false, show_footer: false, show_page_numbers: false })
 const billSlip = (settings: any) => ({ ...settings, paper_size: "Receipt80" as const, orientation: "portrait" as const, show_totals: true, show_signatures: false, show_amount_in_words: false })
 type KitchenTicket = { printer: string; title: string; document: PrintDocument }
@@ -80,6 +91,7 @@ function normalizeCatalog(data: any): Catalog {
     receiptSettings: data.receiptSettings || {},
     session: data.session || null,
     canPay: Boolean(data.can_pay),
+    extrasService: data.extras_service?.id ? { id: Number(data.extras_service.id), name: String(data.extras_service.product_name || ""), unitId: Number(data.extras_service.unit_id) || null, unitName: String(data.extras_service.unit_name || "") } : null,
     campaigns: data.campaigns || [],
     campaignUsage: data.campaignUsage || {},
     products: (data.products || []).map((row: any) => ({
@@ -94,6 +106,7 @@ function normalizeCatalog(data: any): Catalog {
       relatedMode: Number(row.related_items_mode || 1),
       relatedIds: (Array.isArray(row.related_ids) ? row.related_ids : []).map(Number),
       relatedItems: (Array.isArray(row.related_items) ? row.related_items : []).map((option: any) => ({ id: Number(option.related_id), addPrice: option.add_price !== false, noKitchenPrint: option.no_kitchen_print === true })),
+      extras: (Array.isArray(row.restaurant_extras) ? row.restaurant_extras : []).map((extra: any) => ({ name: String(extra.name || ""), price: Math.max(0, Number(extra.price) || 0) })).filter((extra: any) => extra.name),
     })),
     customers: (data.customers || []).map((row: any) => ({ id: Number(row.id), name: String(row.name || ""), code: String(row.code || ""), accountId: Number(row.account_id) || null })),
     currencies: (data.currencies || []).map((row: any) => ({ currency_id: Number(row.currency_id), currency_code: String(row.currency_code || ""), currency_name: String(row.currency_name || ""), rate_to_point: Number(row.rate_to_point || 1) })),
@@ -160,6 +173,7 @@ export default function RestaurantPos() {
   const [valueDialog, setValueDialog] = useState<null | "discount" | "takeaway_name">(null)
   // اختيار يدوي من الأصناف التابعة (related_items_mode = 4): الصنف الأب + التوابع المؤشَّرة
   const [relatedPick, setRelatedPick] = useState<{ product: Product; options: Product[]; selected: number[] } | null>(null)
+  const [extrasWizard, setExtrasWizard] = useState<{ product: Product; related: Product[]; includeParent: boolean } | null>(null)
   const [addonsTarget, setAddonsTarget] = useState<{ kind: "pending"; key: string } | { kind: "item"; item: OrderItem } | null>(null)
   const [editing, setEditing] = useState<{ kind: "item"; item: OrderItem } | { kind: "pending"; key: string } | null>(null)
   const [scopeOpen, setScopeOpen] = useState(false)
@@ -281,8 +295,9 @@ export default function RestaurantPos() {
   const catalogKey = useCallback((locationId: number) => `restaurant:${currentPosTenantKey(user?.id)}:location:${locationId}`, [user?.id])
   const catalogAt = useRef(new Map<number, number>())
   const activeLocation = useRef<number | null>(null)
+  // مفتاح الكتالوج: رقم الموقع للطاولات، وسالبه للسفري (أسعار «فئة السعر للسفري» — api/restaurant/catalog?order_type=takeaway)
   const fetchCatalog = useCallback(async (locationId: number) => {
-    const response = await fetch(`/api/restaurant/catalog?location_id=${locationId}`, { cache: "no-store" })
+    const response = await fetch(`/api/restaurant/catalog?location_id=${Math.abs(locationId)}${locationId < 0 ? "&order_type=takeaway" : ""}`, { cache: "no-store" })
     if (!response.ok) throw new Error(await errorOf(response, "تعذر تحميل الأصناف"))
     const raw = await response.json()
     const next = normalizeCatalog(raw)
@@ -316,13 +331,21 @@ export default function RestaurantPos() {
     }
   }, [catalogKey, fetchCatalog])
 
+  // سفري حُوِّل إلى طاولة (أو العكس): أسعار الإضافات التالية من فئة سعر النوع الجديد
+  useEffect(() => {
+    if (!order?.location_id) return
+    const id = catalogIdOf(order)
+    if (activeLocation.current !== id) void loadCatalog(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.location_id, order?.order_type, loadCatalog])
+
   const showOrder = useCallback(async (orderId: number) => {
     setBusy(true)
     const showLocal = () => {
       const local = offlineOrder(orderId)
       if (!local || local.status !== "open") { setMessage({ type: "error", text: tr("الطلب غير محفوظ على هذا الجهاز — يحتاج اتصالاً لفتحه") }); return }
       setOrder(local); setPending([]); setQuery(""); setCategory("all"); setMobileTab("menu")
-      void loadCatalog(local.location_id)
+      void loadCatalog(catalogIdOf(local))
     }
     try {
       if (hasOfflineChanges(orderId)) { showLocal(); return }
@@ -332,7 +355,7 @@ export default function RestaurantPos() {
       cacheOrder(data)
       if (data.status !== "open") { setMessage({ type: "error", text: tr("الطلب لم يعد مفتوحاً") }); await loadFloor(true); return }
       setOrder(data); setPending([]); setQuery(""); setCategory("all"); setMobileTab("menu")
-      void loadCatalog(data.location_id)
+      void loadCatalog(catalogIdOf(data))
     } catch (error) {
       if (isNetworkError(error)) { setOffline(true); showLocal(); return }
       setMessage({ type: "error", text: error instanceof Error ? error.message : tr("تعذر تحميل الطلب") })
@@ -558,11 +581,14 @@ export default function RestaurantPos() {
   const startTakeaway = async () => {
     if (!(await ensurePermission("takeaway", locationFilter !== "all" ? locationFilter : null))) return
     const first = locationFilter !== "all" ? locationFilter : floor?.locations.find((l) => l.configured)?.id ?? floor?.locations[0]?.id ?? null
+    // 2026-11-19: لا نافذة ملاحظة عند فتح السفري — الملاحظة تُضاف بعد الأصناف (زر «إضافة ملاحظة») وهي مطلوبة قبل الإرسال للمطبخ.
+    // النافذة تظهر فقط لاختيار الموقع عند تعدد المواقع وعدم تحديد موقع في الفلتر
+    if (locationFilter !== "all" || locations.length <= 1) { if (first) void confirmTakeaway(first); return }
     setTakeawayLocation(first); setTakeawayName(""); setTakeawayOpen(true)
   }
-  const confirmTakeaway = async () => {
-    if (!takeawayLocation) return
-    const data = await act("open_takeaway", { location_id: takeawayLocation, name: takeawayName })
+  const confirmTakeaway = async (locationId = takeawayLocation) => {
+    if (!locationId) return
+    const data = await act("open_takeaway", { location_id: locationId, name: "" })
     setTakeawayOpen(false)
     if (data?.order_id) void showOrder(Number(data.order_id))
   }
@@ -590,6 +616,12 @@ export default function RestaurantPos() {
    */
   const addProduct = async (product: Product) => {
     if (!(await ensurePermission("addItems", order?.location_id))) { setMessage({ type: "error", text: tr("لا توجد لديك صلاحية إضافة أصناف للطاولة") }); return }
+    // صنف بلا سعر في فئة السعر (الطاولات/السفري): تنبيه صوتي ومنع الإضافة
+    if (!(Number(product.price) > 0)) {
+      playPosBeep("noPrice")
+      setMessage({ type: "error", text: tr("سعر الصنف المختار غير محدد يجب تحديد السعر للتمكن من الاستمرار") })
+      return
+    }
     const related = product.relatedMode > 1 ? product.relatedIds.map((id) => productById.get(id)).filter((row): row is Product => Boolean(row)) : []
     const missing = product.relatedMode > 1 ? product.relatedIds.length - related.length : 0
     if (missing > 0) setMessage({ type: "error", text: tr("{0} من توابع {1} غير متاحة في قائمة هذا الموقع وتم تخطيها", missing, product.name) })
@@ -597,7 +629,18 @@ export default function RestaurantPos() {
     addLines(product, product.relatedMode === 2 || product.relatedMode === 3 ? related : [], product.relatedMode !== 2 || !related.length)
   }
 
-  const addLines = (product: Product, related: Product[], includeParent: boolean) => {
+  const addLines = (product: Product, related: Product[], includeParent: boolean, chosen?: string[]) => {
+    // اضافات المطعم: معالج «مع/بدون» أولاً (الإلغاء لا يضيف شيئاً)، ثم يُعاد الاستدعاء بالمختار
+    const extras = includeParent ? product.extras || [] : []
+    if (extras.length && chosen === undefined) { setExtrasWizard({ product, related, includeParent }); return }
+    const extrasTotal = round2(extras.filter((extra) => chosen?.includes(extra.name)).reduce((sum, extra) => sum + extra.price, 0))
+    const service = catalog?.extrasService || null
+    if (extrasTotal > 0 && !service) {
+      playPosBeep("noPrice")
+      setMessage({ type: "error", text: tr("حدّد «خدمة اضافات المطعم» في إعدادات الموقع لإضافة إضافات لها سعر") })
+      return
+    }
+    const extraAddons: Addon[] = (chosen || []).map((name) => ({ group: EXTRAS_GROUP, value: tr("مع {0}", name) }))
     const parentKey = `${product.id}-${Date.now()}-${Math.random()}`
     const optionOf = (id: number) => product.relatedItems?.find((option) => option.id === id)
     const lines: { product: Product; key: string; price: number; relatedOf?: string; noKitchenPrint?: boolean }[] = [
@@ -607,16 +650,26 @@ export default function RestaurantPos() {
         return { product: row, key: `${parentKey}-${row.id}`, price: option?.addPrice === false ? 0 : row.price, relatedOf: product.name, noKitchenPrint: option?.noKitchenPrint === true }
       }),
     ]
+    // صنف له خصائص وميزات: سطر مستقل (لا يُدمج مع سطر سابق) وتُفتح نافذة الاختيار فوراً
+    const hasAddons = (row: Product) => (row.addonGroups || []).length > 0
+    const firstWithAddons = lines.find((line) => hasAddons(line.product))
     setPending((rows) => {
       let next = rows
       for (const line of lines) {
-        const index = next.findIndex((row) => row.productId === line.product.id && row.unitId === line.product.unitId && row.price === line.price && !row.note && !row.discount && !row.addons.length && row.relatedOf === line.relatedOf && Boolean(row.noKitchenPrint) === Boolean(line.noKitchenPrint))
+        // صنف بإضافات مطعم: سطر مستقل بإضافاته «مع ...» وتحته سطر «اضافات» بمجموع أسعارها (يتبع كميته)
+        if (line.key === parentKey && extras.length) {
+          next = [...next, { key: line.key, productId: line.product.id, name: line.product.name, unitId: line.product.unitId, unitName: line.product.unitName, price: line.price, quantity: 1, discount: 0, note: "", addons: extraAddons, groupPrinter: line.product.groupPrinter, category: line.product.category }]
+          if (extrasTotal > 0 && service) next = [...next, { key: `${parentKey}-extras`, productId: service.id, name: tr("اضافات"), unitId: service.unitId, unitName: service.unitName, price: extrasTotal, quantity: 1, discount: 0, note: "", addons: [], groupPrinter: "", category: line.product.category, relatedOf: line.product.name, noKitchenPrint: true, extrasOf: parentKey }]
+          continue
+        }
+        const index = hasAddons(line.product) ? -1 : next.findIndex((row) => row.productId === line.product.id && row.unitId === line.product.unitId && row.price === line.price && !row.note && !row.discount && !row.addons.length && row.relatedOf === line.relatedOf && Boolean(row.noKitchenPrint) === Boolean(line.noKitchenPrint))
         next = index >= 0
           ? next.map((row, i) => i === index ? { ...row, quantity: round4(row.quantity + 1) } : row)
           : [...next, { key: line.key, productId: line.product.id, name: line.product.name, unitId: line.product.unitId, unitName: line.product.unitName, price: line.price, quantity: 1, discount: 0, note: "", addons: [], groupPrinter: line.product.groupPrinter, category: line.product.category, relatedOf: line.relatedOf, noKitchenPrint: line.noKitchenPrint }]
       }
       return next
     })
+    if (firstWithAddons) setAddonsTarget({ kind: "pending", key: firstWithAddons.key })
   }
 
   const confirmRelatedPick = () => {
@@ -670,7 +723,13 @@ export default function RestaurantPos() {
         noAudit: true, voucherTypeId: 12, title: tr("{0} — {1}{2}", group.name, isTakeaway ? "" : "طاولة ", tableNames), code: order.order_no, date: nowText(),
         fields: [{ label: tr("الموقع"), value: order.location_name }, { label: tr("الطاولة"), value: tableNames }, ...(order.waiter_name ? [{ label: tr("النادل"), value: order.waiter_name }] : [])],
         columns: [{ key: "name", label: tr("الصنف"), weight: 3.2 }, { key: "quantity", label: tr("الكمية"), align: "center", weight: 1 }],
-        rows: group.lines.map((line) => ({ name: `${line.name}${line.unitName ? ` (${line.unitName})` : ""}${line.addons.length ? ` + ${addonsText(line.addons)}` : ""}${line.note ? ` — ${line.note}` : ""}`, quantity: qtyText(line.quantity) })),
+        rows: group.lines.flatMap((line) => {
+          const attributes = attributesText(line.addons)
+          return [
+            { name: `${line.name}${line.unitName ? ` (${line.unitName})` : ""}${attributes ? ` + ${attributes}` : ""}${line.note ? ` — ${line.note}` : ""}`, quantity: qtyText(line.quantity) },
+            ...extrasLines(line.addons).map((text) => ({ name: `    • ${text}`, quantity: "" })),
+          ]
+        }),
       } as PrintDocument,
     }))
   }
@@ -703,6 +762,12 @@ export default function RestaurantPos() {
       setMobileTab("ticket")
       setMessage({ type: "error", text: tr("اختر إضافات \"{0}\": {1}", incomplete.name, missingGroups(incomplete.productId, incomplete.addons).join("، ")) })
       setAddonsTarget({ kind: "pending", key: incomplete.key })
+      return
+    }
+    // السفري: ملاحظة الطلب (اسم/رقم الزبون) مطلوبة قبل الإرسال للمطبخ
+    if (order.order_type === "takeaway" && !String(order.takeaway_name || "").trim()) {
+      setMessage({ type: "error", text: tr("أدخل ملاحظة الطلب السفري قبل الإرسال إلى المطبخ") })
+      setValueDialog("takeaway_name")
       return
     }
     const lines = pending
@@ -847,7 +912,7 @@ export default function RestaurantPos() {
     setMessage({ type: "success", text: result.offline
       ? tr("حُفظ الدفع دون اتصال{0} — تُصدر الفاتورة عند عودة الاتصال{1}", result.closed ? " وأُغلقت الطاولة" : "", change > 0 ? ` — الباقي للعميل ${money(change)}` : "")
       : tr("تم حفظ الفاتورة {0}{1}{2}", result.vch_code || "", result.closed ? " وإغلاق الطاولة" : " — دفعة جزئية، الطاولة ما زالت مفتوحة", change > 0 ? ` — الباقي للعميل ${money(change)}` : "") })
-    if (order.location_id && !result.offline) void loadCatalog(order.location_id, true)
+    if (order.location_id && !result.offline) void loadCatalog(catalogIdOf(order), true)
   }
 
   const printBill = async () => {
@@ -905,6 +970,7 @@ export default function RestaurantPos() {
         const unit = value.unitId !== undefined ? products.find((p) => p.id === row.productId)?.unitPrices.find((u) => u.unitId === value.unitId) : undefined
         return { ...row, quantity: value.quantity, discount: value.discount, note: value.note, ...(unit ? { unitId: unit.unitId, unitName: unit.unitName, price: unit.price } : {}) }
       }))
+      setPending((rows) => syncExtras(rows))
       setEditing(null)
       return
     }
@@ -930,6 +996,7 @@ export default function RestaurantPos() {
 
   const saveValueDialog = async (raw: string) => {
     if (!order || !valueDialog) return
+    if (valueDialog === "takeaway_name" && !raw.trim()) { setMessage({ type: "error", text: tr("ملاحظة الطلب السفري مطلوبة") }); return }
     const data = valueDialog === "discount"
       ? await act("update_order", { order_id: order.id, discount_percent: Number(raw) }, tr("تم تحديث خصم الطلب"))
       : await act("update_order", { order_id: order.id, takeaway_name: raw })
@@ -946,19 +1013,19 @@ export default function RestaurantPos() {
     if (addonsTarget.kind === "pending") {
       const row = pending.find((line) => line.key === addonsTarget.key)
       if (!row) return null
-      return { title: row.name, groups: productById.get(row.productId)?.addonGroups || [], selected: row.addons, note: row.note }
+      return { title: row.name, groups: productById.get(row.productId)?.addonGroups || [], selected: row.addons.filter((addon) => !isExtraAddon(addon)), note: row.note }
     }
     const item = addonsTarget.item
-    return { title: item.product_name, groups: productById.get(item.product_id)?.addonGroups || [], selected: item.addons || [], note: item.note || "" }
+    return { title: item.product_name, groups: productById.get(item.product_id)?.addonGroups || [], selected: (item.addons || []).filter((addon) => !isExtraAddon(addon)), note: item.note || "" }
   }, [addonsTarget, pending, productById])
   const saveAddons = async (addons: Addon[], note: string) => {
     if (!addonsTarget || !order) return
     if (addonsTarget.kind === "pending") {
-      setPending((rows) => rows.map((row) => row.key === addonsTarget.key ? { ...row, addons, note } : row))
+      setPending((rows) => rows.map((row) => row.key === addonsTarget.key ? { ...row, addons: [...addons, ...row.addons.filter(isExtraAddon)], note } : row))
       setAddonsTarget(null)
       return
     }
-    const data = await act("update_item", { order_id: order.id, item_id: addonsTarget.item.id, addons, note })
+    const data = await act("update_item", { order_id: order.id, item_id: addonsTarget.item.id, addons: [...addons, ...(addonsTarget.item.addons || []).filter(isExtraAddon)], note })
     if (data) setAddonsTarget(null)
   }
 
@@ -1138,10 +1205,6 @@ export default function RestaurantPos() {
                   </div>
                 </div>
               )}
-              <div className="space-y-1">
-                <Label>{tr("اسم/رقم الزبون (اختياري)")}</Label>
-                <Input className="h-11" value={takeawayName} autoFocus onChange={(e) => setTakeawayName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void confirmTakeaway() }} />
-              </div>
             </div>
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setTakeawayOpen(false)}>{tr("إلغاء")}</Button>
@@ -1176,8 +1239,8 @@ export default function RestaurantPos() {
         query={query} onQuery={setQuery} category={category} onCategory={setCategory} catalogLoading={catalogLoading} catalogError={catalogError}
         pending={pending} pendingTotal={pendingTotal} remainingTotal={remainingTotal} mobileTab={mobileTab} onMobileTab={setMobileTab} actions={actions}
         onBack={() => void backToFloor()} onAddProduct={onAddProduct} onOpenItemSearch={() => setItemSearchOpen(true)}
-        onPendingQty={(key, delta) => setPending((rows) => rows.flatMap((row) => row.key !== key ? [row] : row.quantity + delta > 0 ? [{ ...row, quantity: round4(row.quantity + delta) }] : []))}
-        onPendingRemove={(key) => setPending((rows) => rows.filter((row) => row.key !== key))}
+        onPendingQty={(key, delta) => setPending((rows) => syncExtras(rows.flatMap((row) => row.key !== key ? [row] : row.quantity + delta > 0 ? [{ ...row, quantity: round4(row.quantity + delta) }] : [])))}
+        onPendingRemove={(key) => setPending((rows) => syncExtras(rows.filter((row) => row.key !== key)))}
         onEditPending={(key) => setEditing({ kind: "pending", key })} onEditItem={(item) => gated("editItems", () => setEditing({ kind: "item", item }), order.location_id)()} onRemoveService={(item) => void removeService(item)}
         onPendingAddons={(key) => setAddonsTarget({ kind: "pending", key })} onItemAddons={(item) => gated("editItems", () => setAddonsTarget({ kind: "item", item }), order.location_id)()}
         onSend={() => void sendPending()} onPay={gated("pay", () => {
@@ -1202,11 +1265,15 @@ export default function RestaurantPos() {
       <ValueDialog open={valueDialog !== null} onOpenChange={(value) => { if (!value) setValueDialog(null) }} busy={busy} onConfirm={(value) => void saveValueDialog(value)}
         {...(valueDialog === "discount"
           ? { title: tr("خصم الطلب"), label: tr("نسبة الخصم على الطلب"), value: String(order.discount_percent || 0), kind: "number" as const, min: 0, max: 100, suffix: "%", presets: [0, 5, 10, 15, 20, 25, 30, 50] }
-          : { title: tr("اسم الطلب السفري"), label: tr("اسم/رقم الزبون"), value: order.takeaway_name || "", placeholder: tr("اختياري") })} />
+          : { title: tr("ملاحظة الطلب السفري"), label: tr("اسم/رقم الزبون أو ملاحظة"), value: order.takeaway_name || "", placeholder: tr("مطلوبة قبل الإرسال للمطبخ") })} />
 
       <ItemEditDialog open={editing !== null} onOpenChange={(value) => { if (!value) setEditing(null) }} line={editLine} busy={busy}
         canDiscount canDelete canReduce
         onSave={(value) => void saveEdit(value)} onDelete={() => void deleteEdit()} />
+
+      <ExtrasWizard open={extrasWizard !== null} title={extrasWizard?.product.name || ""} price={extrasWizard?.product.price || 0} currency={currency} extras={extrasWizard?.product.extras || []}
+        onCancel={() => setExtrasWizard(null)}
+        onDone={(chosen) => { const target = extrasWizard; setExtrasWizard(null); if (target) addLines(target.product, target.related, target.includeParent, chosen) }} />
 
       <AddonsDialog open={addonsLine !== null} onOpenChange={(value) => { if (!value) setAddonsTarget(null) }} title={addonsLine?.title || ""}
         groups={addonsLine?.groups || []} selected={addonsLine?.selected || []} note={addonsLine?.note || ""} busy={busy} onSave={(addons, note) => void saveAddons(addons, note)} />

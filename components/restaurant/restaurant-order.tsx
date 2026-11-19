@@ -5,7 +5,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowRight, ChefHat, TextSearch as ListSearchIcon, Clock, CreditCard, Link2, Link2Off, Loader2, Minus, Pencil, Plus, ReceiptText, Search, Send, ShoppingBag, Sparkles, UserRound, Users, X } from "lucide-react"
 import type { RestaurantPermission } from "@/lib/transaction-permission-definitions"
 import { elapsed } from "./restaurant-floor"
-import { money, qtyText, type Addon, type AddonGroup, type OrderItem } from "./restaurant-dialogs"
+import { EXTRAS_GROUP, money, qtyText, type Addon, type AddonGroup, type OrderItem } from "./restaurant-dialogs"
 import "./restaurant-order.css"
 
 export type Order = {
@@ -23,10 +23,14 @@ export type Product = {
   addonGroups: AddonGroup[]; relatedMode: number; relatedIds: number[]
   /** خيارات كل تابع: addPrice = اضافة السعر عند الاختيار، noKitchenPrint = عدم الطباعة في فواتير المطبخ */
   relatedItems: { id: number; addPrice: boolean; noKitchenPrint: boolean }[]
+  /** اضافات المطعم (تعريف الصنف): معالج «مع/بدون» عند الإضافة */
+  extras?: { name: string; price: number }[]
 }
 export type Pending = {
   key: string; productId: number; name: string; unitId: number | null; unitName: string; price: number; quantity: number; discount: number
   note: string; addons: Addon[]; groupPrinter: string; category: string; relatedOf?: string; noKitchenPrint?: boolean
+  /** سطر «اضافات» (خدمة اضافات المطعم) التابع لسطر الصنف بهذا المفتاح — كميته تتبع كمية الصنف */
+  extrasOf?: string
 }
 export type OrderAction = { key: string; label: string; icon: typeof Users; show: boolean; onClick: () => void; tone?: string; disabled?: boolean }
 
@@ -59,10 +63,22 @@ const solidTone = (text: string) => DISH_TONES[toneIndex(text)][1]
 
 function AddonChips({ addons }: { addons?: Addon[] }) {
   if (!addons?.length) return null
+  // اضافات المطعم («مع ...») أسطر تحت الصنف؛ الخصائص شرائح كما كانت
+  const attributes = addons.filter((addon) => addon.group !== EXTRAS_GROUP)
+  const extras = addons.filter((addon) => addon.group === EXTRAS_GROUP)
   return (
-    <span className="ro-chips">
-      {addons.map((addon) => <span key={`${addon.group}|${addon.value}`} className="ro-chip">+ {addon.value}</span>)}
-    </span>
+    <>
+      {attributes.length > 0 && (
+        <span className="ro-chips">
+          {attributes.map((addon) => <span key={`${addon.group}|${addon.value}`} className="ro-chip">+ {addon.value}</span>)}
+        </span>
+      )}
+      {extras.length > 0 && (
+        <span className="mt-0.5 block text-xs font-bold opacity-80">
+          {extras.map((addon) => <span key={addon.value} className="block">• {addon.value}</span>)}
+        </span>
+      )}
+    </>
   )
 }
 
@@ -95,7 +111,7 @@ function requestImage(id: number, resolve: (src: string | null) => void) {
   if (imageTimer === null) imageTimer = window.setTimeout(flushImages, 40)
 }
 
-/** الطبق: صورة الصنف داخل دائرة، أو أول حرفين بلون المجموعة */
+/** صورة الصنف بعرض البطاقة (أعلاها)، أو أول حرفين على تدرّج بلون المجموعة */
 function DishPlate({ product }: { product: Product }) {
   const ref = useRef<HTMLSpanElement>(null)
   const [src, setSrc] = useState<string | null>(product.imageUrl || (product.hasImage ? imageCache.get(product.id) ?? null : null))
@@ -111,7 +127,7 @@ function DishPlate({ product }: { product: Product }) {
     return () => { active = false; observer.disconnect() }
   }, [product.id, product.imageUrl, product.hasImage])
   return (
-    <span ref={ref} className="ro-plate" style={{ background: toneFor(product.category) }}>
+    <span ref={ref} className={src ? "ro-plate has-img" : "ro-plate"} style={{ background: toneFor(product.category) }}>
       {src ? <img src={src} alt="" loading="lazy" decoding="async" /> : initials(product.name)}
     </span>
   )
@@ -126,8 +142,10 @@ const ProductTile = memo(function ProductTile({ product, count, canAdd, onAdd }:
         {product.relatedMode > 1 && product.relatedIds.length > 0 && <Link2 aria-label={tr("له توابع")} />}
       </span>
       <DishPlate product={product} />
-      <h4>{product.name}</h4>
-      <span className="ro-dish-foot"><b>{money(product.price)}</b><span className="ro-add"><Plus className="h-5 w-5" /></span></span>
+      <span className="ro-dish-body">
+        <h4>{product.name}</h4>
+        <span className="ro-dish-foot"><b>{money(product.price)}</b><span className="ro-add"><Plus className="h-5 w-5" /></span></span>
+      </span>
     </button>
   )
 })
@@ -181,9 +199,12 @@ export function RestaurantOrder(p: Props) {
         <button type="button" className="ro-back" onClick={p.onBack}><ArrowRight className="h-5 w-5" />{tr("الطاولات")}</button>
         <div className="ro-tags">
           {isTakeaway ? (
-            <span className="ro-table">
-              <ShoppingBag className="h-5 w-5" />{tr("سفري")}{order.takeaway_name ? ` — ${order.takeaway_name}` : ""}
-              {can("takeaway") && <button type="button" title={tr("تعديل الاسم")} disabled={p.busy} onClick={p.onRenameTakeaway}><Pencil className="h-3.5 w-3.5" /></button>}
+            <span className="inline-flex flex-wrap items-center gap-2">
+              <span className="ro-table"><ShoppingBag className="h-5 w-5" />{tr("سفري")}{order.takeaway_name ? ` — ${order.takeaway_name}` : ""}</span>
+              {/* ملاحظة السفري (اسم/رقم الزبون) مطلوبة قبل الإرسال للمطبخ — تُضاف من هنا بعد إدخال الأصناف */}
+              <button type="button" className={order.takeaway_name ? "ro-soft" : "ro-badge"} disabled={p.busy} onClick={p.onRenameTakeaway}>
+                <Pencil className="h-3.5 w-3.5" />{order.takeaway_name ? tr("تعديل الملاحظة") : tr("إضافة ملاحظة")}
+              </button>
             </span>
           ) : order.tables.map((table) => (
             <span key={table.table_id} className="ro-table">

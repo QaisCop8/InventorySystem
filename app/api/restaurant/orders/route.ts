@@ -455,7 +455,7 @@ async function handlePay(ctx: Ctx, order: any) {
   // إعدادات البيع من الموقع نفسه (مستقلة عن نقاط بيع الكاشير وعهدته)
   const location = (await sql`SELECT * FROM restaurant_locations_tbl WHERE id = ${Number(order.location_id)}`)[0]
   if (!location) throw fail("موقع الطلب غير موجود")
-  const point = await locationSalePoint(location, ctx.userId)
+  const point = await locationSalePoint(location, ctx.userId, order.order_type === "takeaway" ? "takeaway" : "dine_in")
   if (Number(point.branch_id) !== Number(order.branch_id)) throw fail("موقع الطلب يتبع فرعاً آخر")
   // مثل الكاشير: الدفع يتطلب عهدة مفتوحة للمستخدم على موقع الطلب
   const session = await getOpenRestaurantSession(Number(location.id), ctx.userId)

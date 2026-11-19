@@ -48,6 +48,10 @@ export async function ensureRestaurantTables() {
       "admin_email VARCHAR(150)", "manager_email VARCHAR(150)", "admin_pin_hash VARCHAR(200)", "manager_pin_hash VARCHAR(200)",
       // خدمة الطاولات: خدمة (products.type=2) تُضاف تلقائياً عند فتح طاولة، وتُرحَّل على "حساب المبيعات" المعرّف في الخدمة
       "table_service_id INTEGER",
+      // 2026-11-19: فئة السعر للسفري (price_category_id = فئة السعر للطاولات). فارغة ⇐ فئة الطاولات
+      "takeaway_price_category_id INTEGER",
+      // خدمة اضافات المطعم: سطر «اضافات» (مجموع أسعار الإضافات المختارة «مع») يُفوتر على هذه الخدمة
+      "extras_service_id INTEGER",
     ]) await sql.unsafe(`ALTER TABLE restaurant_locations_tbl ADD COLUMN IF NOT EXISTS ${column}`)
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS restaurant_locations_code_uq ON restaurant_locations_tbl (LOWER(code)) WHERE status <> 3`
     await sql`CREATE INDEX IF NOT EXISTS restaurant_locations_branch_idx ON restaurant_locations_tbl (branch_id)`
@@ -367,7 +371,7 @@ export async function tableWithState(tableId: number) {
  * إعدادات البيع للموقع بصيغة "نقطة بيع" يفهمها محرك البيع (app/api/pos/_sale-core.ts) وكتالوج الأصناف — بلا أي
  * نقطة بيع كاشير. الحسابات الفارغة تُكمَّل كالكاشير: حسابات المستخدم الافتراضية للعملة ثم حسابات النظام.
  */
-export async function locationSalePoint(location: any, userId: string) {
+export async function locationSalePoint(location: any, userId: string, orderType: "dine_in" | "takeaway" = "dine_in") {
   const missing = [
     [location.warehouse_id, "المستودع"], [location.currency_id, "العملة"],
     [location.price_category_id, "فئة السعر"], [location.sales_book_id, "دفتر فواتير البيع"],
@@ -384,7 +388,8 @@ export async function locationSalePoint(location: any, userId: string) {
     currency_id: Number(location.currency_id),
     currency_code: currency?.currency_code || "",
     currency_name: currency?.currency_name || "",
-    price_category_id: Number(location.price_category_id),
+    // فئة السعر حسب نوع الطلب: الطاولات أو السفري (إن عُرّفت)
+    price_category_id: orderType === "takeaway" && Number(location.takeaway_price_category_id) > 0 ? Number(location.takeaway_price_category_id) : Number(location.price_category_id),
     sales_book_id: Number(location.sales_book_id),
     return_book_id: null,
     cash_account_id: Number(location.cash_account_id) || null,

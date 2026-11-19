@@ -42,7 +42,7 @@ async function validate(data: any, id: number | null, userId: string) {
   const priceCategoryId = optionalId(data.price_category_id), salesBookId = optionalId(data.sales_book_id)
   if (!warehouseId) return { error: "المستودع مطلوب" }
   if (!currencyId) return { error: "العملة مطلوبة" }
-  if (!priceCategoryId) return { error: "فئة السعر مطلوبة" }
+  if (!priceCategoryId) return { error: "فئة السعر للطاولات مطلوبة" }
   if (!salesBookId) return { error: "دفتر فواتير البيع مطلوب" }
   const [warehouse, currency, priceCategory, book] = await Promise.all([
     sql`SELECT id FROM warehouses WHERE id = ${warehouseId} AND COALESCE(status, 1) <> 3`,
@@ -52,7 +52,9 @@ async function validate(data: any, id: number | null, userId: string) {
   ])
   if (!warehouse[0]) return { error: "المستودع غير صالح" }
   if (!currency[0]) return { error: "العملة غير صالحة" }
-  if (!priceCategory[0]) return { error: "فئة السعر غير صالحة" }
+  if (!priceCategory[0]) return { error: "فئة السعر للطاولات غير صالحة" }
+  const takeawayPriceCategoryId = optionalId(data.takeaway_price_category_id)
+  if (takeawayPriceCategoryId && !(await sql`SELECT id FROM pricecategory WHERE id = ${takeawayPriceCategoryId} AND COALESCE(status, 1) = 1`)[0]) return { error: "فئة السعر للسفري غير صالحة" }
   if (!book[0]) return { error: "دفتر فواتير البيع غير صالح" }
 
   const accounts: Record<string, number | null> = {}
@@ -64,6 +66,9 @@ async function validate(data: any, id: number | null, userId: string) {
   // خدمة الطاولات (اختيارية): خدمة نشطة تُضاف تلقائياً عند فتح الطاولة وتُرحَّل على حساب مبيعاتها
   const tableServiceId = optionalId(data.table_service_id)
   if (tableServiceId && !(await sql`SELECT id FROM products WHERE id = ${tableServiceId} AND COALESCE(type, 1) = 2 AND COALESCE(deleted, false) = false AND COALESCE(status, 1) <> 3`)[0]) return { error: "خدمة الطاولات غير صالحة" }
+  // خدمة اضافات المطعم (اختيارية): يُفوتر عليها سطر «اضافات» بمجموع أسعار الإضافات المختارة
+  const extrasServiceId = optionalId(data.extras_service_id)
+  if (extrasServiceId && !(await sql`SELECT id FROM products WHERE id = ${extrasServiceId} AND COALESCE(type, 1) = 2 AND COALESCE(deleted, false) = false AND COALESCE(status, 1) <> 3`)[0]) return { error: "خدمة اضافات المطعم غير صالحة" }
   const maxDiscount = Number(data.max_discount_percent ?? 100)
   if (!Number.isFinite(maxDiscount) || maxDiscount < 0 || maxDiscount > 100) return { error: "أعلى نسبة خصم يجب أن تكون بين 0 و100" }
   const printMode = [0, 1, 2].includes(Number(data.invoice_print_mode)) ? Number(data.invoice_print_mode) : 1
@@ -88,7 +93,7 @@ async function validate(data: any, id: number | null, userId: string) {
   if (duplicate) return { error: "يوجد موقع بنفس الرقم أو بنفس الاسم في هذا الفرع" }
   return {
     value: {
-      name, code, branchId, warehouseId, currencyId, priceCategoryId, salesBookId, accounts, maxDiscount, printMode, emails, pins, tableServiceId,
+      name, code, branchId, warehouseId, currencyId, priceCategoryId, takeawayPriceCategoryId, salesBookId, accounts, maxDiscount, printMode, emails, pins, tableServiceId, extrasServiceId,
       printByGroup: data.print_by_item_group !== false,
       kitchenPrintConfirm: data.kitchen_print_confirm === true,
       status: Number(data.status) === 2 ? 2 : 1,
@@ -122,13 +127,15 @@ export async function GET(request: NextRequest) {
     if (!permission.ok) return permission.response
     const branchId = Number(params.get("branch_id")) || 0
     const rows = await sql`
-      SELECT l.*, b.branch_name, w.warehouse_name, c.currency_code, pc.name AS price_category_name, vb.name AS sales_book_name, ts.product_name AS table_service_name,
+      SELECT l.*, b.branch_name, w.warehouse_name, c.currency_code, pc.name AS price_category_name, tpc.name AS takeaway_price_category_name, vb.name AS sales_book_name, ts.product_name AS table_service_name, xs.product_name AS extras_service_name,
              (SELECT COUNT(*)::int FROM restaurant_tables_tbl t WHERE t.location_id = l.id AND t.status <> 3) AS tables_count
       FROM restaurant_locations_tbl l
       LEFT JOIN branches b ON b.id = l.branch_id
       LEFT JOIN warehouses w ON w.id = l.warehouse_id
       LEFT JOIN currency c ON c.id = l.currency_id
       LEFT JOIN pricecategory pc ON pc.id = l.price_category_id
+      LEFT JOIN pricecategory tpc ON tpc.id = l.takeaway_price_category_id
+      LEFT JOIN products xs ON xs.id = l.extras_service_id
       LEFT JOIN voucher_books_tbl vb ON vb.id = l.sales_book_id
       LEFT JOIN products ts ON ts.id = l.table_service_id
       WHERE l.status <> 3 AND (${branchId} = 0 OR l.branch_id = ${branchId})
@@ -176,7 +183,7 @@ async function save(request: NextRequest, mode: "create" | "update") {
     ? await sql`
         UPDATE restaurant_locations_tbl SET
           code = ${v.code}, name = ${v.name}, branch_id = ${v.branchId}, warehouse_id = ${v.warehouseId}, currency_id = ${v.currencyId},
-          price_category_id = ${v.priceCategoryId}, sales_book_id = ${v.salesBookId}, cash_account_id = ${a.cash_account_id},
+          price_category_id = ${v.priceCategoryId}, takeaway_price_category_id = ${v.takeawayPriceCategoryId}, extras_service_id = ${v.extrasServiceId}, sales_book_id = ${v.salesBookId}, cash_account_id = ${a.cash_account_id},
           walk_in_account_id = ${a.walk_in_account_id}, card_account_id = ${a.card_account_id}, cheque_account_id = ${a.cheque_account_id},
           tax_account_id = ${a.tax_account_id}, max_discount_percent = ${v.maxDiscount}, invoice_print_mode = ${v.printMode},
           print_by_item_group = ${v.printByGroup}, kitchen_print_confirm = ${v.kitchenPrintConfirm}, sort_order = ${v.sortOrder}, color = ${v.color}, notes = ${v.notes}, status = ${v.status},
@@ -190,11 +197,11 @@ async function save(request: NextRequest, mode: "create" | "update") {
         INSERT INTO restaurant_locations_tbl (
           code, name, branch_id, warehouse_id, currency_id, price_category_id, sales_book_id, cash_account_id, walk_in_account_id,
           card_account_id, cheque_account_id, tax_account_id, max_discount_percent, invoice_print_mode, print_by_item_group, kitchen_print_confirm,
-          sort_order, color, notes, status, created_by, admin_email, manager_email, admin_pin_hash, manager_pin_hash, table_service_id
+          sort_order, color, notes, status, created_by, admin_email, manager_email, admin_pin_hash, manager_pin_hash, table_service_id, takeaway_price_category_id, extras_service_id
         ) VALUES (
           ${v.code}, ${v.name}, ${v.branchId}, ${v.warehouseId}, ${v.currencyId}, ${v.priceCategoryId}, ${v.salesBookId}, ${a.cash_account_id},
           ${a.walk_in_account_id}, ${a.card_account_id}, ${a.cheque_account_id}, ${a.tax_account_id}, ${v.maxDiscount}, ${v.printMode},
-          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}, ${v.emails.admin}, ${v.emails.manager}, ${v.pins.admin ?? null}, ${v.pins.manager ?? null}, ${v.tableServiceId}
+          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}, ${v.emails.admin}, ${v.emails.manager}, ${v.pins.admin ?? null}, ${v.pins.manager ?? null}, ${v.tableServiceId}, ${v.takeawayPriceCategoryId}, ${v.extrasServiceId}
         )
         RETURNING *
       `

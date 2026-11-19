@@ -198,3 +198,35 @@ Distribution vans: each van stock, sales, cash box and expenses — loading by c
 Consignment delivery to the van salesman
 Consignment return — what remains with the salesman goes back to the warehouse
 Define the salesman and cash box
+Edit note
+Enter the takeaway order note before sending to the kitchen
+Takeaway order note is required
+Takeaway order note
+Customer name/number or note
+Required before sending to the kitchen
+Tables price category *
+Takeaway price category
+Same as tables
+Tables price category
+Tables price category is required
+Tables price category is invalid
+Takeaway price category is invalid
+The selected item has no price — set its price to continue
+Restaurant extras
+Extras
+Extra *
+e.g. Tomato
++ Add first extra (e.g. tomato, potato)
+Enter the extra name or delete the empty row
+Extra name {0} is longer than 50 characters
+Price of extra {0} must be between 0 and 1000
+Extra {0} is duplicated
+When the item is added in the restaurant screen, a wizard asks for each extra: «with» or «without». Chosen «with» extras print under the item on the kitchen slip; priced extras are summed in an «Extras» line on the location's «Restaurant extras service».
+Restaurant extras service
+Chosen priced extras (from the item's «Restaurant extras» tab) are added as an «Extras» line with their total, invoiced on this service.
+Review extras
+Extra {0} of {1}
+With {0}
+Without {0}
+Add to order
+Set the «Restaurant extras service» in the location settings to add priced extras

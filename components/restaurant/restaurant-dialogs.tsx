@@ -2,7 +2,7 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { Check, Loader2, Minus, Plus, Trash2, Users } from "lucide-react"
+import { ArrowLeft, ArrowRight, Check, Loader2, Minus, Plus, Trash2, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -26,7 +26,14 @@ export type OrderItem = {
 }
 export type Addon = { group: string; value: string }
 export type AddonGroup = { name: string; values: string[] }
+/** اضافات المطعم (تبويب «اضافات المطعم» في تعريف الصنف): تُختار «مع/بدون» بمعالج، وتُحفظ على السطر كـ addons بهذه المجموعة */
+export type RestaurantExtra = { name: string; price: number }
+export const EXTRAS_GROUP = "اضافات المطعم"
+export const isExtraAddon = (addon: Addon) => addon.group === EXTRAS_GROUP
 export const addonsText = (addons?: Addon[] | null) => (addons || []).map((addon) => addon.value).join("، ")
+/** خصائص الصنف فقط (بلا «مع ...» من اضافات المطعم — تلك تُطبع أسطراً تحت الصنف في قسيمة المطبخ) */
+export const attributesText = (addons?: Addon[] | null) => addonsText((addons || []).filter((addon) => !isExtraAddon(addon)))
+export const extrasLines = (addons?: Addon[] | null) => (addons || []).filter(isExtraAddon).map((addon) => addon.value)
 
 export const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
 export const round4 = (value: number) => Math.round(value * 10000) / 10000
@@ -216,6 +223,97 @@ export function PayScopeDialog(props: {
 }
 
 /** إضافات السطر: مجموعات "المتغيرات والخصائص" من تعريف الصنف، اختيار متعدد لكل مجموعة + ملاحظة للمطبخ */
+/**
+ * معالج اضافات المطعم (كشاشات الطلب الذاتي): شريحة لكل إضافة — «مع X» أو «بدون X» — ثم مراجعة.
+ * الاختيار ينتقل للشريحة التالية تلقائياً؛ السعر الإضافي يظهر على «مع» ويُجمع في سطر «اضافات».
+ */
+export function ExtrasWizard(props: {
+  open: boolean; title: string; price: number; currency: string; extras: RestaurantExtra[]
+  onCancel: () => void; onDone: (chosen: string[]) => void
+}) {
+  const { open, title, price, currency, extras, onCancel, onDone } = props
+  const [step, setStep] = useState(0)
+  const [choice, setChoice] = useState<Record<string, boolean>>({})
+  useEffect(() => { if (open) { setStep(0); setChoice({}) } }, [open])
+  const review = step >= extras.length
+  const chosen = extras.filter((extra) => choice[extra.name])
+  const extraTotal = round2(chosen.reduce((sum, extra) => sum + extra.price, 0))
+  const extra = extras[step]
+  const pick = (value: boolean) => {
+    if (!extra) return
+    setChoice((current) => ({ ...current, [extra.name]: value }))
+    setStep((current) => current + 1)
+  }
+  const card = "flex min-h-40 flex-col items-center justify-center gap-3 rounded-3xl border-4 bg-white p-4 text-xl font-black shadow-sm transition hover:-translate-y-0.5 dark:bg-slate-800"
+  return (
+    <Dialog open={open} onOpenChange={(value) => { if (!value) onCancel() }}>
+      <DialogContent dir={appDir()} className="flex max-h-[calc(100%-1rem)] w-[calc(100vw-1rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0"
+        onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
+        <div className="bg-emerald-800 px-5 pb-4 pt-5 text-white">
+          <DialogHeader className="space-y-1 text-start">
+            <DialogTitle className="text-xl font-black text-white">{title}</DialogTitle>
+            <DialogDescription className="text-emerald-100">
+              {money(price)}{extraTotal > 0 ? ` + ${money(extraTotal)}` : ""} {currency} — {review ? tr("مراجعة الإضافات") : tr("الإضافة {0} من {1}", step + 1, extras.length)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-3 flex gap-1.5">
+            {extras.map((row, index) => (
+              <span key={row.name} className={`h-1.5 flex-1 rounded-full ${index < step ? (choice[row.name] ? "bg-orange-400" : "bg-white/70") : index === step ? "bg-white" : "bg-white/25"}`} />
+            ))}
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[#f6f1e9] p-5 dark:bg-slate-900">
+          {!review && extra && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <div className="text-3xl font-black text-slate-800 dark:text-slate-100">{extra.name}</div>
+                {extra.price > 0 && <div className="mt-1 text-sm font-bold text-orange-600">+{money(extra.price)} {currency}</div>}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <button type="button" onClick={() => pick(true)} className={`${card} hover:border-emerald-500 ${choice[extra.name] === true ? "border-emerald-600" : "border-transparent"}`}>
+                  <span className="grid h-16 w-16 place-items-center rounded-full bg-emerald-600 text-white"><Check className="h-9 w-9" /></span>
+                  {tr("مع {0}", extra.name)}
+                </button>
+                <button type="button" onClick={() => pick(false)} className={`${card} hover:border-rose-400 ${choice[extra.name] === false ? "border-rose-500" : "border-transparent"}`}>
+                  <span className="grid h-16 w-16 place-items-center rounded-full bg-rose-500 text-white"><X className="h-9 w-9" /></span>
+                  {tr("بدون {0}", extra.name)}
+                </button>
+              </div>
+            </div>
+          )}
+          {review && (
+            <div className="space-y-2">
+              {extras.map((row) => (
+                <div key={row.name} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm dark:bg-slate-800">
+                  <span className={`flex items-center gap-2 font-bold ${choice[row.name] ? "text-emerald-700 dark:text-emerald-400" : "text-slate-400 line-through"}`}>
+                    {choice[row.name] ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}{choice[row.name] ? tr("مع {0}", row.name) : tr("بدون {0}", row.name)}
+                  </span>
+                  {choice[row.name] && row.price > 0 && <b className="text-orange-600">+{money(row.price)}</b>}
+                </div>
+              ))}
+              {extraTotal > 0 && (
+                <div className="flex items-center justify-between rounded-2xl border-2 border-dashed border-orange-300 px-4 py-3 font-black">
+                  <span>{tr("اضافات")}</span><span>{money(extraTotal)} {currency}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-2 border-t bg-background p-3">
+          <Button variant="outline" className="h-12 px-5" onClick={() => (step > 0 ? setStep(step - 1) : onCancel())}>
+            <ArrowRight className="me-1 h-4 w-4 ltr:rotate-180" />{step > 0 ? tr("رجوع") : tr("إلغاء")}
+          </Button>
+          {review
+            ? <Button className="h-12 bg-orange-500 px-6 text-base font-black hover:bg-orange-600" onClick={() => onDone(chosen.map((row) => row.name))}><Check className="me-1 h-5 w-5" />{tr("إضافة للطلب")}</Button>
+            : <Button variant="ghost" className="h-12 px-5" disabled={choice[extra?.name ?? ""] === undefined} onClick={() => setStep(step + 1)}>{tr("التالي")}<ArrowLeft className="ms-1 h-4 w-4 ltr:rotate-180" /></Button>}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function AddonsDialog(props: {
   open: boolean; onOpenChange: (open: boolean) => void; title: string; groups: AddonGroup[]; selected: Addon[]; note: string
   busy?: boolean; onSave: (addons: Addon[], note: string) => void
@@ -224,15 +322,16 @@ export function AddonsDialog(props: {
   const [picked, setPicked] = useState<Addon[]>([])
   const [text, setText] = useState("")
   const [error, setError] = useState("")
-  useEffect(() => { if (open) { setPicked(selected); setText(note); setError("") } }, [open, selected, note])
-  // كل مجموعة مطلوبة: قيمة واحدة على الأقل
+  useEffect(() => { if (open) { setPicked([...new Map(selected.map((addon) => [addon.group, addon])).values()]); setText(note); setError("") } }, [open, selected, note])
+  // كل مجموعة مطلوبة: قيمة واحدة بالضبط
   const save = () => {
     const missing = groups.filter((group) => !picked.some((addon) => addon.group === group.name)).map((group) => group.name)
     if (missing.length) { setError(tr("اختر قيمة من: {0}", missing.join("، "))); return }
     onSave(picked, text.trim())
   }
   const has = (group: string, value: string) => picked.some((addon) => addon.group === group && addon.value === value)
-  const toggle = (group: string, value: string) => { setError(""); setPicked((current) => has(group, value) ? current.filter((addon) => !(addon.group === group && addon.value === value)) : [...current, { group, value }]) }
+  // قيمة واحدة فقط لكل مجموعة: اختيار قيمة يستبدل السابقة في نفس المجموعة
+  const toggle = (group: string, value: string) => { setError(""); setPicked((current) => [...current.filter((addon) => addon.group !== group), { group, value }]) }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir={appDir()} className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-lg flex-col">

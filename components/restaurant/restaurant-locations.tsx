@@ -21,7 +21,7 @@ import { LicenseUsageStrip, useCompanyLicense, useLicenseRequestDialog } from "@
 
 type Location = Record<string, any> & {
   id: number; code: string; name: string; branch_id: number; branch_name?: string; status: number; tables_count?: number
-  warehouse_name?: string | null; currency_code?: string | null; price_category_name?: string | null; sales_book_name?: string | null
+  warehouse_name?: string | null; currency_code?: string | null; price_category_name?: string | null; takeaway_price_category_name?: string | null; takeaway_price_category_id?: number | null; sales_book_name?: string | null
 }
 type Option = { id: number; name: string; code?: string }
 type Options = { branches: Option[]; warehouses: Option[]; currencies: Option[]; books: Option[]; priceCategories: Option[]; services: Option[] }
@@ -32,40 +32,42 @@ const ACCOUNT_FIELDS = [
 const PRINT_MODES = [{ id: "0", name: "عدم الطباعة" }, { id: "1", name: "طباعة فاتورة كاملة" }, { id: "2", name: "طباعة فاتورة QR" }]
 
 type Form = {
-  id: number; code: string; name: string; branch_id: string; warehouse_id: string; currency_id: string; price_category_id: string; sales_book_id: string
+  id: number; code: string; name: string; branch_id: string; warehouse_id: string; currency_id: string; price_category_id: string; takeaway_price_category_id: string; sales_book_id: string
   cash_account_id: string; walk_in_account_id: string; card_account_id: string; cheque_account_id: string; tax_account_id: string
   max_discount_percent: string; invoice_print_mode: string; print_by_item_group: boolean; kitchen_print_confirm: boolean; sort_order: string; color: string; notes: string; active: boolean
   admin_email: string; manager_email: string
   // خدمة الطاولات: "" = بدون خدمة
   table_service_id: string
+  extras_service_id: string
   // رمز PIN جديد (فارغ = إبقاء المحفوظ)، هل يوجد رمز محفوظ، وحذفه
   admin_pin: string; manager_pin: string; has_admin_pin: boolean; has_manager_pin: boolean; clear_admin_pin: boolean; clear_manager_pin: boolean
 }
 const str = (value: unknown) => (value == null || value === "" ? "" : String(value))
 const emptyForm = (branchId: number | null, code = ""): Form => ({
-  id: 0, code, name: "", branch_id: str(branchId), warehouse_id: "", currency_id: "", price_category_id: "", sales_book_id: "",
+  id: 0, code, name: "", branch_id: str(branchId), warehouse_id: "", currency_id: "", price_category_id: "", takeaway_price_category_id: "", sales_book_id: "",
   cash_account_id: "", walk_in_account_id: "", card_account_id: "", cheque_account_id: "", tax_account_id: "",
   max_discount_percent: "100", invoice_print_mode: "1", print_by_item_group: true, kitchen_print_confirm: false, sort_order: "0", color: "#0f766e", notes: "", active: true,
   table_service_id: "",
+  extras_service_id: "",
   admin_email: "", manager_email: "", admin_pin: "", manager_pin: "", has_admin_pin: false, has_manager_pin: false, clear_admin_pin: false, clear_manager_pin: false,
 })
 const toForm = (row: Location): Form => ({
   id: row.id, code: row.code, name: row.name, branch_id: str(row.branch_id), warehouse_id: str(row.warehouse_id), currency_id: str(row.currency_id),
-  price_category_id: str(row.price_category_id), sales_book_id: str(row.sales_book_id), cash_account_id: str(row.cash_account_id),
+  price_category_id: str(row.price_category_id), takeaway_price_category_id: str(row.takeaway_price_category_id), sales_book_id: str(row.sales_book_id), cash_account_id: str(row.cash_account_id),
   walk_in_account_id: str(row.walk_in_account_id), card_account_id: str(row.card_account_id), cheque_account_id: str(row.cheque_account_id),
   tax_account_id: str(row.tax_account_id), max_discount_percent: str(row.max_discount_percent ?? 100), invoice_print_mode: str(row.invoice_print_mode ?? 1),
   print_by_item_group: row.print_by_item_group !== false, kitchen_print_confirm: row.kitchen_print_confirm === true, sort_order: str(row.sort_order ?? 0), color: row.color || "#0f766e", notes: row.notes || "",
   active: Number(row.status) !== 2,
-  admin_email: row.admin_email || "", manager_email: row.manager_email || "", table_service_id: str(row.table_service_id),
+  admin_email: row.admin_email || "", manager_email: row.manager_email || "", table_service_id: str(row.table_service_id), extras_service_id: str((row as any).extras_service_id),
   admin_pin: "", manager_pin: "", has_admin_pin: row.has_admin_pin === true, has_manager_pin: row.has_manager_pin === true, clear_admin_pin: false, clear_manager_pin: false,
 })
 const errorText = async (response: Response, fallback: string) => String((await response.json().catch(() => ({})))?.error || fallback)
 
-function OptionSelect({ value, onChange, options, placeholder, disabled }: { value: string; onChange: (value: string) => void; options: Option[]; placeholder: string; disabled?: boolean }) {
+function OptionSelect({ value, onChange, options, placeholder, disabled, clearLabel }: { value: string; onChange: (value: string) => void; options: Option[]; placeholder: string; disabled?: boolean; clearLabel?: string }) {
   return (
-    <Select value={value || undefined} disabled={disabled} onValueChange={onChange}>
+    <Select value={value || (clearLabel ? "0" : undefined)} disabled={disabled} onValueChange={(next) => onChange(next === "0" ? "" : next)}>
       <SelectTrigger><SelectValue placeholder={placeholder} /></SelectTrigger>
-      <SelectContent>{options.map((option) => <SelectItem key={option.id} value={String(option.id)}>{option.code ? `${option.code} — ` : ""}{option.name}</SelectItem>)}</SelectContent>
+      <SelectContent>{clearLabel && <SelectItem value="0">{clearLabel}</SelectItem>}{options.map((option) => <SelectItem key={option.id} value={String(option.id)}>{option.code ? `${option.code} — ` : ""}{option.name}</SelectItem>)}</SelectContent>
     </Select>
   )
 }
@@ -187,7 +189,7 @@ export default function RestaurantLocations() {
   }
 
   const save = async () => {
-    const required: [string, string][] = [[form.name.trim(), "اسم الموقع"], [form.branch_id, "الفرع"], [form.warehouse_id, "المستودع"], [form.currency_id, "العملة"], [form.price_category_id, "فئة السعر"], [form.sales_book_id, "دفتر فواتير البيع"]]
+    const required: [string, string][] = [[form.name.trim(), "اسم الموقع"], [form.branch_id, "الفرع"], [form.warehouse_id, "المستودع"], [form.currency_id, "العملة"], [form.price_category_id, "فئة السعر للطاولات"], [form.sales_book_id, "دفتر فواتير البيع"]]
     const missing = required.filter(([value]) => !value).map(([, label]) => label)
     if (missing.length) { setFormError(tr("الحقول المطلوبة: {0}", missing.join("، "))); return }
     setSaving(true); setFormError("")
@@ -198,7 +200,7 @@ export default function RestaurantLocations() {
         body: JSON.stringify({
           ...form, id: form.id || undefined,
           branch_id: Number(form.branch_id), warehouse_id: Number(form.warehouse_id), currency_id: Number(form.currency_id),
-          price_category_id: Number(form.price_category_id), sales_book_id: Number(form.sales_book_id), table_service_id: Number(form.table_service_id) || null,
+          price_category_id: Number(form.price_category_id), takeaway_price_category_id: Number(form.takeaway_price_category_id) || null, sales_book_id: Number(form.sales_book_id), table_service_id: Number(form.table_service_id) || null, extras_service_id: Number(form.extras_service_id) || null,
           ...Object.fromEntries(ACCOUNT_FIELDS.map(([key]) => [key, Number(form[key]) || null])),
           max_discount_percent: Number(form.max_discount_percent), invoice_print_mode: Number(form.invoice_print_mode),
           sort_order: Number(form.sort_order) || 0, status: form.active ? 1 : 2,
@@ -322,7 +324,7 @@ export default function RestaurantLocations() {
                 <div className="flex items-center gap-1"><Store className="h-4 w-4 text-muted-foreground" />{row.branch_name || "-"}</div>
                 <div className="flex items-center gap-1"><LayoutGrid className="h-4 w-4 text-muted-foreground" />{row.tables_count ?? 0}{tr(" طاولة")}</div>
                 <div className="flex items-center gap-1"><Package className="h-4 w-4 text-muted-foreground" />{row.warehouse_name || "—"}</div>
-                <div className="flex items-center gap-1"><CreditCard className="h-4 w-4 text-muted-foreground" />{row.currency_code || "—"} · {row.price_category_name || "—"}</div>
+                <div className="flex items-center gap-1"><CreditCard className="h-4 w-4 text-muted-foreground" />{row.currency_code || "—"} · {row.price_category_name || "—"}{row.takeaway_price_category_name ? ` / ${tr("سفري")}: ${row.takeaway_price_category_name}` : ""}</div>
                 {!configured(row) && <div className="col-span-2 text-amber-600">{tr("إعدادات البيع غير مكتملة — لا يمكن البيع على هذا الموقع")}</div>}
               </div>
               <div className="mt-auto flex justify-end gap-2">
@@ -376,7 +378,8 @@ export default function RestaurantLocations() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1"><Label>{tr("المستودع *")}</Label><OptionSelect value={form.warehouse_id} disabled={readOnly} onChange={(value) => set({ warehouse_id: value })} options={options.warehouses} placeholder={tr("اختر المستودع")} /></div>
                 <div className="space-y-1"><Label>{tr("العملة *")}</Label><OptionSelect value={form.currency_id} disabled={readOnly} onChange={(value) => set({ currency_id: value })} options={options.currencies} placeholder={tr("اختر العملة")} /></div>
-                <div className="space-y-1"><Label>{tr("فئة السعر *")}</Label><OptionSelect value={form.price_category_id} disabled={readOnly} onChange={(value) => set({ price_category_id: value })} options={options.priceCategories} placeholder={tr("اختر فئة السعر")} /></div>
+                <div className="space-y-1"><Label>{tr("فئة السعر للطاولات *")}</Label><OptionSelect value={form.price_category_id} disabled={readOnly} onChange={(value) => set({ price_category_id: value })} options={options.priceCategories} placeholder={tr("اختر فئة السعر")} /></div>
+                <div className="space-y-1"><Label>{tr("فئة السعر للسفري")}</Label><OptionSelect value={form.takeaway_price_category_id} disabled={readOnly} onChange={(value) => set({ takeaway_price_category_id: value })} options={options.priceCategories} placeholder={tr("نفس فئة الطاولات")} clearLabel={tr("نفس فئة الطاولات")} /></div>
                 <div className="space-y-1"><Label>{tr("دفتر فواتير البيع *")}</Label><OptionSelect value={form.sales_book_id} disabled={readOnly} onChange={(value) => set({ sales_book_id: value })} options={options.books} placeholder={tr("اختر الدفتر")} /></div>
                 <div className="space-y-1"><Label>{tr("أعلى نسبة خصم %")}</Label><Input type="number" min={0} max={100} value={form.max_discount_percent} disabled={readOnly} onChange={(e) => set({ max_discount_percent: e.target.value })} /></div>
                 <div className="space-y-1">
@@ -393,6 +396,17 @@ export default function RestaurantLocations() {
                     </SelectContent>
                   </Select>
                   <p className="text-[11px] text-muted-foreground">{tr("تُضاف تلقائياً عند فتح أي طاولة في هذا الموقع بسعرها في فئة السعر، وتُرحَّل على \"حساب المبيعات\" المعرّف في الخدمة.")}</p>
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label>{tr("خدمة اضافات المطعم")}</Label>
+                  <Select value={form.extras_service_id || "none"} disabled={readOnly} onValueChange={(value) => set({ extras_service_id: value === "none" ? "" : value })}>
+                    <SelectTrigger><SelectValue placeholder={tr("بدون خدمة")} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{tr("بدون خدمة")}</SelectItem>
+                      {options.services.map((option) => <SelectItem key={option.id} value={String(option.id)}>{option.code ? `${option.code} — ` : ""}{option.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">{tr("الإضافات المختارة «مع» ولها سعر (من تبويب «اضافات المطعم» في تعريف الصنف) تُضاف سطر «اضافات» بمجموع أسعارها، ويُفوتر على هذه الخدمة.")}</p>
                 </div>
               </div>
             </FormSection>

@@ -16,7 +16,7 @@ import { notifyProductsChanged } from "@/lib/products-changed"
 import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
 import { Separator } from "@/components/ui/separator"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
-import { Package, Save, X, Barcode, DollarSign, Warehouse, Truck, Info, Settings, Package2, Plus, Currency, SlidersHorizontal, Copy, FileSpreadsheet, Boxes, Tag, Landmark, Sparkles, BadgeCheck, Ruler, Calculator, Network, StickyNote, Paperclip, Link2, Factory } from "lucide-react"
+import { Package, Save, X, Barcode, DollarSign, Warehouse, Truck, Info, Settings, Package2, Plus, Currency, SlidersHorizontal, Copy, FileSpreadsheet, Boxes, Tag, Landmark, Sparkles, BadgeCheck, Ruler, Calculator, Network, StickyNote, Paperclip, Link2, Factory, UtensilsCrossed } from "lucide-react"
 import { WarehouseInventoryTable } from "./warehouse-inventory-table"
 import { BatchTrackingTable } from "./batch-tracking-table"
 import { UNITS } from "@/lib/constants"
@@ -264,6 +264,8 @@ interface ProductFormData {
   // products/route.ts وتصفية x-branch-id بـauth-context.tsx).
   branch_ids?: number[],
   attributes?: ProductAttributeLine[],
+  // اضافات المطعم: «مع/بدون» في شاشة المطعم؛ السعر (0–1000) يُجمع في سطر «اضافات» على خدمة الموقع
+  restaurant_extras?: { name: string; price: number | string }[],
 }
 
 type ProductAccountField =
@@ -363,6 +365,7 @@ export const initialFormData: ProductFormData = {
   product_image: null,
   branch_ids: [],
   attributes: [],
+  restaurant_extras: [],
 };
 
 export interface CompactProductFormProps {
@@ -746,6 +749,19 @@ export function CompactProductForm({
       attributeNames.add(key)
     }
 
+    // اضافات المطعم: اسم ≤ 50 حرفاً بلا تكرار، وسعر بين 0 و1000
+    const extraNames = new Set<string>()
+    for (const extra of formData.restaurant_extras || []) {
+      const name = String(extra.name || "").trim()
+      const price = Number(extra.price || 0)
+      const fail = (detail: string) => { setActiveTab("restaurant-extras"); toast.current?.show({ severity: "error", summary: tr("خطأ"), detail, life: 3000 }); return false }
+      if (!name) return fail(tr("اكتب اسم الإضافة أو احذف السطر الفارغ"))
+      if (name.length > 50) return fail(tr("اسم الإضافة {0} أطول من 50 حرفاً", name))
+      if (!Number.isFinite(price) || price < 0 || price > 1000) return fail(tr("سعر الإضافة {0} يجب أن يكون بين 0 و1000", name))
+      if (extraNames.has(name)) return fail(tr("الإضافة {0} مكررة", name))
+      extraNames.add(name)
+    }
+
     return true;
   }
   const handleSaveProduct = async (): Promise<boolean | undefined> => {
@@ -1025,6 +1041,7 @@ export function CompactProductForm({
       pos_sold_using_scale: isScaleProduct(product.pos_sold_using_scale),
       default_printer: product.default_printer || "",
       is_tobacco: product.is_tobacco === true || product.is_tobacco === "true",
+      restaurant_extras: Array.isArray(product.restaurant_extras) ? product.restaurant_extras.map((extra: any) => ({ name: String(extra?.name || ""), price: Number(extra?.price || 0) })) : [],
       product_type: Number(product.product_type ?? 1) || 1,
       units: unitsWithNames,
       prices: pricesWithNames,
@@ -3047,6 +3064,7 @@ export function CompactProductForm({
                     ] },
                     { group: "إضافي", items: [
                       { value: "attributes", label: "المتغيرات والخصائص", icon: Sparkles },
+                      { value: "restaurant-extras", label: "اضافات المطعم", icon: UtensilsCrossed },
                       { value: "brand", label: "العلامة التجارية", icon: BadgeCheck },
                       { value: "related", label: "الأصناف التابعة", icon: Link2 },
                       { value: "manufacturing-components", label: "مكونات التصنيع", icon: Factory },
@@ -3224,6 +3242,30 @@ export function CompactProductForm({
                           </div>
                         })}
                         <p className="text-xs text-muted-foreground">{tr("يبقى هذا صنفاً واحداً؛ تُختار خصائص المتغير المطلوبة عند إضافته إلى أي حركة.")}</p>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  <TabsContent value="restaurant-extras">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <CardTitle className="flex items-center gap-2 text-lg"><UtensilsCrossed className="h-5 w-5 text-orange-600" />{tr("اضافات المطعم")}</CardTitle>
+                          <Button type="button" variant="outline" onClick={() => setFormData((previous) => ({ ...previous, restaurant_extras: [...(previous.restaurant_extras || []), { name: "", price: 0 }] }))}><Plus className="me-2 h-4 w-4" />{tr("إضافة")}</Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {!(formData.restaurant_extras || []).length && <button type="button" onClick={() => setFormData((previous) => ({ ...previous, restaurant_extras: [{ name: "", price: 0 }] }))} className="w-full rounded-xl border-2 border-dashed p-8 text-muted-foreground hover:border-orange-400 hover:text-orange-700">{tr("+ إضافة أول إضافة (مثال: بندورة، بطاطا)")}</button>}
+                        {(formData.restaurant_extras || []).map((extra, index) => {
+                          const updateExtra = (patch: Partial<{ name: string; price: number | string }>) => setFormData((previous) => ({ ...previous, restaurant_extras: (previous.restaurant_extras || []).map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) }))
+                          return (
+                            <div key={index} className="grid items-end gap-3 rounded-xl border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_160px_44px]">
+                              <div className="min-w-0"><Label>{tr("الاضافة *")}</Label><Input className="mt-1" maxLength={50} value={extra.name} placeholder={tr("مثال: بندورة")} onChange={(event) => updateExtra({ name: event.target.value.slice(0, 50) })} /></div>
+                              <div><Label>{tr("السعر")}</Label><Input className="mt-1" type="number" min={0} max={1000} step="0.01" value={extra.price} onChange={(event) => updateExtra({ price: event.target.value === "" ? "" : Math.min(1000, Math.max(0, Number(event.target.value))) })} /></div>
+                              <Button type="button" size="icon" variant="ghost" className="text-red-600" onClick={() => setFormData((previous) => ({ ...previous, restaurant_extras: (previous.restaurant_extras || []).filter((_, itemIndex) => itemIndex !== index) }))}><X className="h-4 w-4" /></Button>
+                            </div>
+                          )
+                        })}
+                        <p className="text-xs text-muted-foreground">{tr("عند إضافة الصنف في شاشة المطعم يظهر معالج لكل إضافة: «مع» أو «بدون». المختار «مع» يُطبع تحت الصنف في قسيمة المطبخ، والإضافات التي لها سعر تُجمع في سطر «اضافات» على «خدمة اضافات المطعم» المحددة في الموقع.")}</p>
                       </CardContent>
                     </Card>
                   </TabsContent>
