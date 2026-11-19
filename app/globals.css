@@ -1060,6 +1060,10 @@ td {
     color: #ffffff;
     box-shadow: 0 8px 24px -12px rgba(5, 150, 105, 0.45);
   }
+  /* عناوين الرأس بيضاء كبقية رؤوس النظام (قاعدة h1 في @layer base تعطيها text-foreground الداكن) */
+  .page-hero :is(h1, h2, h3) {
+    color: #ffffff;
+  }
   .dark .page-hero {
     background: linear-gradient(to left, #064e3b 0%, #065f46 50%, #115e59 100%);
     box-shadow: none;

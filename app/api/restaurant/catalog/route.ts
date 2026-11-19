@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const extrasService = Number(location.extras_service_id) > 0
       ? (await sql`SELECT p.id, p.product_name, u.id AS unit_id, u.unit_name FROM products p LEFT JOIN LATERAL (SELECT pu.unit_id FROM product_units pu WHERE pu.product_id = p.id ORDER BY pu.id LIMIT 1) du ON true LEFT JOIN units u ON u.id = du.unit_id WHERE p.id = ${Number(location.extras_service_id)} AND COALESCE(p.deleted, false) = false`)[0] || null
       : null
-    return NextResponse.json({ ...catalog, products, session: null, can_pay: auth.permissions.pay, extras_service: extrasService })
+    return NextResponse.json({ ...catalog, products, session: null, can_pay: auth.permissions.pay, extras_service: extrasService, settings_at: location.updated_at })
   } catch (error) {
     if (errorStatus(error) >= 500) console.error("restaurant catalog GET", error)
     return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر تحميل الأصناف" }, { status: errorStatus(error) })

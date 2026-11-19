@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-export type FloorLocation = { id: number; code: string; name: string; color: string | null; configured: boolean }
+export type FloorLocation = { id: number; code: string; name: string; color: string | null; configured: boolean; settings_at?: string | null }
 export type FloorTable = {
   id: number; name: string; seats: number; shape: string; location_id: number
   order_id: number | null; order_no: string | null; guests: number | null; opened_at: string | null; revision: number | null

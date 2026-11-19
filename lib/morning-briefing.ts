@@ -26,12 +26,16 @@ export type MorningBriefing = {
 const num = (value: unknown) => Number(value || 0)
 const round = (value: number) => Math.round(value * 100) / 100
 
+/**
+ * قسم الملخص لا يُسقط الصفحة كلها: جدول/عمود غير موجود (ميزة لم تُستخدم في هذه الشركة) أو أي خطأ آخر في
+ * استعلام قسم ⇐ القسم فارغ ويُسجَّل الخطأ. (كان أي فشل يُظهر «تعذر إعداد الملخص الصباحي» للصفحة كلها)
+ */
 async function optional<T>(load: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await load()
   } catch (error) {
-    if (["42P01", "42703"].includes(String((error as { code?: string })?.code))) return fallback
-    throw error
+    if (!["42P01", "42703"].includes(String((error as { code?: string })?.code))) console.error("Morning briefing section failed:", error)
+    return fallback
   }
 }
 
@@ -61,7 +65,7 @@ export async function buildMorningBriefing(day: string, branchIds: number[]): Pr
   ])
 
   const [salesRows, marginRows, receiptRows, cashier, dueCheques, returnedCheques, receivableRows, receivableTop, stockRows, deadRows, cancelled, discounts, drafts, portal] = await Promise.all([
-    sql`
+    optional(() => sql`
       SELECT vh.vch_date::date::text AS day, vh.branch_id, COALESCE(b.branch_name,'بدون فرع') branch_name,
         COALESCE(SUM(vh.amount*COALESCE(NULLIF(vh.rate,0),1)) FILTER (WHERE vh.vch_type=12),0) sales,
         COALESCE(SUM(vh.amount*COALESCE(NULLIF(vh.rate,0),1)) FILTER (WHERE vh.vch_type=16),0) returns,
@@ -70,19 +74,19 @@ export async function buildMorningBriefing(day: string, branchIds: number[]): Pr
       WHERE vh.vch_type IN (12,16) AND vh.status<>3
         AND ((vh.vch_date>=${day}::date AND vh.vch_date<${today}::date) OR (vh.vch_date>=${weekAgo}::date AND vh.vch_date<(${weekAgo}::date+1)))
         AND (${all} OR vh.branch_id=ANY(${branches}::int[]))
-      GROUP BY 1, vh.branch_id, b.branch_name ORDER BY sales DESC`,
+      GROUP BY 1, vh.branch_id, b.branch_name ORDER BY sales DESC`, [] as any[]),
     // هامش تقريبي: الأسطر التي لها تكلفة فقط (خصم الفاتورة الإجمالي غير محسوب)
-    sql`
+    optional(() => sql`
       SELECT COALESCE(SUM(vi.qnty*vi.price*(1-COALESCE(vi.discount,0)/100)*COALESCE(NULLIF(vh.rate,0),1)),0) revenue,
              COALESCE(SUM(vi.qnty*vi.cost_price*COALESCE(NULLIF(vh.rate,0),1)),0) cost
       FROM voucher_items_tbl vi JOIN voucher_header_tbl vh ON vh.id=vi.voucher_id
       WHERE vh.vch_type=12 AND vh.status<>3 AND vh.vch_date>=${day}::date AND vh.vch_date<${today}::date
-        AND COALESCE(vi.cost_price,0)>0 AND (${all} OR vh.branch_id=ANY(${branches}::int[]))`,
-    sql`
+        AND COALESCE(vi.cost_price,0)>0 AND (${all} OR vh.branch_id=ANY(${branches}::int[]))`, [] as any[]),
+    optional(() => sql`
       SELECT COALESCE(SUM(vh.amount*COALESCE(NULLIF(vh.rate,0),1)),0) amount, COUNT(*) count
       FROM voucher_header_tbl vh
       WHERE vh.vch_type=4 AND vh.status<>3 AND vh.vch_date>=${day}::date AND vh.vch_date<${today}::date
-        AND (${all} OR vh.branch_id=ANY(${branches}::int[]))`,
+        AND (${all} OR vh.branch_id=ANY(${branches}::int[]))`, [] as any[]),
     optional(() => sql`
       SELECT p.name point_name, COALESCE(NULLIF(us.full_name,''),NULLIF(us.username,''),s.user_id::text) user_name,
              s.expected_cash expected, s.counted_cash counted, s.counted_cash-s.expected_cash difference
@@ -92,23 +96,23 @@ export async function buildMorningBriefing(day: string, branchIds: number[]): Pr
         AND ABS(s.counted_cash-s.expected_cash)>=1 AND (${all} OR p.branch_id=ANY(${branches}::int[]))
       ORDER BY s.counted_cash-s.expected_cash LIMIT 20`, [] as any[]),
     // شيكات واردة بالمحفظة (مستحق/غير مستحق/مؤجل) تستحق خلال 7 أيام من اليوم
-    sql`
+    optional(() => sql`
       SELECT ch.cheq_num, ch.due_date::text due_date, ch.amount, COALESCE(c.currency_code,'') currency_code,
              ch.amount*COALESCE(NULLIF(ch.rate,0),1) base_amount, COALESCE(NULLIF(ch.cheq_owner_name,''),a.name,'') owner
       FROM cheques_tbl ch LEFT JOIN currency c ON c.id=ch.currency_id LEFT JOIN account_tbl a ON a.id=ch.customer_id
       LEFT JOIN voucher_header_tbl vh ON vh.id=ch.voucher_id
       WHERE ch.cheq_type=1 AND ch.status_id IN (1,2,3) AND ch.due_date>=${today}::date AND ch.due_date<(${today}::date+7)
         AND (${all} OR vh.branch_id=ANY(${branches}::int[]))
-      ORDER BY ch.due_date, ch.id LIMIT 100`,
-    sql`
+      ORDER BY ch.due_date, ch.id LIMIT 100`, [] as any[]),
+    optional(() => sql`
       SELECT ch.cheq_num, ch.amount, COALESCE(c.currency_code,'') currency_code, COALESCE(NULLIF(ch.cheq_owner_name,''),a.name,'') owner
       FROM cheques_tbl ch LEFT JOIN currency c ON c.id=ch.currency_id LEFT JOIN account_tbl a ON a.id=ch.customer_id
       LEFT JOIN voucher_header_tbl vh ON vh.id=ch.voucher_id
       WHERE ch.cheq_type=1 AND ch.status_id=5
         AND COALESCE(ch.return_date, ch.last_update_date)>=${day}::date AND COALESCE(ch.return_date, ch.last_update_date)<${today}::date
         AND (${all} OR vh.branch_id=ANY(${branches}::int[]))
-      ORDER BY ch.id LIMIT 20`,
-    sql`
+      ORDER BY ch.id LIMIT 20`, [] as any[]),
+    optional(() => sql`
       WITH bal AS (
         SELECT vjd.account_id, SUM(CASE WHEN vjd.credit_debit=1 THEN 1 ELSE -1 END * COALESCE(vjd.base_curr_amount, vjd.amount*COALESCE(NULLIF(vjd.rate,0),1))) balance
         FROM voucher_journal_detail_tbl vjd
@@ -120,8 +124,8 @@ export async function buildMorningBriefing(day: string, branchIds: number[]): Pr
       SELECT COALESCE(SUM(bal.balance) FILTER (WHERE bal.balance>0.5),0) total,
              COUNT(*) FILTER (WHERE bal.balance>0.5) customers,
              COUNT(*) FILTER (WHERE COALESCE(a.max_balance_amount,0)>0 AND bal.balance>a.max_balance_amount) over_limit
-      FROM bal JOIN account_tbl a ON a.id=bal.account_id`,
-    sql`
+      FROM bal JOIN account_tbl a ON a.id=bal.account_id`, [] as any[]),
+    optional(() => sql`
       WITH bal AS (
         SELECT vjd.account_id, SUM(CASE WHEN vjd.credit_debit=1 THEN 1 ELSE -1 END * COALESCE(vjd.base_curr_amount, vjd.amount*COALESCE(NULLIF(vjd.rate,0),1))) balance
         FROM voucher_journal_detail_tbl vjd
@@ -132,9 +136,9 @@ export async function buildMorningBriefing(day: string, branchIds: number[]): Pr
       )
       SELECT a.id, a.code, a.name, bal.balance, COALESCE(a.max_balance_amount,0) credit_limit
       FROM bal JOIN account_tbl a ON a.id=bal.account_id WHERE bal.balance>0.5
-      ORDER BY bal.balance DESC LIMIT 5`,
+      ORDER BY bal.balance DESC LIMIT 5`, [] as any[]),
     // أصناف ستنفد خلال أقل من 7 أيام بمعدل بيع آخر 30 يوماً (الرصيد على مستوى الشركة)
-    sql`
+    optional(() => sql`
       WITH sold AS (
         SELECT vi.item_id product_id, SUM(COALESCE(NULLIF(vi.main_unit_quantity,0), vi.qnty)) qty
         FROM voucher_items_tbl vi JOIN voucher_header_tbl vh ON vh.id=vi.voucher_id
@@ -150,9 +154,9 @@ export async function buildMorningBriefing(day: string, branchIds: number[]): Pr
         FROM sold JOIN products p ON p.id=sold.product_id LEFT JOIN stock ON stock.product_id=sold.product_id
         WHERE COALESCE(p.deleted,false)=false AND GREATEST(COALESCE(stock.qty,0),0)/(sold.qty/30.0)<7
       )
-      SELECT risk.*, COUNT(*) OVER () at_risk FROM risk ORDER BY days_left, daily DESC LIMIT 10`,
+      SELECT risk.*, COUNT(*) OVER () at_risk FROM risk ORDER BY days_left, daily DESC LIMIT 10`, [] as any[]),
     // أصناف راكدة: رصيد موجب ولا مبيعات منذ 60 يوماً
-    sql`
+    optional(() => sql`
       WITH stock AS (
         SELECT it.product_id FROM inventory_transactions it GROUP BY it.product_id
         HAVING SUM(CASE WHEN it.transaction_type='in' THEN it.quantity ELSE -it.quantity END)>0
@@ -161,15 +165,15 @@ export async function buildMorningBriefing(day: string, branchIds: number[]): Pr
       WHERE NOT EXISTS (
         SELECT 1 FROM voucher_items_tbl vi JOIN voucher_header_tbl vh ON vh.id=vi.voucher_id
         WHERE vi.item_id=stock.product_id AND vh.vch_type=12 AND vh.status<>3 AND vh.vch_date>=(${today}::date-60)
-      )`,
-    sql`
+      )`, [] as any[]),
+    optional(() => sql`
       SELECT vh.vch_type, vh.vch_code, vh.amount*COALESCE(NULLIF(vh.rate,0),1) amount
       FROM voucher_header_tbl vh
       WHERE vh.status=3 AND vh.vch_type IN (4,5,12,16) AND vh.last_update_date>=${day}::date AND vh.last_update_date<${today}::date
         AND (${all} OR vh.branch_id=ANY(${branches}::int[]))
-      ORDER BY vh.last_update_date DESC LIMIT 20`,
+      ORDER BY vh.last_update_date DESC LIMIT 20`, [] as any[]),
     // فواتير بخصم 20% فأكثر (أعلى خصم صنف أو خصم الفاتورة)
-    sql`
+    optional(() => sql`
       SELECT x.vch_code, x.amount, round(x.discount_percent::numeric, 1) discount_percent FROM (
         SELECT vh.vch_code, vh.amount*COALESCE(NULLIF(vh.rate,0),1) amount,
           GREATEST(
@@ -180,7 +184,7 @@ export async function buildMorningBriefing(day: string, branchIds: number[]): Pr
         FROM voucher_header_tbl vh
         WHERE vh.vch_type=12 AND vh.status<>3 AND vh.vch_date>=${day}::date AND vh.vch_date<${today}::date
           AND (${all} OR vh.branch_id=ANY(${branches}::int[]))
-      ) x WHERE x.discount_percent>=20 ORDER BY x.discount_percent DESC LIMIT 10`,
+      ) x WHERE x.discount_percent>=20 ORDER BY x.discount_percent DESC LIMIT 10`, [] as any[]),
     optional(() => sql`
       SELECT COUNT(*) count, COALESCE(SUM(deposit_amount),0) deposits FROM sales_order_drafts
       WHERE COALESCE(deposit_amount,0)>0 AND confirmed_order_id IS NULL

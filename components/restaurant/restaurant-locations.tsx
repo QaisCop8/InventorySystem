@@ -209,6 +209,8 @@ export default function RestaurantLocations() {
       if (!response.ok) throw new Error(await errorText(response, tr("تعذر حفظ الموقع")))
       initialRef.current = JSON.stringify(form)
       setOpen(false)
+      // شاشة المطعم (هذا التبويب أو غيره) تعيد تحميل إعدادات الموقع فوراً
+      try { window.dispatchEvent(new Event("restaurant-settings-changed")); localStorage.setItem("restaurant-settings-changed", String(Date.now())) } catch { /* بلا تخزين */ }
       await load()
     } catch (e) {
       setFormError(e instanceof Error ? e.message : tr("تعذر حفظ الموقع"))

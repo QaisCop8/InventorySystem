@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     if (!auth.ok) return auth.response
     const [locations, tables, takeaways] = await Promise.all([
       sql`
-        SELECT l.id, l.code, l.name, l.color,
+        SELECT l.id, l.code, l.name, l.color, l.updated_at AS settings_at,
                (l.warehouse_id IS NOT NULL AND l.currency_id IS NOT NULL AND l.price_category_id IS NOT NULL AND l.sales_book_id IS NOT NULL) AS configured
         FROM restaurant_locations_tbl l
         WHERE l.status = 1 AND l.branch_id = ${auth.branchId}

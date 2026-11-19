@@ -51,6 +51,8 @@ type Catalog = {
   cardTypes: LookupOption[]; campaigns: PosCampaign[]; campaignUsage: PosCampaignUsage; session: any; canPay: boolean; receiptSettings: Record<string, string>
   /** خدمة اضافات المطعم للموقع (سطر «اضافات») */
   extrasService: { id: number; name: string; unitId: number | null; unitName: string } | null
+  /** وقت آخر حفظ لإعدادات الموقع — يختلف عن لوحة الطاولات ⇐ الكتالوج قديم ويُعاد تحميله فوراً */
+  settingsAt: string
 }
 type Line = { item: OrderItem; quantity: number }
 
@@ -91,6 +93,7 @@ function normalizeCatalog(data: any): Catalog {
     receiptSettings: data.receiptSettings || {},
     session: data.session || null,
     canPay: Boolean(data.can_pay),
+    settingsAt: data.settings_at ? String(data.settings_at) : "",
     extrasService: data.extras_service?.id ? { id: Number(data.extras_service.id), name: String(data.extras_service.product_name || ""), unitId: Number(data.extras_service.unit_id) || null, unitName: String(data.extras_service.unit_name || "") } : null,
     campaigns: data.campaigns || [],
     campaignUsage: data.campaignUsage || {},
@@ -315,6 +318,11 @@ export default function RestaurantPos() {
       const stored = await loadPosCatalog<any>(catalogKey(locationId)).catch(() => null)
       if (stored?.catalog) { cached = normalizeCatalog(stored.catalog); catalogCache.current.set(locationId, cached); catalogAt.current.set(locationId, 0) }
     }
+    // إعدادات الموقع تغيّرت منذ حفظ الكتالوج (وقت الحفظ في لوحة الطاولات مختلف): تحميل فوري بدل انتظار التحديث الدوري
+    const stamp = floorRef.current?.locations.find((row) => row.id === Math.abs(locationId))?.settings_at
+    if (cached && stamp && cached.settingsAt !== String(stamp)) {
+      try { return await fetchCatalog(locationId) } catch { /* دون اتصال: النسخة المحفوظة */ }
+    }
     if (cached) {
       setCatalog(cached)
       if (force || Date.now() - (catalogAt.current.get(locationId) || 0) > CATALOG_REFRESH_MS) void fetchCatalog(locationId).catch(() => undefined)
@@ -330,6 +338,23 @@ export default function RestaurantPos() {
       setCatalogLoading(false)
     }
   }, [catalogKey, fetchCatalog])
+  const floorRef = useRef<Floor | null>(null)
+  floorRef.current = floor
+  // حفظ إعدادات موقع (شاشة المواقع، نفس التبويب أو تبويب آخر): تُمسح نسخ الكتالوج وتُعاد اللوحة والطلب المفتوح فوراً
+  const orderRef = useRef(order)
+  orderRef.current = order
+  useEffect(() => {
+    const refresh = () => {
+      catalogCache.current.clear(); catalogAt.current.clear()
+      void loadFloor(true)
+      const current = orderRef.current
+      if (current?.location_id) void loadCatalog(catalogIdOf(current), true)
+    }
+    const onStorage = (event: StorageEvent) => { if (event.key === "restaurant-settings-changed") refresh() }
+    window.addEventListener("restaurant-settings-changed", refresh)
+    window.addEventListener("storage", onStorage)
+    return () => { window.removeEventListener("restaurant-settings-changed", refresh); window.removeEventListener("storage", onStorage) }
+  }, [loadFloor, loadCatalog])
 
   // سفري حُوِّل إلى طاولة (أو العكس): أسعار الإضافات التالية من فئة سعر النوع الجديد
   useEffect(() => {
