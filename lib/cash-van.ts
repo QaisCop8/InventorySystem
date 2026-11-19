@@ -5,7 +5,8 @@ import { createAutoJournal, getBaseCurrencyId, INTERNAL_VOUCHER } from "@/lib/au
 import { computeSalesProfitLines, SALES_INVOICE, SALES_RETURN, type PricingWay } from "@/lib/sales-profit"
 
 // البيع المتجول (2026-11-18): السيارة = مستودع متنقل + مندوب + صندوق + حسابات مصاريفها (cars).
-// التحميل/التفريغ = ارسالية داخلية من/إلى مستودع السيارة، البيع من مستودع السيارة، والنقدية في صندوق السيارة.
+// التحميل = إرسالية برسم البيع لمندوب السيارة، التفريغ = مرتجعها، والبيع فواتير «من ارسالية برسم البيع» (2026-11-18)؛
+// النقدية في صندوق السيارة. سيارة بلا مندوب تُحسب من مستودعها كما كانت.
 // هنا: ملخص كل سيارة لفترة، وقيدا مصروف السيارة وتسليم النقدية.
 
 export type CarExpenseKind = "insurance" | "license" | "fuel" | "maintenance"
@@ -40,8 +41,13 @@ export async function cashVanSummary(from: string, to: string) {
   const rows = []
   for (const car of cars) {
     const warehouseId = Number(car.warehouse_id) || 0
+    const salesmanId = Number(car.salesman_id) || 0
     let stockQuantity = 0, stockValue = 0, itemsCount = 0
-    if (warehouseId) {
+    if (salesmanId) {
+      // 2026-11-18: التحميل بإرسالية برسم البيع ⇐ بضاعة السيارة = المتبقي من إرساليات مندوبها المرحّلة (بعد الفواتير والمرتجع)
+      const stock = await consignmentStock(salesmanId)
+      stockQuantity = stock.quantity; stockValue = stock.value; itemsCount = stock.items
+    } else if (warehouseId) {
       const balances = (await getProductBalances(0, to, 0, "", { warehouseIds: [warehouseId], includeUnposted: true })) as any[]
       for (const row of balances) {
         const balance = num(row.balance)
@@ -51,8 +57,15 @@ export async function cashVanSummary(from: string, to: string) {
         stockValue += balance * num(row.average_cost)
       }
     }
-    // المبيعات/المرتجعات: سندات فيها سطر من مستودع السيارة (بعملة الأساس)
-    const [sales] = warehouseId ? (await sql`
+    // المبيعات/المرتجعات: فواتير مندوب السيارة (الفاتورة من إرسالية برسم البيع)، وإلا سندات فيها سطر من مستودع السيارة (بعملة الأساس)
+    const [sales] = salesmanId ? (await sql`
+      SELECT
+        COALESCE(SUM(h.amount * COALESCE(NULLIF(h.rate, 0), 1)) FILTER (WHERE h.vch_type = 12), 0)::float AS sales,
+        COALESCE(SUM(h.amount * COALESCE(NULLIF(h.rate, 0), 1)) FILTER (WHERE h.vch_type = 16), 0)::float AS returns,
+        COUNT(*) FILTER (WHERE h.vch_type = 12)::int AS sales_count
+      FROM voucher_header_tbl h
+      WHERE h.vch_type IN (12, 16) AND COALESCE(h.status, 1) <> 3 AND h.salesman_id = ${salesmanId}
+        AND h.vch_date::date BETWEEN ${from}::date AND ${to}::date`) as any[] : warehouseId ? (await sql`
       SELECT
         COALESCE(SUM(h.amount * COALESCE(NULLIF(h.rate, 0), 1)) FILTER (WHERE h.vch_type IN (12, 13)), 0)::float AS sales,
         COALESCE(SUM(h.amount * COALESCE(NULLIF(h.rate, 0), 1)) FILTER (WHERE h.vch_type = 16), 0)::float AS returns,
@@ -87,10 +100,27 @@ export async function cashVanSummary(from: string, to: string) {
       sales: num(sales?.sales), returns: num(sales?.returns), sales_count: num(sales?.sales_count),
       cash_in: cash.debit, cash_out: cash.credit, cash_balance: cash.balance,
       expenses, expenses_total: expenses.insurance + expenses.license + expenses.fuel + expenses.maintenance,
-      ready: Boolean(warehouseId && car.salesman_id && car.cash_account_id),
+      // التحميل بإرسالية برسم البيع (البضاعة مع المندوب) ⇐ مستودع السيارة لم يعد لازماً
+      ready: Boolean(car.salesman_id && car.cash_account_id),
     })
   }
   return rows
+}
+
+/** بضاعة المندوب لدى السيارة: المتبقي (كمية + بونص − المفوتر − المرتجع) من إرسالياته برسم البيع المرحّلة، وقيمتها بسعر الإرسالية */
+export async function consignmentStock(salesmanId: number) {
+  const [row] = (await sql`
+    SELECT COALESCE(SUM(rem), 0)::float AS quantity, COALESCE(SUM(rem * unit_value), 0)::float AS value, COUNT(DISTINCT item_id) FILTER (WHERE rem > 0)::int AS items
+    FROM (
+      SELECT vi.item_id,
+        (COALESCE(vi.qnty, 0) + COALESCE(vi.bonus, 0)) - COALESCE((
+          SELECT SUM(COALESCE(li.qnty, 0) + COALESCE(li.bonus, 0)) FROM voucher_items_tbl li JOIN voucher_header_tbl lh ON lh.id = li.voucher_id
+          WHERE li.delivery_item_id = vi.id AND lh.vch_type IN (12, 15) AND COALESCE(lh.status, 1) <> 3), 0) AS rem,
+        COALESCE(vi.price, 0) * (1 - COALESCE(vi.discount, 0) / 100) * COALESCE(NULLIF(vh.rate, 0), 1) AS unit_value
+      FROM voucher_items_tbl vi JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+      WHERE vh.vch_type = 14 AND vh.status = 2 AND vh.salesman_id = ${salesmanId}
+    ) lines WHERE rem > 0.000001`) as any[]
+  return { quantity: num(row?.quantity), value: num(row?.value), items: num(row?.items) }
 }
 
 async function userBranch(userId: string): Promise<number> {
@@ -228,7 +258,25 @@ export async function carProfitReport(from: string, to: string, pricingWay: Pric
   const employeeOf = new Map(links.map((row) => [Number(row.id), row]))
   const salaries = await salaryCosts([...new Set(links.map((row) => Number(row.employee_id)).filter(Boolean))], from, to)
 
-  const warehouseIds = [...new Set(cars.map((car) => Number(car.warehouse_id)).filter(Boolean))]
+  // 2026-11-18: سيارة لها مندوب ⇐ ربحها من فواتير مندوبها (فواتير من إرسالية برسم البيع)؛ وإلا من مستودعها كما كان
+  const bySalesman = new Map<number, { sales: number; returns: number; cost: number; profit: number; lines: number; unpriced: number }>()
+  if (salesmanIds.length) {
+    const lines = await computeSalesProfitLines({
+      from, to, pricingWay, types: [SALES_INVOICE, SALES_RETURN], productIds: [], groupIds: [], warehouseIds: [],
+      branchIds: [], customerIds: [], salesmanIds, voucherCode: "",
+    })
+    for (const line of lines) {
+      const key = Number(line.salesman_id) || 0
+      const row = bySalesman.get(key) || { sales: 0, returns: 0, cost: 0, profit: 0, lines: 0, unpriced: 0 }
+      if (line.vch_type === SALES_RETURN) row.returns -= line.sale_total; else row.sales += line.sale_total
+      row.cost += line.cost_total + line.bonus_cost
+      row.profit += line.profit
+      row.lines += 1
+      if (!line.priced) row.unpriced += 1
+      bySalesman.set(key, row)
+    }
+  }
+  const warehouseIds = [...new Set(cars.filter((car) => !Number(car.salesman_id)).map((car) => Number(car.warehouse_id)).filter(Boolean))]
   const byWarehouse = new Map<number, { sales: number; returns: number; cost: number; profit: number; lines: number; unpriced: number }>()
   if (warehouseIds.length) {
     const lines = await computeSalesProfitLines({
@@ -249,7 +297,8 @@ export async function carProfitReport(from: string, to: string, pricingWay: Pric
 
   const rows = []
   for (const car of cars) {
-    const items = byWarehouse.get(Number(car.warehouse_id) || -1) || { sales: 0, returns: 0, cost: 0, profit: 0, lines: 0, unpriced: 0 }
+    const empty = { sales: 0, returns: 0, cost: 0, profit: 0, lines: 0, unpriced: 0 }
+    const items = Number(car.salesman_id) ? bySalesman.get(Number(car.salesman_id)) || empty : byWarehouse.get(Number(car.warehouse_id) || -1) || empty
     const expenses: Record<CarExpenseKind, number> = { insurance: 0, license: 0, fuel: 0, maintenance: 0 }
     for (const kind of Object.keys(EXPENSE_COLUMN) as CarExpenseKind[]) {
       const accountId = Number(car[EXPENSE_COLUMN[kind]]) || null
@@ -269,7 +318,7 @@ export async function carProfitReport(from: string, to: string, pricingWay: Pric
       insurance: expenses.insurance, license: expenses.license, fuel: expenses.fuel, maintenance: expenses.maintenance, expenses_total: expensesTotal,
       salary: salaryAmount, salary_source: !car.salesman_id ? "no_salesman" : !link?.employee_id ? "no_employee" : salary?.source || "none",
       net_profit: net, result: net >= 0 ? "profit" : "loss",
-      has_warehouse: Boolean(car.warehouse_id),
+      has_warehouse: Boolean(car.salesman_id || car.warehouse_id),
     })
   }
   return rows

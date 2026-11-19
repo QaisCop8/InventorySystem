@@ -23,6 +23,7 @@ export interface Car {
   licence_expiry?: string | null
   status: "نشط" | "غير نشط"
   salesman_id?: number | null
+  driver_id?: number | null
   warehouse_id?: number | null
   cash_account_id?: number | null
   insurance_account_id?: number | null
@@ -41,6 +42,7 @@ export interface CarFormData {
   status: "نشط" | "غير نشط"
   // البيع المتجول: مندوب ومستودع وصندوق السيارة + حسابات مصاريفها
   salesman_id: number | null
+  driver_id: number | null
   warehouse_id: number | null
   cash_account_id: number | null
   insurance_account_id: number | null
@@ -310,6 +312,7 @@ function Field({ label, htmlFor, required, className = "", children }: { label: 
 function CarVanSection({ form, onFormChange }: { form: CarFormData; onFormChange: (field: keyof CarFormData, value: any) => void }) {
   const [salesmen, setSalesmen] = useState<{ label: string; value: number }[]>([])
   const [warehouses, setWarehouses] = useState<{ label: string; value: number }[]>([])
+  const [drivers, setDrivers] = useState<{ label: string; value: number }[]>([])
   useEffect(() => {
     let cancelled = false
     fetch("/api/salesmen", { cache: "no-store" }).then((r) => r.ok ? r.json() : { data: [] }).then((body) => {
@@ -317,6 +320,10 @@ function CarVanSection({ form, onFormChange }: { form: CarFormData; onFormChange
     }).catch(() => undefined)
     fetch("/api/warehouses", { cache: "no-store" }).then((r) => r.ok ? r.json() : []).then((rows) => {
       if (!cancelled) setWarehouses((Array.isArray(rows) ? rows : []).map((row: any) => ({ label: row.warehouse_name || row.name, value: Number(row.id) })))
+    }).catch(() => undefined)
+    fetch("/api/drivers", { cache: "no-store" }).then((r) => r.ok ? r.json() : []).then((body) => {
+      const rows = Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : []
+      if (!cancelled) setDrivers(rows.map((row: any) => ({ label: [row.driver_code, row.name].filter(Boolean).join(" - "), value: Number(row.id) })))
     }).catch(() => undefined)
     return () => { cancelled = true }
   }, [])
@@ -328,7 +335,7 @@ function CarVanSection({ form, onFormChange }: { form: CarFormData; onFormChange
         showCostCenterButton={false} showCostCenterDialog={false} placeholder={tr("رقم الحساب أو البحث")} />
     </Field>
   )
-  const dropdown = (field: "salesman_id" | "warehouse_id", label: string, options: { label: string; value: number }[]) => (
+  const dropdown = (field: "salesman_id" | "driver_id" | "warehouse_id", label: string, options: { label: string; value: number }[]) => (
     <Field label={label}>
       <PrimeDropdown value={form[field] ?? null} options={[{ label: tr("بلا"), value: null }, ...options]} optionLabel="label" optionValue="value" filter
         className="invoice-currency-dropdown w-full" panelClassName="invoice-currency-dropdown-panel" appendTo={() => document.body}
@@ -338,8 +345,9 @@ function CarVanSection({ form, onFormChange }: { form: CarFormData; onFormChange
   return (
     <>
       <FormSection icon={<Truck className="h-4 w-4" />} title={tr("البيع المتجول")} hint={tr("مندوب السيارة ومستودعها وصندوقها — تُستخدم في شاشة البيع المتجول")}>
-        <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
           {dropdown("salesman_id", tr("المندوب"), salesmen)}
+          {dropdown("driver_id", tr("السائق"), drivers)}
           {dropdown("warehouse_id", tr("مستودع السيارة"), warehouses)}
           {account("cash_account_id", tr("صندوق السيارة"))}
         </div>

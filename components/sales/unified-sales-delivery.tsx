@@ -522,7 +522,7 @@ export default function UnifiedSalesDelivery({
   const { toast } = useToast()
   const isLocked = form.status === 2 || form.status === 3
   // مندوب العميل يُعبّأ تلقائياً عند اختيار العميل (إن كان له مندوب، وإلا يبقى كما هو)
-  useCustomerDefaultSalesman({ recordId: form.id, accountId: form.account_id, locked: isLocked, onSalesman: (salesmanId) => onFormChange("salesman_id", salesmanId) })
+  useCustomerDefaultSalesman({ recordId: form.id, accountId: form.account_id, locked: isLocked || (voucherType === SALES_INVOICE_VCH_TYPE && Number(form.invoice_source_type || 1) === 4), onSalesman: (salesmanId) => onFormChange("salesman_id", salesmanId) })
   // عنوان الشحن (فاتورة/إرسالية مبيعات) وتسديد الفواتير (فاتورة/مرتجع مبيعات محفوظ).
   const [shippingOpen, setShippingOpen] = useState(false)
   const [billsPaymentOpen, setBillsPaymentOpen] = useState(false)
@@ -952,7 +952,7 @@ export default function UnifiedSalesDelivery({
   // ───── البيع المتجول (2026-11-18): المستخدم المرتبط بمندوب سيارة ⇐ سند جديد بمندوبه ومستودع سيارته، والفاتورة/المرتجع
   // النقدي لمندوب أو مستودع سيارة ⇐ حساب الصندوق مقفل على صندوق السيارة (الخادم يفرضه أيضاً — lib/van-car.ts)
   const vanCashTypes = voucherType === SALES_INVOICE_VCH_TYPE || voucherType === RETURN_SELL_VCH_TYPE
-  const vanDefaultTypes = vanCashTypes || voucherType === DELIVERY_SELL_VCH_TYPE
+  const vanDefaultTypes = vanCashTypes || voucherType === DELIVERY_SELL_VCH_TYPE || voucherType === DELIVERY_CONSIGNMENT_SALE_VCH_TYPE
   const myVan = useMyVan(dialogOpen && vanDefaultTypes)
   const vanCar = useVanCar(form.salesman_id, items.map((row: any) => row.warehouse_id ?? row.store_id), dialogOpen && vanCashTypes && !form.account_id)
   const vanWarehouseIdRef = useRef<number | null>(null)
@@ -968,6 +968,36 @@ export default function UnifiedSalesDelivery({
     if (!form.salesman_id) (onDerivedFormChange ?? onFormChange)("salesman_id", myVan.salesman_id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen, form.id, myVan, gridResetToken, isLocked])
+  // «تحميل/تفريغ السيارة» من شاشة البيع المتجول يفتح الإرسالية بمندوب السيارة (lib/new-tab-handoff — مرة واحدة)
+  useEffect(() => {
+    if (!dialogOpen || form.id || isLocked || voucherType !== DELIVERY_CONSIGNMENT_SALE_VCH_TYPE) return
+    let prefill = 0
+    try { prefill = Number(sessionStorage.getItem("van_prefill_salesman")) || 0; sessionStorage.removeItem("van_prefill_salesman") } catch { prefill = 0 }
+    if (prefill) (onDerivedFormChange ?? onFormChange)("salesman_id", prefill)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, form.id, gridResetToken, isLocked, voucherType])
+
+  // ───── فاتورة مندوب سيارة (2026-11-18): نوع الفاتورة «من ارسالية برسم البيع» فقط (القائمة معطّلة)، ومندوبها مندوب
+  // الإرسالية، و«عنوان الشحن» يُعبّأ بالسيارة وسائقها. الخادم يرفض فاتورة مندوب سيارة من نوع آخر (lib/van-car.ts)
+  const salesCar = useVanCar(form.salesman_id ?? myVan?.salesman_id, [], dialogOpen && voucherType === SALES_INVOICE_VCH_TYPE, false)
+  const vanSourceAppliedRef = useRef("")
+  useEffect(() => {
+    if (!salesCar || isLocked || form.id || Number(form.invoice_source_type || 1) === 4) return
+    const key = `${gridResetToken}:${salesCar.id}`
+    if (vanSourceAppliedRef.current === key) return
+    vanSourceAppliedRef.current = key
+    // تغيير نوع الفاتورة يبني نموذجاً جديداً (يمسح المندوب) — يُعاد مندوب السيارة بعده
+    const salesmanId = salesCar.salesman_id
+    void handleInvoiceSourceTypeChange(4).then(() => { if (salesmanId) onFormChange("salesman_id", salesmanId) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [salesCar, isLocked, form.id, form.invoice_source_type, gridResetToken])
+  useEffect(() => {
+    if (!salesCar || isLocked || !supportsShipping) return
+    const info = form.shipping_info || {}
+    if (Number(info.car_id) === salesCar.id && (!salesCar.driver_id || Number(info.driver_id) === salesCar.driver_id)) return
+    ;(onDerivedFormChange ?? onFormChange)("shipping_info", { ...info, car_id: salesCar.id, driver_id: salesCar.driver_id ?? info.driver_id ?? null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [salesCar, isLocked, form.shipping_info])
   useEffect(() => {
     if (!vanCar || isLocked || Number(form.cash_account_id) === vanCar.cash_account_id) return
     const set = onDerivedFormChange ?? onFormChange
@@ -3582,7 +3612,7 @@ export default function UnifiedSalesDelivery({
                     optionLabel="label"
                     optionValue="value"
                     placeholder={tr("اختر")}
-                    disabled={isLocked}
+                    disabled={isLocked || (voucherType === SALES_INVOICE_VCH_TYPE && Boolean(salesCar))}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
                     appendTo="self"
@@ -3645,7 +3675,7 @@ export default function UnifiedSalesDelivery({
                       onFormChange("account_id", account?.id ?? null)
                       onFormChange("customer_name", account?.name ?? "")
                       // مندوب العميل من تعريفه (customers.salesman) يُعيَّن فوراً عند اختيار العميل
-                      if (account?.id && !isLocked) void fetchCustomerDefaultSalesman(account.id).then((salesmanId) => { if (salesmanId) onFormChange("salesman_id", salesmanId) })
+                      if (account?.id && !isLocked && !isFromConsignment) void fetchCustomerDefaultSalesman(account.id).then((salesmanId) => { if (salesmanId) onFormChange("salesman_id", salesmanId) })
                     }}
                     searchAllowedTypeValues={[2, 3, 5, 6]}
                     emptyActionLabel={isPurchaseDeliveryVoucher ? tr("إضافة مورد") : tr("إضافة عميل")}

@@ -9,7 +9,7 @@ import { runSchemaOnce } from "@/lib/schema-once"
 
 export type VanCar = {
   /** null = سيارة بلا صندوق (تُستخدم لتعبئة المستودع/المندوب فقط، لا لقفل الصندوق) */
-  id: number; car_code: string; name: string; salesman_id: number | null; salesman_name: string
+  id: number; car_code: string; name: string; salesman_id: number | null; salesman_name: string; driver_id: number | null
   warehouse_id: number | null; warehouse_name: string; cash_account_id: number | null; cash_account_code: string; cash_account_name: string
 }
 
@@ -19,7 +19,7 @@ export const ensureSalesmanUserColumn = () => runSchemaOnce("lib/van-car.ts#sale
 
 const toCar = (row: any): VanCar => ({
   id: Number(row.id), car_code: String(row.car_code || ""), name: String(row.name || ""),
-  salesman_id: Number(row.salesman_id) || null, salesman_name: String(row.salesman_name || ""),
+  salesman_id: Number(row.salesman_id) || null, salesman_name: String(row.salesman_name || ""), driver_id: Number(row.driver_id) || null,
   warehouse_id: Number(row.warehouse_id) || null, warehouse_name: String(row.warehouse_name || ""),
   cash_account_id: Number(row.cash_account_id) || null, cash_account_code: String(row.cash_account_code || ""), cash_account_name: String(row.cash_account_name || ""),
 })
@@ -32,7 +32,7 @@ export async function vanCarFor(input: { salesmanId?: number | null; warehouseId
   if (!salesmanId && !warehouseIds.length) return null
   await ensureCarsTable()
   const rows = (await sql`
-    SELECT c.id, c.car_code, c.name, c.salesman_id, c.warehouse_id, c.cash_account_id, s.name AS salesman_name, w.warehouse_name, a.code AS cash_account_code, a.name AS cash_account_name
+    SELECT c.id, c.car_code, c.name, c.salesman_id, c.driver_id, c.warehouse_id, c.cash_account_id, s.name AS salesman_name, w.warehouse_name, a.code AS cash_account_code, a.name AS cash_account_name
     FROM cars c
     LEFT JOIN salesmen s ON s.id = c.salesman_id
     LEFT JOIN warehouses w ON w.id = c.warehouse_id
@@ -78,4 +78,13 @@ export async function enforceVanCash(data: any): Promise<VanCar | null> {
     return car
   }
   return null
+}
+
+/** فاتورة مبيعات لمندوب سيارة (2026-11-18): نوع الفاتورة يجب أن يكون «من ارسالية برسم البيع» (البضاعة حُمّلت بإرسالية برسم البيع) */
+export async function vanInvoiceSourceError(data: any): Promise<string | null> {
+  if (Number(data?.vch_type) !== SALE_INVOICE || Number(data?.status) === 3 || Number(data?.pos_point_id) > 0) return null
+  if (Number(data?.invoice_source_type || 1) === 4) return null
+  const car = await vanCarFor({ salesmanId: Number(data?.salesman_id) || null, requireCash: false })
+  if (!car) return null
+  return `المندوب ${car.salesman_name} مرتبط بالسيارة «${car.name}» — فاتورته يجب أن تكون من نوع «من ارسالية برسم البيع»`
 }

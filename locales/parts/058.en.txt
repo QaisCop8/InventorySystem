@@ -194,3 +194,7 @@ Enter a sales order quickly
 Cannot run the program from inside the zip.
 Cancel an order ready from the kitchen - restaurants
 The order is ready from the kitchen — you do not have permission to cancel an order ready from the kitchen - restaurants
+Distribution vans: each van stock, sales, cash box and expenses — loading by consignment delivery, unloading by its return
+Consignment delivery to the van salesman
+Consignment return — what remains with the salesman goes back to the warehouse
+Define the salesman and cash box

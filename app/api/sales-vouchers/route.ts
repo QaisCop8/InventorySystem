@@ -1,6 +1,6 @@
 import { updateLastPurchasePrices } from "@/lib/last-purchase"
 import { storedOrderWarehouseIds, storedVoucherWarehouseIds, voucherWarehouseIds, warehouseAccessError } from "@/lib/warehouse-access"
-import { enforceVanCash } from "@/lib/van-car"
+import { enforceVanCash, vanInvoiceSourceError } from "@/lib/van-car"
 import { validateAccountStops } from "@/lib/account-stops"
 import { type NextRequest, NextResponse } from "next/server"
 import { withVoucherAudit } from "@/lib/voucher-audit"
@@ -413,6 +413,8 @@ async function postHandler(request: NextRequest) {
     if (!family) return NextResponse.json({ error: "نوع الحركة غير صالح" }, { status: 400 })
     // صندوق السيارة المقفل: نقدية سند مندوب/مستودع سيارة تذهب لصندوق السيارة دائماً (lib/van-car.ts)
     await enforceVanCash(data)
+    const vanSourceError = await vanInvoiceSourceError(data)
+    if (vanSourceError) return NextResponse.json({ error: vanSourceError }, { status: 400 })
     const authorization = await authorizeTransaction(request, family, "create", data.branch_id)
     if (!authorization.ok) return authorization.response
     // صلاحيات المستخدمين على المستودعات (lib/warehouse-access.ts)
@@ -666,6 +668,8 @@ async function putHandler(request: NextRequest) {
     if (!family) return NextResponse.json({ error: "نوع الحركة غير صالح" }, { status: 400 })
     // صندوق السيارة المقفل: نقدية سند مندوب/مستودع سيارة تذهب لصندوق السيارة دائماً (lib/van-car.ts)
     await enforceVanCash(data)
+    const vanSourceError = await vanInvoiceSourceError(data)
+    if (vanSourceError) return NextResponse.json({ error: vanSourceError }, { status: 400 })
     const action = Number(data.status) === 3 ? "delete" : "update"
     const authorization = await authorizeTransaction(request, family, action, data.branch_id)
     if (!authorization.ok) return authorization.response

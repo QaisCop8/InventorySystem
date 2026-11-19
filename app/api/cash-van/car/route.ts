@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     const params = request.nextUrl.searchParams
     if (params.get("mine") === "1") return NextResponse.json({ van: await vanForUser(session.user_id) }, { headers: { "Cache-Control": "no-store" } })
     const warehouseIds = String(params.get("warehouse_ids") || "").split(",").map(Number).filter((id) => id > 0)
-    const car = await vanCarFor({ salesmanId: Number(params.get("salesman_id")) || null, warehouseIds })
+    // require_cash=0: أي سيارة للمندوب (نوع الفاتورة وعنوان الشحن)؛ الافتراضي: سيارة لها صندوق (قفل الصندوق)
+    const car = await vanCarFor({ salesmanId: Number(params.get("salesman_id")) || null, warehouseIds, requireCash: params.get("require_cash") !== "0" })
     return NextResponse.json({ car }, { headers: { "Cache-Control": "no-store" } })
   } catch (error) {
     console.error("cash-van car GET", error)

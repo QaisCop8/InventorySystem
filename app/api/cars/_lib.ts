@@ -15,6 +15,8 @@ export interface CarDB {
   status: number | null
   // البيع المتجول (2026-11-18): مندوب السيارة، مستودعها، صندوقها، وحسابات مصاريفها
   salesman_id: number | null
+  /** سائق السيارة (جدول السائقين) — يُعبّأ في «عنوان الشحن» لفواتير مندوبها */
+  driver_id: number | null
   warehouse_id: number | null
   cash_account_id: number | null
   insurance_account_id: number | null
@@ -34,6 +36,8 @@ export interface Car {
   licence_expiry: string | null
   status: "نشط" | "غير نشط"
   salesman_id: number | null
+  /** سائق السيارة (جدول السائقين) — يُعبّأ في «عنوان الشحن» لفواتير مندوبها */
+  driver_id: number | null
   warehouse_id: number | null
   cash_account_id: number | null
   insurance_account_id: number | null
@@ -64,6 +68,7 @@ export const ensureCarsTable = async () => { return runSchemaOnce("app/api/cars/
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
   // البيع المتجول: مندوب/مستودع/صندوق السيارة + حسابات مصروف التأمين والترخيص، المحروقات، الصيانة
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS salesman_id INTEGER`
+  await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS driver_id INTEGER`
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS warehouse_id INTEGER`
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS cash_account_id INTEGER`
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS insurance_account_id INTEGER`
@@ -73,13 +78,14 @@ export const ensureCarsTable = async () => { return runSchemaOnce("app/api/cars/
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS maintenance_account_id INTEGER`
 }) }
 
-export const CAR_SELECT_COLUMNS = "id, car_code, name, plate_number, model, licence_expiry, status, salesman_id, warehouse_id, cash_account_id, insurance_account_id, license_account_id, fuel_account_id, maintenance_account_id, created_at, updated_at"
+export const CAR_SELECT_COLUMNS = "id, car_code, name, plate_number, model, licence_expiry, status, salesman_id, driver_id, warehouse_id, cash_account_id, insurance_account_id, license_account_id, fuel_account_id, maintenance_account_id, created_at, updated_at"
 
 /** حقول السيارة الإضافية من الطلب (أرقام موجبة أو null). */
 export function carExtraFields(data: any) {
   const id = (value: unknown) => { const n = Number(value); return Number.isInteger(n) && n > 0 ? n : null }
   return {
     salesman_id: id(data?.salesman_id),
+    driver_id: id(data?.driver_id),
     warehouse_id: id(data?.warehouse_id),
     cash_account_id: id(data?.cash_account_id),
     insurance_account_id: id(data?.insurance_account_id),
@@ -197,6 +203,7 @@ export function toCar(row: CarDB): Car {
     ...row,
     licence_expiry: row.licence_expiry ? String(row.licence_expiry).slice(0, 10) : null,
     salesman_id: row.salesman_id == null ? null : Number(row.salesman_id),
+    driver_id: row.driver_id == null ? null : Number(row.driver_id),
     warehouse_id: row.warehouse_id == null ? null : Number(row.warehouse_id),
     cash_account_id: row.cash_account_id == null ? null : Number(row.cash_account_id),
     insurance_account_id: row.insurance_account_id == null ? null : Number(row.insurance_account_id),

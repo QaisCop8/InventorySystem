@@ -18,7 +18,7 @@ import PrimeDropdown from "@/components/common/FocusDropdown"
 // التحميل والتفريغ بالارسالية الداخلية، البيع من مستودع السيارة، ومن هنا: متابعة كل سيارة، مصاريفها، وتسليم نقديتها.
 
 type Van = {
-  id: number; car_code: string; name: string; plate_number: string | null; salesman_name: string; warehouse_name: string; cash_account_name: string
+  id: number; car_code: string; name: string; plate_number: string | null; salesman_id: number | null; salesman_name: string; warehouse_name: string; cash_account_name: string
   cash_account_id: number | null; items_count: number; stock_quantity: number; stock_value: number; sales: number; returns: number; sales_count: number
   cash_in: number; cash_out: number; cash_balance: number; expenses: { insurance: number; license: number; fuel: number; maintenance: number }; expenses_total: number; ready: boolean
 }
@@ -108,7 +108,7 @@ export default function CashVan() {
 
   return (
     <div dir={appDir()} className="space-y-4 p-3 md:p-5">
-      <VoucherListHero title={tr("البيع المتجول")} subtitle={tr("سيارات التوزيع: مخزون كل سيارة، مبيعاتها، صندوقها ومصاريفها — التحميل والتفريغ بالارسالية الداخلية")}
+      <VoucherListHero title={tr("البيع المتجول")} subtitle={tr("سيارات التوزيع: مخزون كل سيارة، مبيعاتها، صندوقها ومصاريفها — التحميل بإرسالية برسم البيع والتفريغ بمرتجعها")}
         icon={Truck} category={tr("المبيعات")} addLabel={tr("تعريف السيارات")} onNew={() => openSectionInNewTab("cars")}
         actions={<Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>} />
       {tab === "vans" && <VoucherStats stats={[
@@ -148,7 +148,7 @@ export default function CashVan() {
                   <div className="text-xs text-slate-500">{tr("المندوب")}: {van.salesman_name || "—"} · {tr("المستودع")}: {van.warehouse_name || "—"}</div>
                 </div>
               </div>
-              {!van.ready && <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700"><AlertTriangle className="h-3.5 w-3.5" />{tr("عرّف المندوب والمستودع والصندوق")}</span>}
+              {!van.ready && <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700"><AlertTriangle className="h-3.5 w-3.5" />{tr("عرّف المندوب والصندوق")}</span>}
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
               <Tile label={tr("المخزون")} value={`${fmt(van.stock_value)}`} sub={tr("{0} صنف", van.items_count)} />
@@ -157,8 +157,8 @@ export default function CashVan() {
               <Tile label={tr("المصاريف")} value={fmt(van.expenses_total)} sub={`${tr("محروقات")} ${fmt(van.expenses.fuel)}`} />
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => openSectionInNewTab("internal-delivery-vouchers")}><PackagePlus className="me-1 h-4 w-4" />{tr("تحميل السيارة")}</Button>
-              <Button size="sm" variant="outline" onClick={() => openSectionInNewTab("internal-delivery-vouchers")}><PackageMinus className="me-1 h-4 w-4" />{tr("تفريغ السيارة")}</Button>
+              <Button size="sm" variant="outline" onClick={() => openSectionInNewTab("delivery-consignment-sale", van.salesman_id ? { van_prefill_salesman: String(van.salesman_id) } : {})} title={tr("إرسالية برسم البيع لمندوب السيارة")}><PackagePlus className="me-1 h-4 w-4" />{tr("تحميل السيارة")}</Button>
+              <Button size="sm" variant="outline" onClick={() => openSectionInNewTab("return-delivery-consignment-sale")} title={tr("مرتجع إرسالية برسم البيع — المتبقي مع المندوب يعود للمستودع")}><PackageMinus className="me-1 h-4 w-4" />{tr("تفريغ السيارة")}</Button>
               <Button size="sm" variant="outline" onClick={() => openDialog("expense", van)}><Fuel className="me-1 h-4 w-4" />{tr("مصروف سيارة")}</Button>
               <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" disabled={!van.cash_account_id} onClick={() => openDialog("handover", van)}><Banknote className="me-1 h-4 w-4" />{tr("تسليم النقدية")}</Button>
               <Button size="sm" variant="ghost" onClick={() => openSectionInNewTab("cars")}><Settings2 className="me-1 h-4 w-4" />{tr("تعريف السيارة")}</Button>
