@@ -380,6 +380,10 @@ async function handleSplit(ctx: Ctx, order: any) {
 }
 
 async function handleCancel(ctx: Ctx, order: any) {
+  // طلب «جاهز من المطبخ» (kitchen_status = done): الطعام جُهّز فعلاً — إلغاؤه يحتاج صلاحية مستقلة (أو موافقة برمز تفعيل)
+  if (String(order.kitchen_status || "") === "done" && !ctx.permissions.cancelReadyOrder && !(await hasPermissionApproval(ctx.userId, "restaurant", "cancelReadyOrder", ctx.request.headers.get(APPROVAL_HEADER)))) {
+    throw permissionFail("cancelReadyOrder", "الطلب جاهز من المطبخ — لا توجد لديك صلاحية إلغاء طلب جاهز من المطبخ - مطاعم")
+  }
   const paid = (await sql`SELECT COUNT(*)::int AS n FROM restaurant_order_payments_tbl WHERE order_id = ${Number(order.id)}`)[0]
   if (Number(paid?.n) > 0) throw fail("الطلب عليه دفعات جزئية؛ احذف الأصناف غير المدفوعة ثم أغلق الطاولة", 409)
   const reason = String(ctx.data.reason || "").trim().slice(0, 300)

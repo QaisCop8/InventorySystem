@@ -192,3 +192,5 @@ NoonERP-Restaurant.zip — unzip and run NoonERP-Restaurant.exe (restaurant scre
 {0} orders saved in this session
 Enter a sales order quickly
 Cannot run the program from inside the zip.
+Cancel an order ready from the kitchen - restaurants
+The order is ready from the kitchen — you do not have permission to cancel an order ready from the kitchen - restaurants
