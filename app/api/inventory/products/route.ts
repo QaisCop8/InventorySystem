@@ -998,12 +998,16 @@ export async function POST(request: NextRequest) {
       //client.release();
       return NextResponse.json({ success: false, error: "اسم الصنف مكرر لا يمكن الحفظ" }, { status: 400 });
     }
-    const submittedBarcodes = [
-      safeText(productData.barcode, "").trim(),
-      ...(Array.isArray(productData.units)
-        ? productData.units.flatMap((unit: any) => Array.isArray(unit.barcode_list) ? unit.barcode_list : [])
-        : []),
-    ].filter(Boolean).map((barcode) => String(barcode).trim());
+    // باركود الصنف الرئيسي (products.barcode) هو عادةً أول باركود لوحدته الرئيسية — ليس تكراراً؛ يُفحص
+    // التكرار بين باركودات الوحدات، ويُضاف باركود الصنف فقط إن لم يكن ضمنها (كان يُرفض الحفظ «مكرر بين وحدات الصنف»)
+    const unitBarcodes = (Array.isArray(productData.units)
+      ? productData.units.flatMap((unit: any) => Array.isArray(unit.barcode_list) ? unit.barcode_list : [])
+      : []).map((barcode: any) => String(barcode ?? "").trim()).filter(Boolean);
+    const mainBarcode = safeText(productData.barcode, "").trim();
+    const submittedBarcodes: string[] = [
+      ...(mainBarcode && !unitBarcodes.some((barcode: string) => barcode.toLocaleLowerCase("en") === mainBarcode.toLocaleLowerCase("en")) ? [mainBarcode] : []),
+      ...unitBarcodes,
+    ];
     const barcodeByKey = new Map<string, string>();
     const scaleError = validateScaleProductBarcodes(productData.pos_sold_using_scale, submittedBarcodes);
     if (scaleError) {

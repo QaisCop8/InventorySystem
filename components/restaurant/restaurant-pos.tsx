@@ -305,6 +305,8 @@ export default function RestaurantPos() {
   const catalogKey = useCallback((locationId: number) => `restaurant:${currentPosTenantKey(user?.id)}:location:${locationId}`, [user?.id])
   const catalogAt = useRef(new Map<number, number>())
   const activeLocation = useRef<number | null>(null)
+  /** مفتاح الكتالوج المعروض فعلاً في الشاشة (قد يختلف عن activeLocation أثناء التحميل) */
+  const shownCatalogId = useRef<number | null>(null)
   // مفتاح الكتالوج: رقم الموقع للطاولات، وسالبه للسفري (أسعار «فئة السعر للسفري» — api/restaurant/catalog?order_type=takeaway)
   const fetchCatalog = useCallback(async (locationId: number) => {
     const response = await fetch(`/api/restaurant/catalog?location_id=${Math.abs(locationId)}${locationId < 0 ? "&order_type=takeaway" : ""}`, { cache: "no-store" })
@@ -314,35 +316,47 @@ export default function RestaurantPos() {
     catalogCache.current.set(locationId, next)
     catalogAt.current.set(locationId, Date.now())
     void savePosCatalog(catalogKey(locationId), raw).catch(() => undefined)
-    if (activeLocation.current === locationId) setCatalog(next)
+    if (activeLocation.current === locationId) {
+      shownCatalogId.current = locationId
+      setCatalog(next)
+      // الخادم أعاد قائمة فارغة: سبب واضح بدل «لا توجد أصناف مطابقة»
+      setCatalogError(next.products.length ? "" : tr("لا توجد أصناف لهذا الموقع — تحقق من «المستودع» في إعدادات الموقع (الأصناف المقيّدة بمستودعات أخرى لا تظهر)"))
+    }
     return next
   }, [catalogKey])
   const loadCatalog = useCallback(async (locationId: number, force = false) => {
     activeLocation.current = locationId
     setCatalogError("")
-    let cached = catalogCache.current.get(locationId) || null
-    if (!cached && !force) {
-      const stored = await loadPosCatalog<any>(catalogKey(locationId)).catch(() => null)
-      if (stored?.catalog) { cached = normalizeCatalog(stored.catalog); catalogCache.current.set(locationId, cached); catalogAt.current.set(locationId, 0) }
-    }
-    // إعدادات الموقع تغيّرت منذ حفظ الكتالوج (وقت الحفظ في لوحة الطاولات مختلف): تحميل فوري بدل انتظار التحديث الدوري
-    const stamp = floorRef.current?.locations.find((row) => row.id === Math.abs(locationId))?.settings_at
-    if (cached && stamp && cached.settingsAt !== String(stamp)) {
-      try { return await fetchCatalog(locationId) } catch { /* دون اتصال: النسخة المحفوظة */ }
-    }
-    if (cached) {
-      setCatalog(cached)
-      if (force || Date.now() - (catalogAt.current.get(locationId) || 0) > CATALOG_REFRESH_MS) void fetchCatalog(locationId).catch(() => undefined)
-      return cached
-    }
-    setCatalogLoading(true)
+    // كتالوج موقع/نوع آخر معروض (طاولات ⇄ سفري، أو موقع سابق): يُخفى فوراً حتى يجهز الصحيح — كان يبقى قابلاً للنقر
+    // أثناء قراءة النسخة المحفوظة/فحص الإعدادات، فيُضاف الصنف بسعر فئة الطاولات (36) لطلب سفري (35)
+    if (shownCatalogId.current !== locationId) { shownCatalogId.current = null; setCatalog(null); setCatalogLoading(true) }
+    const show = (value: Catalog) => { if (activeLocation.current !== locationId) return; shownCatalogId.current = locationId; setCatalog(value) }
     try {
-      return await fetchCatalog(locationId)
-    } catch (error) {
-      setCatalog(null); setCatalogError(error instanceof Error ? error.message : tr("تعذر تحميل الأصناف"))
-      return null
+      let cached = catalogCache.current.get(locationId) || null
+      if (!cached && !force) {
+        const stored = await loadPosCatalog<any>(catalogKey(locationId)).catch(() => null)
+        if (stored?.catalog) { cached = normalizeCatalog(stored.catalog); catalogCache.current.set(locationId, cached); catalogAt.current.set(locationId, 0) }
+      }
+      // إعدادات الموقع تغيّرت منذ حفظ الكتالوج (وقت الحفظ في لوحة الطاولات مختلف): تحميل فوري بدل انتظار التحديث الدوري
+      const stamp = floorRef.current?.locations.find((row) => row.id === Math.abs(locationId))?.settings_at
+      if (cached && stamp && cached.settingsAt !== String(stamp)) {
+        try { return await fetchCatalog(locationId) } catch { /* دون اتصال: النسخة المحفوظة */ }
+      }
+      // نسخة محفوظة بلا أصناف: لا تُعرض شاشة فارغة بصمت — تحميل فعلي يُظهر سبب الخطأ إن فشل
+      if (cached && !cached.products.length) cached = null
+      if (cached) {
+        show(cached)
+        if (force || Date.now() - (catalogAt.current.get(locationId) || 0) > CATALOG_REFRESH_MS) void fetchCatalog(locationId).catch(() => undefined)
+        return cached
+      }
+      try {
+        return await fetchCatalog(locationId)
+      } catch (error) {
+        if (activeLocation.current === locationId) { setCatalog(null); setCatalogError(error instanceof Error ? error.message : tr("تعذر تحميل الأصناف")) }
+        return null
+      }
     } finally {
-      setCatalogLoading(false)
+      if (activeLocation.current === locationId) setCatalogLoading(false)
     }
   }, [catalogKey, fetchCatalog])
   const floorRef = useRef<Floor | null>(null)
@@ -648,6 +662,8 @@ export default function RestaurantPos() {
    */
   const addProduct = async (product: Product) => {
     if (!(await ensurePermission("addItems", order?.location_id))) { setMessage({ type: "error", text: tr("لا توجد لديك صلاحية إضافة أصناف للطاولة") }); return }
+    // الأسعار المعروضة يجب أن تكون لنوع هذا الطلب (طاولات/سفري) — وإلا ينتظر حتى تُحمَّل
+    if (order && shownCatalogId.current !== catalogIdOf(order)) { setMessage({ type: "error", text: tr("جاري تحميل أسعار هذا الطلب — حاول بعد لحظة") }); return }
     // صنف بلا سعر في فئة السعر (الطاولات/السفري): تنبيه صوتي ومنع الإضافة
     if (!(Number(product.price) > 0)) {
       playPosBeep("noPrice")

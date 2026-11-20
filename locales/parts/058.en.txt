@@ -233,3 +233,5 @@ Set the «Restaurant extras service» in the location settings to add priced ext
 Value price
 Price of {0}
 Cannot change to a differently-priced option on a partly paid item
+No items for this location — check the location's «Warehouse» setting (items restricted to other warehouses are hidden)
+Loading this order's prices — try again in a moment
