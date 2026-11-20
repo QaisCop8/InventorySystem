@@ -177,7 +177,7 @@ export default function RestaurantPos() {
   const [valueDialog, setValueDialog] = useState<null | "discount" | "takeaway_name">(null)
   // اختيار يدوي من الأصناف التابعة (related_items_mode = 4): الصنف الأب + التوابع المؤشَّرة
   const [relatedPick, setRelatedPick] = useState<{ product: Product; options: Product[]; selected: number[] } | null>(null)
-  const [extrasWizard, setExtrasWizard] = useState<{ product: Product; related: Product[]; includeParent: boolean } | null>(null)
+  const [extrasWizard, setExtrasWizard] = useState<{ product: Product; related: Product[]; includeParent: boolean; attrs?: { addons: Addon[]; note: string } } | null>(null)
   // kind "new": صنف له «المتغيرات والخصائص» لم يُضف بعد — لا يظهر في الطلب حتى يُختار (الإلغاء لا يضيف شيئاً)
   const [addonsTarget, setAddonsTarget] = useState<
     | { kind: "pending"; key: string }
@@ -682,12 +682,13 @@ export default function RestaurantPos() {
   }
 
   const addLines = (product: Product, related: Product[], includeParent: boolean, chosen?: string[], attrs?: { addons: Addon[]; note: string }) => {
-    // اضافات المطعم: معالج «مع/بدون» أولاً (الإلغاء لا يضيف شيئاً)، ثم يُعاد الاستدعاء بالمختار
-    const extras = includeParent ? product.extras || [] : []
-    if (extras.length && chosen === undefined) { setExtrasWizard({ product, related, includeParent }); return }
-    // «المتغيرات والخصائص»: الاختيار قبل الإضافة — الصنف لا يظهر في الطلب حتى يُختار (الإلغاء لا يضيف شيئاً)
+    // الترتيب: «الخصائص والميزات» أولاً ثم «اضافات المطعم» — الإلغاء في أي منهما لا يضيف شيئاً
+    // «المتغيرات والخصائص»: الاختيار قبل الإضافة — الصنف لا يظهر في الطلب حتى يُختار
     const parentGroups = includeParent ? product.addonGroups || [] : []
     if (parentGroups.length && attrs === undefined) { setAddonsTarget({ kind: "new", product, related, includeParent, chosen }); return }
+    // اضافات المطعم: معالج «مع/بدون» بعد الخصائص، ويحمل الخصائص المختارة ليُعاد الاستدعاء بالاثنين
+    const extras = includeParent ? product.extras || [] : []
+    if (extras.length && chosen === undefined) { setExtrasWizard({ product, related, includeParent, attrs }); return }
     const parentAddons: Addon[] = [...(attrs?.addons || []), ...(chosen || []).map((name) => ({ group: EXTRAS_GROUP, value: tr("مع {0}", name) }))]
     // سعر الصنف + فرق أسعار القيم المختارة (lib/attribute-prices.ts)
     const parentPrice = round4(Math.max(0, product.price + addonsPriceDelta(parentGroups, attrs?.addons)))
@@ -1361,7 +1362,7 @@ export default function RestaurantPos() {
 
       <ExtrasWizard open={extrasWizard !== null} title={extrasWizard?.product.name || ""} price={extrasWizard?.product.price || 0} currency={currency} extras={extrasWizard?.product.extras || []}
         onCancel={() => setExtrasWizard(null)}
-        onDone={(chosen) => { const target = extrasWizard; setExtrasWizard(null); if (target) addLines(target.product, target.related, target.includeParent, chosen) }} />
+        onDone={(chosen) => { const target = extrasWizard; setExtrasWizard(null); if (target) addLines(target.product, target.related, target.includeParent, chosen, target.attrs) }} />
 
       <AddonsDialog open={addonsLine !== null} onOpenChange={(value) => { if (!value) setAddonsTarget(null) }} title={addonsLine?.title || ""}
         groups={addonsLine?.groups || []} selected={addonsLine?.selected || []} note={addonsLine?.note || ""} busy={busy} onSave={(addons, note) => void saveAddons(addons, note)} />
