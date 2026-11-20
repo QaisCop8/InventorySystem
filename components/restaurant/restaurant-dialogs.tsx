@@ -25,7 +25,8 @@ export type OrderItem = {
   is_table_service?: boolean
 }
 export type Addon = { group: string; value: string }
-export type AddonGroup = { name: string; values: string[] }
+/** prices: فرق سعر كل قيمة عن سعر الصنف («المتغيرات والخصائص» — lib/attribute-prices.ts) */
+export type AddonGroup = { name: string; values: string[]; prices?: Record<string, number> }
 /** اضافات المطعم (تبويب «اضافات المطعم» في تعريف الصنف): تُختار «مع/بدون» بمعالج، وتُحفظ على السطر كـ addons بهذه المجموعة */
 export type RestaurantExtra = { name: string; price: number }
 export const EXTRAS_GROUP = "اضافات المطعم"
@@ -346,7 +347,7 @@ export function AddonsDialog(props: {
                   return (
                     <button key={value} type="button" onClick={() => toggle(group.name, value)}
                       className={`min-h-11 rounded-full border-2 px-4 text-sm font-semibold transition ${active ? "border-rose-600 bg-rose-600 text-white" : "border-slate-200 bg-background hover:border-rose-300"}`}>
-                      {active && <Check className="me-1 inline h-4 w-4" />}{value}
+                      {active && <Check className="me-1 inline h-4 w-4" />}{value}{group.prices?.[value] ? <span className={`ms-1.5 text-xs font-bold ${active ? "text-white/90" : group.prices[value] > 0 ? "text-orange-600" : "text-emerald-600"}`}>{group.prices[value] > 0 ? "+" : "−"}{money(Math.abs(group.prices[value]))}</span> : null}
                     </button>
                   )
                 })}

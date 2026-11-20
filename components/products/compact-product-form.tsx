@@ -58,6 +58,8 @@ interface ProductAttributeLine {
   name: string
   values: string[]
   value_images?: Record<string, string | null>
+  /** سعر كل قيمة (افتراضياً سعر الصنف) — الفرق عن سعر الصنف يُضاف عند البيع في الكاشير والمطعم (lib/attribute-prices.ts) */
+  value_prices?: Record<string, number | string>
 }
 
 interface AttributeCatalogItem extends ProductAttributeLine {}
@@ -90,7 +92,7 @@ function AttributeNameInput({ value, catalog, onChange, onCreate }: { value: str
   </div>
 }
 
-function AttributeValueInput({ values, valueImages = {}, suggestions, disabled = false, onChange, onImageChange, onCreate }: { values: string[]; valueImages?: Record<string, string | null>; suggestions: string[]; disabled?: boolean; onChange: (values: string[]) => void; onImageChange: (value: string, image: string | null) => void; onCreate: (value: string) => void }) {
+function AttributeValueInput({ values, valueImages = {}, valuePrices, onPriceChange, suggestions, disabled = false, onChange, onImageChange, onCreate }: { values: string[]; valueImages?: Record<string, string | null>; valuePrices?: Record<string, number | string>; onPriceChange?: (value: string, price: number | string) => void; suggestions: string[]; disabled?: boolean; onChange: (values: string[]) => void; onImageChange: (value: string, image: string | null) => void; onCreate: (value: string) => void }) {
   const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -118,7 +120,11 @@ function AttributeValueInput({ values, valueImages = {}, suggestions, disabled =
     <div className="flex min-h-10 flex-wrap items-center gap-1 rounded-md border bg-background px-2 py-1">
       {values.map((value) => <span key={value} className="inline-flex items-center gap-2 rounded-xl bg-violet-100 px-2 py-1 text-xs font-medium text-violet-800">
         <ImageUploadField value={valueImages[value]} onChange={(image) => onImageChange(value, image)} size={36} rounded="2xl" />
-        <span>{value}</span><button type="button" title={tr("إزالة القيمة")} onClick={() => onChange(values.filter((item) => item !== value))}><X className="h-3 w-3" /></button>
+        <span>{value}</span>
+        {onPriceChange && <input type="number" min={0} step="0.01" title={tr("سعر القيمة")} aria-label={tr("سعر {0}", value)}
+          className="h-7 w-20 rounded-md border border-violet-200 bg-white px-1.5 text-center text-xs font-bold text-slate-800 outline-none focus:border-violet-500 dark:bg-slate-900 dark:text-slate-100"
+          value={valuePrices?.[value] ?? ""} onChange={(event) => onPriceChange(value, event.target.value === "" ? "" : Math.max(0, Number(event.target.value)))} />}
+        <button type="button" title={tr("إزالة القيمة")} onClick={() => onChange(values.filter((item) => item !== value))}><X className="h-3 w-3" /></button>
       </span>)}
       <input disabled={disabled} className="h-7 min-w-[120px] flex-1 bg-transparent text-sm outline-none" value={query} placeholder={disabled ? tr("اختر متغيراً أولاً") : tr("ابحث أو اكتب قيمة")} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setOpen(true) }} onKeyDown={(event) => {
         if ((event.key === " " || event.key === "Enter") && query.trim()) { event.preventDefault(); addValue(exactMatch || query) }
@@ -412,6 +418,8 @@ export function CompactProductForm({
   const toast = useRef<Toast>(null);
   const messagesRef = useRef<any>(null)
   const [formData, setFormData] = useState<ProductFormData>(initialFormData)
+  // سعر الصنف المرجعي لأسعار «المتغيرات والخصائص»: أول سعر أكبر من صفر (نفس ما يحفظه الخادم base_price)
+  const itemReferencePrice = Number((formData.prices || []).find((row) => Number(row?.price) > 0)?.price || 0)
   const [isSearching, setIsSearching] = useState(false)
   const [productCodeError, setProductCodeError] = useState("")
   const [showConfirm, setShowConfirm] = useState(false);
@@ -3237,7 +3245,15 @@ export function CompactProductForm({
                           const updateAttribute = (patch: Partial<ProductAttributeLine>) => setFormData((previous) => ({ ...previous, attributes: (previous.attributes || []).map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) }))
                           return <div key={index} className="grid min-w-0 gap-3 rounded-xl border bg-card p-4 md:grid-cols-[minmax(180px,.7fr)_minmax(260px,1.3fr)_44px]">
                             <div className="min-w-0"><Label>{tr("المتغير *")}</Label><div className="mt-1"><AttributeNameInput value={attribute.name} catalog={attributeCatalog} onChange={(name) => updateAttribute({ name })} onCreate={(name) => { updateAttribute({ name }); void createAttributeCatalogItem(name) }} /></div></div>
-                            <div className="min-w-0"><Label>{tr("الخصائص *")}</Label><div className="mt-1"><AttributeValueInput disabled={!catalogEntry} values={attribute.values} valueImages={attribute.value_images} suggestions={catalogEntry?.values || []} onChange={(values) => updateAttribute({ values, value_images: Object.fromEntries(Object.entries(attribute.value_images || {}).filter(([value]) => values.includes(value))) })} onImageChange={(value, image) => updateAttribute({ value_images: { ...(attribute.value_images || {}), [value]: image } })} onCreate={(value) => void createAttributeCatalogItem(attribute.name, value)} /></div></div>
+                            <div className="min-w-0"><Label>{tr("الخصائص *")}</Label><div className="mt-1"><AttributeValueInput disabled={!catalogEntry} values={attribute.values} valueImages={attribute.value_images}
+                              valuePrices={Object.fromEntries(attribute.values.map((value) => [value, attribute.value_prices?.[value] ?? itemReferencePrice]))}
+                              onPriceChange={(value, price) => updateAttribute({ value_prices: { ...(attribute.value_prices || {}), [value]: price } })}
+                              suggestions={catalogEntry?.values || []} onChange={(values) => updateAttribute({
+                                values,
+                                value_images: Object.fromEntries(Object.entries(attribute.value_images || {}).filter(([value]) => values.includes(value))),
+                                // قيمة جديدة: سعرها افتراضياً سعر الصنف نفسه
+                                value_prices: Object.fromEntries(values.map((value) => [value, attribute.value_prices?.[value] ?? itemReferencePrice])),
+                              })} onImageChange={(value, image) => updateAttribute({ value_images: { ...(attribute.value_images || {}), [value]: image } })} onCreate={(value) => void createAttributeCatalogItem(attribute.name, value)} /></div></div>
                             <Button type="button" size="icon" variant="ghost" className="self-end text-red-600" onClick={() => setFormData((previous) => ({ ...previous, attributes: (previous.attributes || []).filter((_, itemIndex) => itemIndex !== index) }))}><X className="h-4 w-4" /></Button>
                           </div>
                         })}

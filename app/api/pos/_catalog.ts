@@ -1,3 +1,4 @@
+import { attributeDeltas } from "@/lib/attribute-prices"
 import sql from "@/lib/database"
 import { deniedAccountIdsFor } from "@/lib/account-access"
 import { getPosCurrencies } from "@/lib/pos-currencies"
@@ -43,12 +44,14 @@ export async function attachProductExtras<T extends { id: number | string }>(pro
       .map((group: any) => ({
         name: String(group?.name || "").trim(),
         values: (Array.isArray(group?.values) ? group.values : []).map((value: unknown) => String(value || "").trim()).filter(Boolean).sort(byText),
+        // سعر كل قيمة − سعر الصنف المرجعي (lib/attribute-prices.ts) — يُضاف لسعر السطر عند اختيارها
+        prices: attributeDeltas(group),
       }))
       .filter((group: any) => group.name && group.values.length)
       .sort((a: any, b: any) => byText(a.name, b.name))
     return {
       ...product,
-      addon_groups: groups as { name: string; values: string[] }[],
+      addon_groups: groups as { name: string; values: string[]; prices: Record<string, number> }[],
       related_items_mode: Math.min(4, Math.max(1, Number(extra?.related_items_mode || 1))),
       related_ids: (relatedById.get(Number(product.id)) || []).map((row) => row.related_id),
       related_items: relatedById.get(Number(product.id)) || [],

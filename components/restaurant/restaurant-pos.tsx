@@ -1,5 +1,6 @@
 "use client"
 
+import { addonsPriceDelta } from "@/lib/attribute-prices"
 import { playPosBeep } from "@/lib/pos-beeps"
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
@@ -105,7 +106,7 @@ function normalizeCatalog(data: any): Catalog {
       imageUrl: row.image_url ? String(row.image_url) : null, hasImage: Boolean(row.has_image),
       search: searchKey(`${row.product_name || ""} ${row.product_code || ""}`),
       unitPrices: (Array.isArray(row.unit_prices) ? row.unit_prices : []).map((option: any) => ({ unitId: Number(option.unit_id) || null, unitName: String(option.unit_name || ""), price: Number(option.price || 0) })),
-      addonGroups: (Array.isArray(row.addon_groups) ? row.addon_groups : []).map((group: any) => ({ name: String(group.name || ""), values: (group.values || []).map(String) })),
+      addonGroups: (Array.isArray(row.addon_groups) ? row.addon_groups : []).map((group: any) => ({ name: String(group.name || ""), values: (group.values || []).map(String), prices: group.prices && typeof group.prices === "object" ? group.prices : {} })),
       relatedMode: Number(row.related_items_mode || 1),
       relatedIds: (Array.isArray(row.related_ids) ? row.related_ids : []).map(Number),
       relatedItems: (Array.isArray(row.related_items) ? row.related_items : []).map((option: any) => ({ id: Number(option.related_id), addPrice: option.add_price !== false, noKitchenPrint: option.no_kitchen_print === true })),
@@ -177,7 +178,13 @@ export default function RestaurantPos() {
   // اختيار يدوي من الأصناف التابعة (related_items_mode = 4): الصنف الأب + التوابع المؤشَّرة
   const [relatedPick, setRelatedPick] = useState<{ product: Product; options: Product[]; selected: number[] } | null>(null)
   const [extrasWizard, setExtrasWizard] = useState<{ product: Product; related: Product[]; includeParent: boolean } | null>(null)
-  const [addonsTarget, setAddonsTarget] = useState<{ kind: "pending"; key: string } | { kind: "item"; item: OrderItem } | null>(null)
+  // kind "new": صنف له «المتغيرات والخصائص» لم يُضف بعد — لا يظهر في الطلب حتى يُختار (الإلغاء لا يضيف شيئاً)
+  const [addonsTarget, setAddonsTarget] = useState<
+    | { kind: "pending"; key: string }
+    | { kind: "item"; item: OrderItem }
+    | { kind: "new"; product: Product; related: Product[]; includeParent: boolean; chosen?: string[] }
+    | null
+  >(null)
   const [editing, setEditing] = useState<{ kind: "item"; item: OrderItem } | { kind: "pending"; key: string } | null>(null)
   const [scopeOpen, setScopeOpen] = useState(false)
   const [payLines, setPayLines] = useState<{ lines: Line[]; partial: boolean } | null>(null)
@@ -654,10 +661,16 @@ export default function RestaurantPos() {
     addLines(product, product.relatedMode === 2 || product.relatedMode === 3 ? related : [], product.relatedMode !== 2 || !related.length)
   }
 
-  const addLines = (product: Product, related: Product[], includeParent: boolean, chosen?: string[]) => {
+  const addLines = (product: Product, related: Product[], includeParent: boolean, chosen?: string[], attrs?: { addons: Addon[]; note: string }) => {
     // اضافات المطعم: معالج «مع/بدون» أولاً (الإلغاء لا يضيف شيئاً)، ثم يُعاد الاستدعاء بالمختار
     const extras = includeParent ? product.extras || [] : []
     if (extras.length && chosen === undefined) { setExtrasWizard({ product, related, includeParent }); return }
+    // «المتغيرات والخصائص»: الاختيار قبل الإضافة — الصنف لا يظهر في الطلب حتى يُختار (الإلغاء لا يضيف شيئاً)
+    const parentGroups = includeParent ? product.addonGroups || [] : []
+    if (parentGroups.length && attrs === undefined) { setAddonsTarget({ kind: "new", product, related, includeParent, chosen }); return }
+    const parentAddons: Addon[] = [...(attrs?.addons || []), ...(chosen || []).map((name) => ({ group: EXTRAS_GROUP, value: tr("مع {0}", name) }))]
+    // سعر الصنف + فرق أسعار القيم المختارة (lib/attribute-prices.ts)
+    const parentPrice = round4(Math.max(0, product.price + addonsPriceDelta(parentGroups, attrs?.addons)))
     const extrasTotal = round2(extras.filter((extra) => chosen?.includes(extra.name)).reduce((sum, extra) => sum + extra.price, 0))
     const service = catalog?.extrasService || null
     if (extrasTotal > 0 && !service) {
@@ -665,7 +678,6 @@ export default function RestaurantPos() {
       setMessage({ type: "error", text: tr("حدّد «خدمة اضافات المطعم» في إعدادات الموقع لإضافة إضافات لها سعر") })
       return
     }
-    const extraAddons: Addon[] = (chosen || []).map((name) => ({ group: EXTRAS_GROUP, value: tr("مع {0}", name) }))
     const parentKey = `${product.id}-${Date.now()}-${Math.random()}`
     const optionOf = (id: number) => product.relatedItems?.find((option) => option.id === id)
     const lines: { product: Product; key: string; price: number; relatedOf?: string; noKitchenPrint?: boolean }[] = [
@@ -675,15 +687,15 @@ export default function RestaurantPos() {
         return { product: row, key: `${parentKey}-${row.id}`, price: option?.addPrice === false ? 0 : row.price, relatedOf: product.name, noKitchenPrint: option?.noKitchenPrint === true }
       }),
     ]
-    // صنف له خصائص وميزات: سطر مستقل (لا يُدمج مع سطر سابق) وتُفتح نافذة الاختيار فوراً
+    // تابع له خصائص وميزات: سطر مستقل (لا يُدمج مع سطر سابق) وتُفتح نافذة الاختيار بعد إضافته
     const hasAddons = (row: Product) => (row.addonGroups || []).length > 0
-    const firstWithAddons = lines.find((line) => hasAddons(line.product))
+    const firstWithAddons = lines.find((line) => line.key !== parentKey && hasAddons(line.product))
     setPending((rows) => {
       let next = rows
       for (const line of lines) {
         // صنف بإضافات مطعم: سطر مستقل بإضافاته «مع ...» وتحته سطر «اضافات» بمجموع أسعارها (يتبع كميته)
-        if (line.key === parentKey && extras.length) {
-          next = [...next, { key: line.key, productId: line.product.id, name: line.product.name, unitId: line.product.unitId, unitName: line.product.unitName, price: line.price, quantity: 1, discount: 0, note: "", addons: extraAddons, groupPrinter: line.product.groupPrinter, category: line.product.category }]
+        if (line.key === parentKey && (extras.length || parentGroups.length)) {
+          next = [...next, { key: line.key, productId: line.product.id, name: line.product.name, unitId: line.product.unitId, unitName: line.product.unitName, price: parentPrice, quantity: 1, discount: 0, note: attrs?.note || "", addons: parentAddons, groupPrinter: line.product.groupPrinter, category: line.product.category }]
           if (extrasTotal > 0 && service) next = [...next, { key: `${parentKey}-extras`, productId: service.id, name: tr("اضافات"), unitId: service.unitId, unitName: service.unitName, price: extrasTotal, quantity: 1, discount: 0, note: "", addons: [], groupPrinter: "", category: line.product.category, relatedOf: line.product.name, noKitchenPrint: true, extrasOf: parentKey }]
           continue
         }
@@ -1035,6 +1047,7 @@ export default function RestaurantPos() {
   // ---------------- الإضافات ----------------
   const addonsLine = useMemo(() => {
     if (!addonsTarget) return null
+    if (addonsTarget.kind === "new") return { title: addonsTarget.product.name, groups: addonsTarget.product.addonGroups || [], selected: [] as Addon[], note: "" }
     if (addonsTarget.kind === "pending") {
       const row = pending.find((line) => line.key === addonsTarget.key)
       if (!row) return null
@@ -1045,8 +1058,19 @@ export default function RestaurantPos() {
   }, [addonsTarget, pending, productById])
   const saveAddons = async (addons: Addon[], note: string) => {
     if (!addonsTarget || !order) return
+    if (addonsTarget.kind === "new") {
+      const target = addonsTarget
+      setAddonsTarget(null)
+      addLines(target.product, target.related, target.includeParent, target.chosen, { addons, note })
+      return
+    }
     if (addonsTarget.kind === "pending") {
-      setPending((rows) => rows.map((row) => row.key === addonsTarget.key ? { ...row, addons: [...addons, ...row.addons.filter(isExtraAddon)], note } : row))
+      setPending((rows) => rows.map((row) => {
+        if (row.key !== addonsTarget.key) return row
+        const groups = productById.get(row.productId)?.addonGroups
+        const price = round4(Math.max(0, row.price - addonsPriceDelta(groups, row.addons) + addonsPriceDelta(groups, addons)))
+        return { ...row, price, addons: [...addons, ...row.addons.filter(isExtraAddon)], note }
+      }))
       setAddonsTarget(null)
       return
     }

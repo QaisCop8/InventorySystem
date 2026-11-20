@@ -230,3 +230,6 @@ With {0}
 Without {0}
 Add to order
 Set the «Restaurant extras service» in the location settings to add priced extras
+Value price
+Price of {0}
+Cannot change to a differently-priced option on a partly paid item

@@ -194,6 +194,9 @@ function normalizeProductPayload(productData: any) {
       }))
     : []
 
+  // سعر الصنف المرجعي لأسعار الخصائص: أول سعر أكبر من صفر (نفس ما تعرضه الشاشة افتراضياً لكل قيمة جديدة)
+  const referencePrice = Number(normalizedPrices.find((price: any) => Number(price.price) > 0)?.price || 0)
+
   const normalizedStores = Array.isArray(productData?.stores)
     ? productData.stores.map((store: any) => ({
         ...store,
@@ -292,6 +295,14 @@ function normalizeProductPayload(productData: any) {
               .map(([value, image]) => [safeText(value, "").trim(), safeText(image, "").trim() || null])
               .filter(([value]) => Boolean(value))
           ),
+          // سعر كل قيمة (افتراضياً سعر الصنف) + سعر الصنف المرجعي: الفرق يُضاف عند البيع (lib/attribute-prices.ts)
+          value_prices: Object.fromEntries(
+            Object.entries(attribute?.value_prices && typeof attribute.value_prices === "object" ? attribute.value_prices : {})
+              .map(([value, price]) => [safeText(value, "").trim(), Number(price)] as [string, number])
+              .filter(([value, price]) => Boolean(value) && price !== null && Number.isFinite(price) && price >= 0)
+              .map(([value, price]) => [value, Math.round(price * 10000) / 10000])
+          ),
+          base_price: referencePrice,
         })).filter((attribute: any) => attribute.name && attribute.values.length > 0)
       : [],
     // غائب عن الطلب (استيراد Excel/حفظ جزئي) ⇐ لا يُلمس المحفوظ
@@ -531,7 +542,15 @@ export async function GET(request: NextRequest) {
       }
       for (const product of products) {
         const joined = grouped.get(Number(product.id))
-        if (joined?.length) product.attributes = joined
+        if (!joined?.length) continue
+        // أسعار القيم محفوظة في عمود attributes (JSON) فقط — تُدمج مع الصفوف المرتبطة
+        const stored = Array.isArray(product.attributes) ? product.attributes : []
+        for (const attribute of joined) {
+          const source = stored.find((row: any) => String(row?.name || "") === attribute.name)
+          if (source?.value_prices) attribute.value_prices = source.value_prices
+          if (source?.base_price !== undefined) attribute.base_price = source.base_price
+        }
+        product.attributes = joined
       }
     }
 

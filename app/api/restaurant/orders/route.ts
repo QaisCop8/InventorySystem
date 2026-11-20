@@ -1,3 +1,4 @@
+import { addonsPriceDelta, attributeDeltas } from "@/lib/attribute-prices"
 import { APPROVAL_HEADER, discountWithinApproval, hasPermissionApproval, permissionRequiredBody } from "@/lib/permission-approvals"
 import { NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
@@ -238,6 +239,17 @@ async function handleUpdateItem(ctx: Ctx, order: any) {
   const note = ctx.data.note === undefined ? item.note : String(ctx.data.note || "").trim().slice(0, 300) || null
   const addons = ctx.data.addons === undefined ? cleanAddons(item.addons) : cleanAddons(ctx.data.addons)
   if (ctx.data.addons !== undefined) await assertAddonsComplete([{ product_id: Number(item.product_id), product_name: item.product_name, addons }])
+  // أسعار الخصائص: السعر = السعر الحالي − فرق القيم السابقة + فرق القيم الجديدة (lib/attribute-prices.ts)
+  let price = num(item.price)
+  if (ctx.data.addons !== undefined) {
+    const [product] = await sql`SELECT attributes FROM products WHERE id = ${Number(item.product_id)}` as any[]
+    const groups = (Array.isArray(product?.attributes) ? product.attributes : []).map((group: any) => ({ name: String(group?.name || "").trim(), prices: attributeDeltas(group) }))
+    const next = Math.round((price - addonsPriceDelta(groups, cleanAddons(item.addons)) + addonsPriceDelta(groups, addons)) * 10000) / 10000
+    if (next !== price) {
+      if (qty(item.paid_quantity) > 0) throw fail("لا يمكن تغيير خصائص لها سعر مختلف لصنف دُفع جزء منه")
+      price = Math.max(0, next)
+    }
+  }
   if (!(quantity > 0) || quantity > 100000) throw fail("الكمية غير صالحة")
   if (quantity < qty(item.paid_quantity)) throw fail(`لا يمكن أن تقل الكمية عن المدفوع منها (${qty(item.paid_quantity)})`)
   // تخفيض كمية صنف مُسجَّل = حذف جزء منه
@@ -247,7 +259,7 @@ async function handleUpdateItem(ctx: Ctx, order: any) {
     requireDiscountPermission(ctx, discount || 1)
     if (qty(item.paid_quantity) > 0) throw fail("لا يمكن تغيير خصم صنف دُفع جزء منه")
   }
-  await sql`UPDATE restaurant_order_items_tbl SET quantity = ${quantity}, discount = ${discount}, note = ${note}, addons = ${JSON.stringify(addons)}::jsonb, updated_at = NOW() WHERE id = ${Number(item.id)}`
+  await sql`UPDATE restaurant_order_items_tbl SET quantity = ${quantity}, discount = ${discount}, note = ${note}, addons = ${JSON.stringify(addons)}::jsonb, price = ${price}, updated_at = NOW() WHERE id = ${Number(item.id)}`
   await logRestaurant(Number(order.id), "update_item", { item_id: Number(item.id), product_id: Number(item.product_id), product_name: item.product_name, price: num(item.price), from: qty(item.quantity), quantity, discount_from: num(item.discount), discount }, ctx.userId)
 }
 
