@@ -2186,7 +2186,7 @@ export default function UnifiedReceiptVoucher({
           />
 
           <div
-            className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-b-3xl bg-slate-50/60 px-2 py-4 sm:px-6"
+            className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-b-3xl bg-gradient-to-br from-emerald-50/80 via-slate-50 to-teal-50/70 px-2 py-4 sm:px-6 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900"
             onKeyDown={handleFormEnterAsTab}
           >
             <ProgressSpinner loading={isSaving || navLoading} />
