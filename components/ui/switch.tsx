@@ -19,7 +19,9 @@ const Switch = React.forwardRef<
   >
     <SwitchPrimitives.Thumb
       className={cn(
-        "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0",
+        // RTL (2026-11-20): الدائرة تبدأ يميناً (بداية السطر) وعند التفعيل تتحرك يساراً — كانت تتحرك يميناً دائماً فتخرج من المفتاح.
+        // LTR (الإنجليزية) كما كان: تبدأ يساراً وتتحرك يميناً
+        "pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform data-[state=unchecked]:translate-x-0 data-[state=checked]:translate-x-5 rtl:data-[state=checked]:-translate-x-5",
       )}
     />
   </SwitchPrimitives.Root>
