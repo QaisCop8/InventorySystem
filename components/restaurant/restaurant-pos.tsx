@@ -32,7 +32,7 @@ import {
   PosPaymentDetailsDialog, type CurrencyOption, type LookupOption, type PaymentDetail, type PaymentMethod,
 } from "@/components/pos/pos-payment-details-dialog"
 import {
-  AddonsDialog, addonsText, attributesText, extrasLines, EXTRAS_GROUP, isExtraAddon, ExtrasWizard, ValueDialog, ItemEditDialog, LineQuantities, money, PayScopeDialog, qtyText, round2, round4, TablePickerDialog,
+  AddonsDialog, addonsText, attributesText, extrasLines, EXTRAS_GROUP, isExtraAddon, ExtrasWizard, ValueDialog, TakeawayInfoDialog, ItemEditDialog, LineQuantities, money, PayScopeDialog, qtyText, round2, round4, TablePickerDialog,
   type Addon, type EditableLine, type FloorLocation, type FloorTable, type OrderItem,
 } from "./restaurant-dialogs"
 import { RestaurantFloor, type FloorStatusFilter, type Takeaway } from "./restaurant-floor"
@@ -756,6 +756,8 @@ export default function RestaurantPos() {
   }
 
   const isTakeaway = order?.order_type === "takeaway"
+  // قيمة ثابتة المرجع: نافذة بيانات السفري تعيد تعبئة الحقول عند تغيّرها
+  const takeawayInfoValue = useMemo(() => ({ name: order?.takeaway_name || "", mobile: order?.takeaway_mobile || "", address: order?.takeaway_address || "" }), [order?.takeaway_name, order?.takeaway_mobile, order?.takeaway_address])
   const tableNames = isTakeaway ? tr("سفري{0}", order?.takeaway_name ? ` ${order.takeaway_name}` : "") : order?.tables.map((table) => table.name).join(" + ") || ""
 
   // قسائم المطبخ: ورقة بالأصناف والكميات والملاحظات (بلا أسعار) — كما في كاشير نقطة البيع. الأولوية لطابعة الصنف
@@ -839,7 +841,7 @@ export default function RestaurantPos() {
     }
     // السفري: ملاحظة الطلب (اسم/رقم الزبون) مطلوبة قبل الإرسال للمطبخ
     if (order.order_type === "takeaway" && !String(order.takeaway_name || "").trim()) {
-      setMessage({ type: "error", text: tr("أدخل ملاحظة الطلب السفري قبل الإرسال إلى المطبخ") })
+      setMessage({ type: "error", text: tr("أدخل اسم زبون الطلب السفري قبل الإرسال إلى المطبخ") })
       setValueDialog("takeaway_name")
       return
     }
@@ -996,7 +998,7 @@ export default function RestaurantPos() {
       const lines = order.items.filter((item) => item.remaining_quantity > 0)
       const document: PrintDocument = {
         noAudit: true, voucherTypeId: 12, title: tr("حساب طاولة"), code: order.order_no, date: nowText(),
-        fields: [{ label: tr("الموقع"), value: order.location_name }, { label: isTakeaway ? tr("النوع") : tr("الطاولة"), value: tableNames }, ...(isTakeaway ? [] : [{ label: tr("عدد الأشخاص"), value: String(order.guests) }])],
+        fields: [{ label: tr("الموقع"), value: order.location_name }, { label: isTakeaway ? tr("النوع") : tr("الطاولة"), value: tableNames }, ...(isTakeaway ? [] : [{ label: tr("عدد الأشخاص"), value: String(order.guests) }]), ...(isTakeaway && order.takeaway_mobile ? [{ label: tr("الجوال"), value: order.takeaway_mobile }] : []), ...(isTakeaway && order.takeaway_address ? [{ label: tr("العنوان"), value: order.takeaway_address }] : [])],
         columns: [{ key: "name", label: tr("الصنف"), weight: 3 }, { key: "quantity", label: tr("الكمية"), align: "center", weight: 1 }, { key: "price", label: tr("السعر"), align: "center", weight: 1.2 }, { key: "total", label: tr("المجموع"), align: "center", weight: 1.3 }],
         rows: lines.map((item) => ({ name: `${item.product_name}${item.addons?.length ? ` + ${addonsText(item.addons)}` : ""}`, quantity: qtyText(item.remaining_quantity), price: money(item.price), total: money(item.price * item.remaining_quantity * (1 - item.discount / 100)) })),
         totals: [
@@ -1069,6 +1071,11 @@ export default function RestaurantPos() {
     await act("remove_item", { order_id: order.id, item_id: item.id }, tr("تم حذف خدمة الطاولة"))
   }
 
+  const saveTakeawayInfo = async (info: { name: string; mobile: string; address: string }) => {
+    if (!order) return
+    const data = await act("update_order", { order_id: order.id, takeaway_name: info.name, takeaway_mobile: info.mobile, takeaway_address: info.address })
+    if (data) setValueDialog(null)
+  }
   const saveValueDialog = async (raw: string) => {
     if (!order || !valueDialog) return
     if (valueDialog === "takeaway_name" && !raw.trim()) { setMessage({ type: "error", text: tr("ملاحظة الطلب السفري مطلوبة") }); return }
@@ -1351,10 +1358,10 @@ export default function RestaurantPos() {
         onPick={(id) => void act("assign_waiter", { order_id: order.id, waiter_id: id }, tr("تم تحويل الطاولة")).then((data) => { if (data) setAssignOpen(false) })} />
       {waiterDialogs}
 
-      <ValueDialog open={valueDialog !== null} onOpenChange={(value) => { if (!value) setValueDialog(null) }} busy={busy} onConfirm={(value) => void saveValueDialog(value)}
-        {...(valueDialog === "discount"
-          ? { title: tr("خصم الطلب"), label: tr("نسبة الخصم على الطلب"), value: String(order.discount_percent || 0), kind: "number" as const, min: 0, max: 100, suffix: "%", presets: [0, 5, 10, 15, 20, 25, 30, 50] }
-          : { title: tr("ملاحظة الطلب السفري"), label: tr("اسم/رقم الزبون أو ملاحظة"), value: order.takeaway_name || "", placeholder: tr("مطلوبة قبل الإرسال للمطبخ") })} />
+      <ValueDialog open={valueDialog === "discount"} onOpenChange={(value) => { if (!value) setValueDialog(null) }} busy={busy} onConfirm={(value) => void saveValueDialog(value)}
+        title={tr("خصم الطلب")} label={tr("نسبة الخصم على الطلب")} value={String(order.discount_percent || 0)} kind="number" min={0} max={100} suffix="%" presets={[0, 5, 10, 15, 20, 25, 30, 50]} />
+      <TakeawayInfoDialog open={valueDialog === "takeaway_name"} onOpenChange={(value) => { if (!value) setValueDialog(null) }} busy={busy}
+        value={takeawayInfoValue} onConfirm={(info) => void saveTakeawayInfo(info)} />
 
       <ItemEditDialog open={editing !== null} onOpenChange={(value) => { if (!value) setEditing(null) }} line={editLine} busy={busy}
         canDiscount canDelete canReduce

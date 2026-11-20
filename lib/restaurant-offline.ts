@@ -165,6 +165,8 @@ export function applyOffline(action: string, body: Record<string, any>, ctx: Con
       if (body.guests !== undefined) order.guests = Math.max(1, Number(body.guests) || 1)
       if (body.discount_percent !== undefined) order.discount_percent = Number(body.discount_percent) || 0
       if (body.takeaway_name !== undefined) order.takeaway_name = String(body.takeaway_name || "").trim() || null
+      if (body.takeaway_mobile !== undefined) (order as any).takeaway_mobile = String(body.takeaway_mobile || "").trim() || null
+      if (body.takeaway_address !== undefined) (order as any).takeaway_address = String(body.takeaway_address || "").trim() || null
     } else if (action === "cancel") {
       order.status = "cancelled"
     } else if (action === "print") {

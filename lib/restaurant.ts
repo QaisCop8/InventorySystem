@@ -96,6 +96,9 @@ export async function ensureRestaurantTables() {
     `
     await sql`ALTER TABLE restaurant_orders_tbl ADD COLUMN IF NOT EXISTS order_type VARCHAR(12) NOT NULL DEFAULT 'dine_in'`
     await sql`ALTER TABLE restaurant_orders_tbl ADD COLUMN IF NOT EXISTS takeaway_name VARCHAR(100)`
+    // بيانات زبون السفري (2026-11-20): الاسم في takeaway_name، والجوال والعنوان اختياريان
+    await sql`ALTER TABLE restaurant_orders_tbl ADD COLUMN IF NOT EXISTS takeaway_mobile VARCHAR(30)`
+    await sql`ALTER TABLE restaurant_orders_tbl ADD COLUMN IF NOT EXISTS takeaway_address VARCHAR(300)`
     await sql`CREATE INDEX IF NOT EXISTS restaurant_orders_open_idx ON restaurant_orders_tbl (branch_id, status)`
     await sql`
       CREATE TABLE IF NOT EXISTS restaurant_order_tables_tbl (

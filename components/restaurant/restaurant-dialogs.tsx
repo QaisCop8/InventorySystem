@@ -2,7 +2,7 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { ArrowLeft, ArrowRight, Check, Loader2, Minus, Plus, Trash2, Users, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, Check, Loader2, MapPin, Minus, Phone, Plus, ShoppingBag, Trash2, User, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -415,6 +415,75 @@ export function ValueDialog(props: {
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
           <Button className="h-11" disabled={busy} onClick={submit}>{busy && <Loader2 className="me-1 h-4 w-4 animate-spin" />}<Check className="me-1 h-4 w-4" />{tr("حفظ")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export type TakeawayInfo = { name: string; mobile: string; address: string }
+
+/** بيانات زبون الطلب السفري: الاسم (مطلوب قبل الإرسال للمطبخ)، الجوال والعنوان اختياريان */
+export function TakeawayInfoDialog(props: {
+  open: boolean; onOpenChange: (open: boolean) => void; value: TakeawayInfo; busy?: boolean; onConfirm: (value: TakeawayInfo) => void
+}) {
+  const { open, onOpenChange, value, busy, onConfirm } = props
+  const [form, setForm] = useState<TakeawayInfo>({ name: "", mobile: "", address: "" })
+  const [error, setError] = useState("")
+  useEffect(() => { if (open) { setForm(value); setError("") } }, [open, value])
+  const set = (patch: Partial<TakeawayInfo>) => { setForm((current) => ({ ...current, ...patch })); setError("") }
+  const submit = () => {
+    if (!form.name.trim()) { setError(tr("اسم الزبون مطلوب قبل الإرسال للمطبخ")); return }
+    if (form.mobile.trim() && !/^[+\d][\d\s-]{5,}$/.test(form.mobile.trim())) { setError(tr("رقم الجوال غير صالح")); return }
+    onConfirm({ name: form.name.trim(), mobile: form.mobile.trim(), address: form.address.trim() })
+  }
+  const field = "h-12 rounded-xl border-slate-200 bg-white ps-11 text-base font-semibold shadow-sm transition focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-100"
+  const icon = "pointer-events-none absolute start-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg bg-emerald-50 text-emerald-700"
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-md gap-0 overflow-hidden rounded-2xl border-0 p-0 shadow-2xl">
+        <DialogHeader className="relative overflow-hidden bg-gradient-to-l from-emerald-800 via-emerald-700 to-teal-600 px-5 py-4 text-start text-white">
+          <span aria-hidden className="pointer-events-none absolute -top-10 end-6 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
+          <DialogTitle className="relative flex items-center gap-3 text-lg font-extrabold">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/15 ring-1 ring-white/30"><ShoppingBag className="h-5 w-5" /></span>
+            <span className="flex flex-col">
+              {tr("بيانات الطلب السفري")}
+              <span className="text-xs font-medium text-emerald-50/90">{tr("الاسم مطلوب قبل الإرسال للمطبخ")}</span>
+            </span>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 bg-gradient-to-b from-emerald-50/60 to-white px-5 py-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="takeaway-name" className="text-sm font-bold text-slate-700">{tr("اسم الزبون")} <span className="text-red-500">*</span></Label>
+            <div className="relative">
+              <span className={icon}><User className="h-4 w-4" /></span>
+              <Input id="takeaway-name" autoFocus className={field} value={form.name} maxLength={100} placeholder={tr("مثال: أحمد")}
+                onChange={(event) => set({ name: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") submit() }} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="takeaway-mobile" className="text-sm font-bold text-slate-700">{tr("رقم الجوال")}</Label>
+            <div className="relative">
+              <span className={icon}><Phone className="h-4 w-4" /></span>
+              <Input id="takeaway-mobile" type="tel" inputMode="tel" dir="ltr" className={`${field} text-end tabular-nums`} value={form.mobile} maxLength={30} placeholder="05xxxxxxxx"
+                onChange={(event) => set({ mobile: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") submit() }} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="takeaway-address" className="text-sm font-bold text-slate-700">{tr("العنوان")}</Label>
+            <div className="relative">
+              <span className={`${icon} top-6`}><MapPin className="h-4 w-4" /></span>
+              <Textarea id="takeaway-address" rows={2} className="min-h-[3rem] resize-none rounded-xl border-slate-200 bg-white ps-11 pt-3 text-base font-semibold shadow-sm focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-100"
+                value={form.address} maxLength={300} placeholder={tr("الحي، الشارع، علامة مميزة")} onChange={(event) => set({ address: event.target.value })} />
+            </div>
+          </div>
+          {error && <p className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p>}
+        </div>
+        <DialogFooter className="flex-row gap-2 border-t border-slate-100 bg-white px-5 py-3 sm:justify-start">
+          <Button className="h-11 flex-1 rounded-xl bg-emerald-700 text-base font-bold shadow-md hover:bg-emerald-800" disabled={busy} onClick={submit}>
+            {busy ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : <Check className="me-1 h-4 w-4" />}{tr("حفظ")}
+          </Button>
+          <Button variant="outline" className="h-11 rounded-xl px-6 font-bold" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

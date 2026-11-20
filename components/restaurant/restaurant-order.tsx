@@ -10,7 +10,7 @@ import "./restaurant-order.css"
 
 export type Order = {
   id: number; order_no: string; branch_id: number; location_id: number; location_name: string; status: string
-  order_type: "dine_in" | "takeaway"; takeaway_name: string | null
+  order_type: "dine_in" | "takeaway"; takeaway_name: string | null; takeaway_mobile?: string | null; takeaway_address?: string | null
   guests: number; customer_id: number | null; customer_name: string; discount_percent: number; note: string | null; revision: number; opened_at: string
   tables: { table_id: number; is_primary: boolean; name: string; seats: number; location_id: number; location_name: string }[]
   items: OrderItem[]; payments: { id: number; vch_code: string; amount: number; created_at: string }[]
@@ -203,7 +203,7 @@ export function RestaurantOrder(p: Props) {
               <span className="ro-table"><ShoppingBag className="h-5 w-5" />{tr("سفري")}{order.takeaway_name ? ` — ${order.takeaway_name}` : ""}</span>
               {/* ملاحظة السفري (اسم/رقم الزبون) مطلوبة قبل الإرسال للمطبخ — تُضاف من هنا بعد إدخال الأصناف */}
               <button type="button" className={order.takeaway_name ? "ro-soft" : "ro-badge"} disabled={p.busy} onClick={p.onRenameTakeaway}>
-                <Pencil className="h-3.5 w-3.5" />{order.takeaway_name ? tr("تعديل الملاحظة") : tr("إضافة ملاحظة")}
+                <Pencil className="h-3.5 w-3.5" />{order.takeaway_name ? tr("بيانات الزبون") : tr("إضافة بيانات الزبون")}
               </button>
             </span>
           ) : order.tables.map((table) => (

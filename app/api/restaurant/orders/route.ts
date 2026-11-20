@@ -188,7 +188,9 @@ async function handleUpdateOrder(ctx: Ctx, order: any) {
     if (discount !== num(order.discount_percent)) requireDiscountPermission(ctx, discount || 1)
   }
   const takeawayName = ctx.data.takeaway_name === undefined ? order.takeaway_name : String(ctx.data.takeaway_name || "").trim().slice(0, 100) || null
-  await sql`UPDATE restaurant_orders_tbl SET guests = ${guests}, note = ${note}, customer_id = ${customerId}, discount_percent = ${discount}, takeaway_name = ${takeawayName} WHERE id = ${Number(order.id)}`
+  const takeawayMobile = ctx.data.takeaway_mobile === undefined ? order.takeaway_mobile ?? null : String(ctx.data.takeaway_mobile || "").trim().slice(0, 30) || null
+  const takeawayAddress = ctx.data.takeaway_address === undefined ? order.takeaway_address ?? null : String(ctx.data.takeaway_address || "").trim().slice(0, 300) || null
+  await sql`UPDATE restaurant_orders_tbl SET guests = ${guests}, note = ${note}, customer_id = ${customerId}, discount_percent = ${discount}, takeaway_name = ${takeawayName}, takeaway_mobile = ${takeawayMobile}, takeaway_address = ${takeawayAddress} WHERE id = ${Number(order.id)}`
   customerId = customerId || null
   await logRestaurant(Number(order.id), "update_order", { guests, customer_id: customerId, discount_percent: discount, discount_from: num(order.discount_percent) }, ctx.userId)
 }
