@@ -6,7 +6,8 @@ import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { useMyVan, useVanCar } from "@/lib/use-van-car"
 import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
-import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X, ScanLine, Loader2, Info } from "lucide-react"
+import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X, ScanLine, Loader2, Info, Paperclip } from "lucide-react"
+import { VoucherTabTrigger, voucherTabListClass } from "@/components/common/voucher-tabs"
 import { cancelChequeReader, readReceivedCheques, sameCode, type ChequeReaderPhase } from "@/lib/cheque-reader"
 import { PinpadPayButton } from "@/components/pinpad/pinpad-pay-button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -221,8 +222,7 @@ interface UnifiedReceiptVoucherProps {
   errorMessages?: string[]
 }
 
-const voucherTabTriggerClass =
-  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
+// شكل التبويبات الحديث المشترك مع سند البضاعة وفاتورة المبيعات — components/common/voucher-tabs.tsx
 
 const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10)
 const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : String(value))
@@ -2541,15 +2541,15 @@ export default function UnifiedReceiptVoucher({
             {/* Tabs: الشيكات, الرئيسية, تفاصيل البطاقة, الحسابات, ملاحظات, المرفقات */}
             </fieldset>
             <Tabs value={activeTab} onValueChange={handleTabChange} className="pt-4">
-              <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
-                <TabsTrigger value="cheques" className={voucherTabTriggerClass}>{tr("الشيكات")}</TabsTrigger>
-                <TabsTrigger value="main" className={voucherTabTriggerClass}>{tr("افتراضية")}</TabsTrigger>
+              <TabsList className={voucherTabListClass}>
+                <VoucherTabTrigger value="cheques" icon={Landmark} count={cheques.filter((row: any) => Number(row.amount) > 0).length}>{tr("الشيكات")}</VoucherTabTrigger>
+                <VoucherTabTrigger value="main" icon={Wallet}>{tr("افتراضية")}</VoucherTabTrigger>
                 {!isPayment && (
-                  <TabsTrigger value="card" className={voucherTabTriggerClass}>{tr("تفاصيل البطاقة")}</TabsTrigger>
+                  <VoucherTabTrigger value="card" icon={CreditCard}>{tr("تفاصيل البطاقة")}</VoucherTabTrigger>
                 )}
-                <TabsTrigger value="journal" className={voucherTabTriggerClass}>{tr("الحسابات")}</TabsTrigger>
-                <TabsTrigger value="notes" className={voucherTabTriggerClass}>{tr("ملاحظات")}</TabsTrigger>
-                <TabsTrigger value="attachments" className={voucherTabTriggerClass}>{tr("المرفقات")}</TabsTrigger>
+                <VoucherTabTrigger value="journal" icon={BookOpen}>{tr("الحسابات")}</VoucherTabTrigger>
+                <VoucherTabTrigger value="notes" icon={MessageSquare} dot={!!String(form.note || "").trim()}>{tr("ملاحظات")}</VoucherTabTrigger>
+                <VoucherTabTrigger value="attachments" icon={Paperclip}>{tr("المرفقات")}</VoucherTabTrigger>
               </TabsList>
 
               {/* الرئيسية */}

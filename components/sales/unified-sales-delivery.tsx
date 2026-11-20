@@ -56,7 +56,8 @@ import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { FileText, Package, Calculator, MessageSquare, UserRound, Wallet, TrendingUp, Percent, Truck, BadgeCheck, PackageSearch } from "lucide-react"
+import { FileText, Package, Calculator, MessageSquare, UserRound, Wallet, TrendingUp, Percent, Truck, BadgeCheck, PackageSearch, ClipboardList, Layers, Paperclip } from "lucide-react"
+import { VoucherTabTrigger, voucherTabListClass } from "@/components/common/voucher-tabs"
 import { ShippingAddressDialog, shippingSummary, type ShippingInfo } from "@/components/sales/shipping-address-dialog"
 import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
 import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPayload } from "@/lib/voucher-clipboard"
@@ -96,11 +97,7 @@ export const SALES_VOUCHER_TYPE_LABELS: Record<SalesVoucherSubType, { title: str
   19: { title: tr("مرتجع مشتريات"), listTitle: tr("مرتجعات المشتريات") },
 }
 
-// نفس تدرّج التبويبات (زمردي←تركوازي عند التفعيل) المُطبَّق أصلاً بـunified-journal.tsx/unified-
-// receipt-voucher.tsx وunified-stock-voucher.tsx — يُطبَّق هنا أيضاً لتوحيد شكل التبويبات عبر كل
-// شاشات السندات.
-const voucherTabTriggerClass =
-  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
+// شكل التبويبات الحديث المشترك مع سند البضاعة وسند القبض — components/common/voucher-tabs.tsx
 
 // خيارات تبويب "الضريبة" — نفس تسميات/قيم taxClassificationOptions وinvoiceTypeOptions
 // وoffsetCodeOptions في components/orders/unified-sale-invoices.tsx حرفياً.
@@ -3844,13 +3841,13 @@ export default function UnifiedSalesDelivery({
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
-            <TabsList dir={appDir()} className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
-              <TabsTrigger value="items" className={voucherTabTriggerClass}>{tr("الاصناف")}</TabsTrigger>
-              {showAccountsTab && <TabsTrigger value="accounts" className={voucherTabTriggerClass}>{tr("تفاصيل حسابات الاصناف")}</TabsTrigger>}
-              <TabsTrigger value="extra_data" className={voucherTabTriggerClass}>{tr("بيانات اضافية")}</TabsTrigger>
-              <TabsTrigger value="quantities" className={voucherTabTriggerClass}>{tr("تفاصيل كميات الصنف")}</TabsTrigger>
-              <TabsTrigger value="notes" className={voucherTabTriggerClass}>{tr("ملاحظات")}</TabsTrigger>
-              <TabsTrigger value="attachments" className={voucherTabTriggerClass}>{tr("المرفقات")}</TabsTrigger>
+            <TabsList dir={appDir()} className={voucherTabListClass}>
+              <VoucherTabTrigger value="items" icon={Package} count={items.filter((r) => r.product_id).length}>{tr("الاصناف")}</VoucherTabTrigger>
+              {showAccountsTab && <VoucherTabTrigger value="accounts" icon={Wallet}>{tr("تفاصيل حسابات الاصناف")}</VoucherTabTrigger>}
+              <VoucherTabTrigger value="extra_data" icon={ClipboardList}>{tr("بيانات اضافية")}</VoucherTabTrigger>
+              <VoucherTabTrigger value="quantities" icon={Layers}>{tr("تفاصيل كميات الصنف")}</VoucherTabTrigger>
+              <VoucherTabTrigger value="notes" icon={MessageSquare} dot={!!String(form.note || "").trim()}>{tr("ملاحظات")}</VoucherTabTrigger>
+              <VoucherTabTrigger value="attachments" icon={Paperclip}>{tr("المرفقات")}</VoucherTabTrigger>
             </TabsList>
 
             <fieldset className="contents">

@@ -36,6 +36,7 @@ import DateTimeControl from "@/components/common/date-time-control"
 import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
 import { FileText, Package, Calculator, MessageSquare, RefreshCw, Layers, Wallet } from "lucide-react"
+import { voucherTabTriggerClass, voucherTabIconClass, voucherTabListClass } from "@/components/common/voucher-tabs"
 import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPayload } from "@/lib/voucher-clipboard"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
@@ -207,16 +208,7 @@ const TYPE_LABELS: Record<StockVoucherType, { title: string }> = {
   11: { title: tr("سند استعمال") },
 }
 
-// نفس تدرّج التبويبات (زمردي←تركوازي عند التفعيل) المُطبَّق أصلاً بـunified-journal.tsx/unified-
-// receipt-voucher.tsx — يُطبَّق هنا أيضاً لتوحيد شكل التبويبات عبر كل شاشات السندات.
-// تجربة تصميم حديث لسند البضاعة فقط (2026-11-20): تبويبات "حبوب" بأيقونة وخط سفلي متوهج عند التفعيل.
-const voucherTabTriggerClass =
-  "group relative gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-500 transition-all duration-200 hover:bg-emerald-50 hover:text-emerald-700 " +
-  "data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-[0_6px_18px_-8px_rgba(5,150,105,.55)] data-[state=active]:ring-1 data-[state=active]:ring-emerald-200 " +
-  "after:absolute after:inset-x-4 after:-bottom-px after:h-[3px] after:scale-x-0 after:rounded-full after:bg-gradient-to-l after:from-emerald-500 after:to-teal-500 after:transition-transform after:duration-300 data-[state=active]:after:scale-x-100 " +
-  "dark:text-slate-400 dark:hover:bg-slate-800 dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:text-emerald-300 dark:data-[state=active]:ring-emerald-800"
-const voucherTabIconClass =
-  "grid h-6 w-6 place-items-center rounded-lg bg-slate-100 text-slate-500 transition-colors group-hover:bg-emerald-100 group-hover:text-emerald-700 group-data-[state=active]:bg-gradient-to-br group-data-[state=active]:from-emerald-500 group-data-[state=active]:to-teal-500 group-data-[state=active]:text-white dark:bg-slate-800"
+// شكل التبويبات الحديث المشترك — components/common/voucher-tabs.tsx
 const voucherTabPanelClass =
   "mt-3 min-h-[360px] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_-18px_rgba(15,23,42,.25)] sm:p-5 dark:border-slate-800 dark:bg-slate-900"
 
@@ -2698,7 +2690,7 @@ export default function UnifiedStockVoucher({
             {/* dir صريح هنا (بدل الاعتماد فقط على وراثته من DialogContent) لضمان أن "الاصناف" —
                 أول عنصر بترتيب DOM — يظهر في أقصى اليمين دائماً، بصرف النظر عن أي تعارض في تتالي
                 الاتجاه عبر بوابة Radix Dialog/Tabs. */}
-            <TabsList dir={appDir()} className="flex h-auto flex-wrap justify-start gap-1.5 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-slate-50 to-slate-100/80 p-1.5 shadow-inner dark:border-slate-800 dark:from-slate-900 dark:to-slate-900">
+            <TabsList dir={appDir()} className={voucherTabListClass}>
               <TabsTrigger value="items" className={voucherTabTriggerClass}>
                 <span className={voucherTabIconClass}><Package className="h-3.5 w-3.5" /></span>
                 {tr("الاصناف")}
