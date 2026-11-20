@@ -2686,7 +2686,7 @@ export default function UnifiedStockVoucher({
 
           {/* Tabs خارج fieldset عمداً — يبقى التنقل بين التبويبات ممكناً حتى لسند مُقفَل (مُرحَّل/ملغى)،
               وfieldset منفصل أدناه يُعطِّل حقول كل تبويب فقط دون تعطيل أزرار التبويبات نفسها. */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 flex flex-1 flex-col">
+          <Tabs dir={appDir()} value={activeTab} onValueChange={setActiveTab} className="mt-4 flex flex-1 flex-col">
             {/* dir صريح هنا (بدل الاعتماد فقط على وراثته من DialogContent) لضمان أن "الاصناف" —
                 أول عنصر بترتيب DOM — يظهر في أقصى اليمين دائماً، بصرف النظر عن أي تعارض في تتالي
                 الاتجاه عبر بوابة Radix Dialog/Tabs. */}

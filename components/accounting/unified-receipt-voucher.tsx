@@ -2540,7 +2540,7 @@ export default function UnifiedReceiptVoucher({
 
             {/* Tabs: الشيكات, الرئيسية, تفاصيل البطاقة, الحسابات, ملاحظات, المرفقات */}
             </fieldset>
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="pt-4">
+            <Tabs dir={appDir()} value={activeTab} onValueChange={handleTabChange} className="pt-4">
               <TabsList className={voucherTabListClass}>
                 <VoucherTabTrigger value="cheques" icon={Landmark} count={cheques.filter((row: any) => Number(row.amount) > 0).length}>{tr("الشيكات")}</VoucherTabTrigger>
                 <VoucherTabTrigger value="main" icon={Wallet}>{tr("افتراضية")}</VoucherTabTrigger>

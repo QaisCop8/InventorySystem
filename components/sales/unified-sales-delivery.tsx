@@ -3840,7 +3840,7 @@ export default function UnifiedSalesDelivery({
             </div>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
+          <Tabs dir={appDir()} value={activeTab} onValueChange={setActiveTab} className="mt-2">
             <TabsList dir={appDir()} className={voucherTabListClass}>
               <VoucherTabTrigger value="items" icon={Package} count={items.filter((r) => r.product_id).length}>{tr("الاصناف")}</VoucherTabTrigger>
               {showAccountsTab && <VoucherTabTrigger value="accounts" icon={Wallet}>{tr("تفاصيل حسابات الاصناف")}</VoucherTabTrigger>}
