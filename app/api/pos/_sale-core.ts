@@ -139,7 +139,9 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
       const hasCashPayment=payments.some((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&payment.payment_method==="cash")
         ||(Array.isArray(data.cash_currency_amounts)&&data.cash_currency_amounts.some((entry:any)=>Number(entry.amount)>0))
       const hasCardPayment=payments.some((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&payment.payment_method==="card")
-      const useCashCardAccount=hasCashPayment&&hasCardPayment&&!hasChequePayment&&!hasCreditPayment
+      // أي دفع بالبطاقة (منفرداً أو مع النقد) بلا شيكات/ذمم: الفاتورة على «الحساب النقدي» لنقطة البيع
+      // وسند القبض المرتبط يقبض من نفس الحساب — وإلا قُيّدت الفاتورة نقدية على الصندوق ثم قبضت البطاقة مرة أخرى
+      const useCashCardAccount=hasCardPayment&&!hasChequePayment&&!hasCreditPayment
       const customerRequired=hasChequePayment||hasCreditPayment
       const paymentCustomerIds=payments.filter((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&["cheque","account"].includes(payment.payment_method))
         .map((payment:any)=>Number(payment.customer_id ?? data.pos_customer_id))
