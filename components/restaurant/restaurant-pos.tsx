@@ -778,6 +778,21 @@ export default function RestaurantPos() {
       printer: group.printer, title: group.name,
       document: {
         noAudit: true, voucherTypeId: 12, title: tr("{0} — {1}{2}", group.name, isTakeaway ? "" : "طاولة ", tableNames), code: order.order_no, date: nowText(),
+        // تخطيط قسيمة المطبخ الخاص (lib/voucher-print/win-service.ts layoutKitchen + html.ts) — الأعمدة أدناه احتياط فقط
+        kitchen: {
+          station: group.name,
+          place: isTakeaway ? tableNames : tr("طاولة {0}", tableNames),
+          location: order.location_name || "",
+          waiter: order.waiter_name || "",
+          time: nowText(),
+          items: group.lines.map((line) => ({
+            name: `${line.name}${line.unitName ? ` (${line.unitName})` : ""}`,
+            quantity: qtyText(line.quantity),
+            options: attributesText(line.addons) || undefined,
+            extras: extrasLines(line.addons),
+            note: line.note || undefined,
+          })),
+        },
         fields: [{ label: tr("الموقع"), value: order.location_name }, { label: tr("الطاولة"), value: tableNames }, ...(order.waiter_name ? [{ label: tr("النادل"), value: order.waiter_name }] : [])],
         columns: [{ key: "name", label: tr("الصنف"), weight: 3.2 }, { key: "quantity", label: tr("الكمية"), align: "center", weight: 1 }],
         rows: group.lines.flatMap((line) => {

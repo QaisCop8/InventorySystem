@@ -74,7 +74,56 @@ function copyHtml(document: PrintDocument, settings: VoucherPrintSettings, conte
 </section>`
 }
 
+// قسيمة المطبخ (HTML للطباعة من المتصفح/الجوال) — نفس تخطيط win-service.ts layoutKitchen
+function kitchenHtml(document: PrintDocument, settings: VoucherPrintSettings, context: PrintContext, options: { preview?: boolean }) {
+  const slip = document.kitchen!
+  const paper = paperDimensions(settings)
+  const [datePart, timePart] = String(slip.time || "").split(" ")
+  const totalQty = slip.items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
+  const items = slip.items.map(item => `<div class="k-item">
+    <div class="k-row"><b class="k-qty" dir="ltr">${escapeHtml(item.quantity)}</b><b class="k-name">${escapeHtml(item.name)}</b></div>
+    ${item.options ? `<p class="k-sub">◦ ${escapeHtml(item.options)}</p>` : ""}
+    ${(item.extras || []).map(extra => `<p class="k-sub">+ ${escapeHtml(extra)}</p>`).join("")}
+    ${item.note ? `<p class="k-note">ملاحظة: ${escapeHtml(item.note)}</p>` : ""}
+  </div>`).join("")
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${escapeHtml(slip.station)} ${escapeHtml(document.code)}</title>
+<style>
+@page{size:${paper.widthMm}mm auto;margin:${settings.margin_top_mm}mm ${settings.margin_right_mm}mm ${settings.margin_bottom_mm}mm ${settings.margin_left_mm}mm}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:${options.preview ? "#e2e8f0" : "#fff"}}
+body{font-family:"${settings.font_family}",Tahoma,Arial,sans-serif;color:#000;font-size:13px;line-height:1.4;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.k{display:flex;flex-direction:column;gap:2mm${options.preview ? `;width:${paper.widthMm}mm;margin:6mm auto;padding:3mm;background:#fff;box-shadow:0 6px 24px rgb(15 23 42/18%)` : ""}}
+.k-company{text-align:center;color:#555;font-size:11px}
+.k-station{background:#e8e8e8;text-align:center;font-weight:800;font-size:18px;padding:1.2mm}
+.k-place{border:3px double #000;text-align:center;font-weight:900;font-size:${slip.place.length > 14 ? 22 : 30}px;padding:1.5mm;line-height:1.2}
+.k-meta{display:flex;justify-content:space-between;align-items:flex-end;font-weight:700}
+.k-meta .k-time{font-size:17px}
+.k-meta small{display:block;color:#555;font-weight:400;font-size:10px;text-align:start}
+.k-info{font-size:12px;overflow-wrap:anywhere}
+.k-dash{border-top:1.5px dashed #000}
+.k-item{padding:1.2mm 0;border-bottom:1px solid #bbb}
+.k-item:last-child{border-bottom:0}
+.k-row{display:flex;gap:2mm;align-items:flex-start}
+.k-qty{flex:none;min-width:10mm;border:1.5px solid #000;text-align:center;font-size:19px;line-height:1.3}
+.k-name{font-size:15px;line-height:1.35;padding-top:.6mm}
+.k-sub{padding-inline-start:12mm;font-size:12.5px}
+.k-note{margin-inline-start:12mm;margin-top:.8mm;background:#e8e8e8;padding:.6mm 1.5mm;font-weight:700;font-size:12.5px}
+.k-foot{border-top:3px double #000;padding-top:1.2mm;text-align:center;font-weight:700;font-size:12px}
+</style></head><body><section class="k">
+  ${context.company.name ? `<p class="k-company">${escapeHtml(context.company.name)}</p>` : ""}
+  <div class="k-station">${escapeHtml(slip.station)}</div>
+  <div class="k-place">${escapeHtml(slip.place)}</div>
+  <div class="k-meta"><span class="k-time">${escapeHtml(timePart || datePart || "")}${timePart && datePart ? `<small>${escapeHtml(datePart)}</small>` : ""}</span><span dir="ltr">#${escapeHtml(document.code)}</span></div>
+  ${slip.location ? `<p class="k-info">الموقع: <b>${escapeHtml(slip.location)}</b></p>` : ""}
+  ${slip.waiter ? `<p class="k-info">النادل: <b>${escapeHtml(slip.waiter)}</b></p>` : ""}
+  <div class="k-dash"></div>
+  ${items}
+  <div class="k-foot">عدد الأصناف: ${slip.items.length} · مجموع الكميات: ${Math.round(totalQty * 1000) / 1000}</div>
+</section></body></html>`
+}
+
 export function renderPrintHtml(document: PrintDocument, settings: VoucherPrintSettings, context: PrintContext, options: { preview?: boolean; previewScale?: number; pdfExport?: boolean } = {}) {
+  if (document.kitchen) return kitchenHtml(document, settings, context, options)
   const paper = paperDimensions(settings)
   const accent = settings.accent_color
   const base = settings.font_size

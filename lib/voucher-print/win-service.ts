@@ -347,8 +347,133 @@ function layoutCopy(document: PrintDocument, settings: VoucherPrintSettings, con
   return pages
 }
 
+// قسيمة المطبخ: مقروءة من مسافة — شريط القسم، الطاولة بخط كبير داخل إطار مزدوج، رقم الطلب والوقت،
+// ثم كل صنف بمربع كمية بارز واسم عريض، وخياراته/إضافاته تحته بخط أصغر، والملاحظة على خلفية رمادية.
+function layoutKitchen(document: PrintDocument, settings: VoucherPrintSettings, context: PrintContext): Page[] {
+  // العربية أضيق من تقدير charWidth العام (المصمم للأرقام/اللاتينية) — تقدير أدق هنا يمنع الفراغات تحت الأصناف وانزياح النص الموسّط
+  const kChar = (size: number) => size * 0.5
+  // ارتفاع سطر أدق من lineHeight العام (2.05) — Arial يحتاج ~1.6، مع هامش بسيط
+  const kLh = (size: number) => size * 1.8
+  const kLines = (value: string, w: number, size: number) => !value ? 1 : value.split(/\r?\n/).reduce((sum, part) => sum + Math.max(1, Math.ceil((part.length * kChar(size)) / Math.max(10, w - 6))), 0)
+  const slip = document.kitchen!
+  const paper = paperDimensions(settings)
+  const pageWidth = mmToUnits(paper.widthMm)
+  const left = mmToUnits(settings.margin_left_mm)
+  const right = pageWidth - mmToUnits(settings.margin_right_mm)
+  const width = right - left
+  const font = settings.font_family || "Arial"
+  const scale = paper.widthMm < 70 ? 0.85 : 1
+  const pt = (size: number) => size * scale
+  const commands: Command[] = []
+  let y = mmToUnits(settings.margin_top_mm)
+
+  const text = (value: string, x: number, yy: number, w: number, h: number, size: number, format = RTL, bold = false, brush = BLACK) => {
+    if (!value) return
+    commands.push({ type: 6, text: value, fontFamilyName: font, fontSize: Number(size.toFixed(2)), fontStyle: bold ? 1 : 0, brush, x: Math.round(x), y: Math.round(yy), width: Math.round(w), height: Math.round(h), textFormat: format })
+  }
+  const centered = (value: string, x: number, yy: number, w: number, size: number, bold = false, brush = BLACK) => {
+    const boldFactor = bold ? 1.12 : 1
+    const estimated = Math.min(w, value.length * kChar(size) * boldFactor + 14)
+    text(value, x + (w - estimated) / 2, yy, estimated, kLh(size) * kLines(value, estimated, size), size, RTL, bold, brush)
+  }
+  const line = (x1: number, y1: number, x2: number, y2: number, brush = GRAY) => commands.push({ type: 5, x: Math.round(x1), y: Math.round(y1), width: Math.round(x2), height: Math.round(y2), brush })
+  const box = (x: number, yy: number, w: number, h: number, brush = BLACK) => commands.push({ type: 3, x: Math.round(x), y: Math.round(yy), width: Math.round(w), height: Math.round(h), brush })
+  const fill = (x: number, yy: number, w: number, h: number) => commands.push({ type: 4, x: Math.round(x), y: Math.round(yy), width: Math.round(w), height: Math.round(h) })
+  const dashed = (yy: number) => { for (let x = left; x < right; x += 9) line(x, yy, Math.min(x + 5, right), yy, BLACK) }
+
+  // اسم الشركة صغيراً
+  if (context.company.name) {
+    centered(context.company.name, left, y, width, pt(8), false, GRAY)
+    y += kLh(pt(8)) + 2
+  }
+
+  // شريط القسم
+  const stationPt = pt(13)
+  const stationHeight = kLh(stationPt) * kLines(slip.station, width - 10, stationPt) + 8
+  fill(left, y, width, stationHeight)
+  centered(slip.station, left + 4, y + 4, width - 8, stationPt, true)
+  y += stationHeight + 7
+
+  // الطاولة / السفري بخط كبير داخل إطار مزدوج
+  const placePt = pt(slip.place.length > 14 ? 17 : 22)
+  const placeLines = kLines(slip.place, width - 16, placePt)
+  const placeHeight = placeLines * kLh(placePt) + 10
+  box(left, y, width, placeHeight)
+  box(left + 2, y + 2, width - 4, placeHeight - 4)
+  centered(slip.place, left + 6, y + 5, width - 12, placePt, true)
+  y += placeHeight + 7
+
+  // رقم الطلب (يسار) والوقت (يمين)
+  const metaPt = pt(10)
+  const [datePart, timePart] = String(slip.time || "").split(" ")
+  text(`#${document.code}`, left, y, width / 2, kLh(metaPt), metaPt, LTR, true)
+  text(timePart || datePart || "", left + width / 2, y, width / 2, kLh(metaPt), pt(12), RTL, true)
+  y += kLh(pt(12)) + 1
+  if (timePart && datePart) { text(datePart, left + width / 2, y, width / 2, kLh(pt(8)), pt(8), RTL, false, GRAY); y += kLh(pt(8)) }
+
+  // الموقع والنادل — كل منهما بسطر كامل حتى لا ينكسر البريد/الاسم في منتصفه
+  const infoPt = pt(9)
+  for (const [label, value] of [["الموقع", slip.location], ["النادل", slip.waiter]] as const) {
+    if (!value) continue
+    const content = `${label}: ${value}`
+    const lines = kLines(content, width, infoPt)
+    text(content, left, y, width, lines * kLh(infoPt), infoPt, RTL)
+    y += lines * kLh(infoPt)
+  }
+  y += 5
+  dashed(y)
+  y += 8
+
+  // الأصناف
+  const qtyPt = pt(14)
+  const namePt = pt(11.5)
+  const subPt = pt(9.5)
+  const qtyWidth = Math.round(kLh(qtyPt) * 1.35)
+  const nameWidth = width - qtyWidth - 8
+  slip.items.forEach((item, index) => {
+    const nameLines = kLines(item.name, nameWidth, namePt)
+    const rowHeight = Math.max(nameLines * kLh(namePt), kLh(qtyPt) + 4)
+    // مربع الكمية على اليمين
+    box(right - qtyWidth, y, qtyWidth, kLh(qtyPt) + 4)
+    centered(item.quantity, right - qtyWidth, y + 2, qtyWidth, qtyPt, true)
+    text(item.name, left, y + (rowHeight > nameLines * kLh(namePt) ? 3 : 0), nameWidth, nameLines * kLh(namePt), namePt, RTL, true)
+    y += rowHeight + 3
+    const subLines = [
+      ...(item.options ? [`◦ ${item.options}`] : []),
+      ...(item.extras || []).map((extra) => `+ ${extra}`),
+    ]
+    for (const sub of subLines) {
+      const lines = kLines(sub, nameWidth, subPt)
+      text(sub, left, y, nameWidth, lines * kLh(subPt), subPt, RTL)
+      y += lines * kLh(subPt)
+    }
+    if (item.note) {
+      const note = `ملاحظة: ${item.note}`
+      const lines = kLines(note, nameWidth - 8, subPt)
+      const noteHeight = lines * kLh(subPt) + 4
+      fill(left, y + 1, nameWidth, noteHeight)
+      text(note, left + 4, y + 3, nameWidth - 8, lines * kLh(subPt), subPt, RTL, true)
+      y += noteHeight + 3
+    }
+    y += 4
+    if (index < slip.items.length - 1) { line(left, y, right, y); y += 6 }
+  })
+
+  // الخلاصة
+  y += 2
+  line(left, y, right, y, BLACK)
+  line(left, y + 2, right, y + 2, BLACK)
+  y += 8
+  const totalQty = slip.items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
+  centered(`عدد الأصناف: ${slip.items.length}   ·   مجموع الكميات: ${Math.round(totalQty * 1000) / 1000}`, left, y, width, pt(9), true)
+  y += kLh(pt(9))
+
+  return [{ commands, height: Math.round(y + mmToUnits(settings.margin_bottom_mm) + 12) }]
+}
+
 export function buildCashierServicePages(document: PrintDocument, settings: VoucherPrintSettings, context: PrintContext) {
   const safeCode = String(document.code || "voucher").replace(/[^a-z0-9_-]/gi, "")
+  if (document.kitchen) return copyLabelsFor(settings, document.copyLabel).flatMap(() => layoutKitchen(document, settings, context))
   return copyLabelsFor(settings, document.copyLabel).flatMap((label, copy) => layoutCopy(document, settings, context, label, `voucher-${safeCode}-${Date.now()}-${copy}`))
 }
 

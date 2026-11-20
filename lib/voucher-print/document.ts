@@ -35,6 +35,21 @@ export type PrintDocument = {
   boxes?: PrintBox[]
   wordsInBox?: boolean
   sections?: PrintSection[]
+  // قسيمة مطبخ (المطاعم): تخطيط خاص كبير الخط — القسم، الطاولة بارزة، الكمية بمربع، الإضافات تحت الصنف.
+  // الأعمدة/الصفوف تبقى معبأة كاحتياط للطابعات/النسخ القديمة.
+  kitchen?: KitchenSlip
+}
+
+export type KitchenSlip = {
+  /** القسم/الطابعة (مجموعة الصنف) */
+  station: string
+  /** «طاولة 6» أو «سفري — أحمد» */
+  place: string
+  location?: string
+  waiter?: string
+  /** وقت الإرسال YYYY-MM-DD HH:mm */
+  time: string
+  items: { name: string; quantity: string; options?: string; extras?: string[]; note?: string }[]
 }
 
 export type PrintBox = { title?: string; items: { label: string; value: PrintCell }[] }
