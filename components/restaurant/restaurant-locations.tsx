@@ -1,5 +1,6 @@
 "use client"
 
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { CreditCard, Edit, LayoutGrid, Loader2, Mail, MapPin, Package, Plus, Printer, RefreshCw, Save, Search, StickyNote, Store, Trash2 } from "lucide-react"
@@ -276,19 +277,16 @@ export default function RestaurantLocations() {
 
   return (
     <div dir={appDir()} className="flex h-full flex-col gap-4 p-3 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-teal-700 to-emerald-600 p-4 text-white shadow">
-        <div className="flex items-center gap-3">
-          <MapPin className="h-8 w-8" />
-          <div>
-            <h1 className="text-xl font-bold">{tr("مواقع المطعم")}</h1>
-            <p className="text-sm text-teal-50">{tr("الصالات والطوابق والمناطق الخارجية — لكل موقع فرعه وإعدادات البيع الخاصة به (مستقلة عن الكاشير)")}</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="me-1 h-4 w-4" />{tr("تحديث")}</Button>
-          {canCreate && <Button size="sm" className="bg-white text-teal-800 hover:bg-teal-50" onClick={addLocation}><Plus className="me-1 h-4 w-4" />{tr("إضافة موقع")}</Button>}
-        </div>
-      </div>
+      {/* رأس النظام الموحّد (VoucherListHero) */}
+      <VoucherListHero
+        title={tr("مواقع المطعم")}
+        subtitle={tr("الصالات والطوابق والمناطق الخارجية — لكل موقع فرعه وإعدادات البيع الخاصة به (مستقلة عن الكاشير)")}
+        category={tr("المطاعم")}
+        icon={MapPin}
+        addLabel={canCreate ? tr("إضافة موقع") : undefined}
+        onNew={canCreate ? addLocation : undefined}
+        actions={<button type="button" onClick={() => void load()} disabled={loading} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold text-white ring-1 ring-white/25 hover:bg-white/25 disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</button>}
+      />
       {licenseRequest.element}
       <LicenseUsageStrip resource="restaurant_locations" license={license} onRequest={() => licenseRequest.open("restaurant_locations")} />
 
@@ -341,7 +339,7 @@ export default function RestaurantLocations() {
 
       <Dialog open={open} onOpenChange={(value) => { if (!value) void closeForm() }}>
         <DialogContent dir={appDir()} className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0" onKeyDown={onDialogKeyDown}>
-          <div className="bg-gradient-to-l from-emerald-600 to-teal-600 px-5 py-4 text-white">
+          <div className="page-hero px-5 py-4 text-white">
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><MapPin className="h-5 w-5" /></span>
               <div className="min-w-0 flex-1 text-start">

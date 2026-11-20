@@ -24,9 +24,9 @@ async function validate(data: any) {
   const pinError = managerPinChanges(data).error
   if (pinError) return pinError
   for (const [field, label] of [["admin_email", "ايميل مدير النظام"], ["manager_email", "ايميل المسؤول"]]) {
+    // اختياري (2026-11-20): فارغ = لا يُرسل رمز تفعيل لهذه الجهة (lib/permission-approvals.ts)؛ المُدخل يجب أن يكون صالحاً
     const value = String(data[field] ?? "").trim()
-    if (!value) return `${label} مطلوب`
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return `${label} غير صالح`
+    if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return `${label} غير صالح`
   }
   if (data.item_grouping_mode != null && !["none", "on_entry", "on_print"].includes(data.item_grouping_mode)) return "خيار تجميع الأصناف غير صالح"
   if (data.print_by_item_group != null && typeof data.print_by_item_group !== "boolean") return "خيار الطباعة حسب مجموعة الصنف غير صالح"
