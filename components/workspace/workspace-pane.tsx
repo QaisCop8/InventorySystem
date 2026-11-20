@@ -19,7 +19,7 @@ interface WorkspacePaneProps {
 }
 
 export function WorkspacePane({ paneId, showTabStrip, showFocusRing, renderSection }: WorkspacePaneProps) {
-  const { panes, focusedPaneId, activateTab, closeTab, setFocusedPane, openSection } = useWorkspace()
+  const { panes, focusedPaneId, activateTab, closeTab, refreshTab, setFocusedPane, openSection } = useWorkspace()
   const pane = panes.find((p) => p.id === paneId)
   if (!pane) return null
 
@@ -45,6 +45,8 @@ export function WorkspacePane({ paneId, showTabStrip, showFocusRing, renderSecti
             onActivate={(tabId) => activateTab(paneId, tabId)}
             // إغلاق تبويب يُتلف شاشته — نافذة التحقق من التغييرات أولاً (lib/navigation-guard.ts)
             onClose={(tabId) => { if (requestGuardedNavigation(() => closeTab(paneId, tabId), [tabId])) closeTab(paneId, tabId) }}
+            // تحديث التبويب يعيد تهيئة شاشته — نفس نافذة التحقق من التغييرات غير المحفوظة
+            onRefresh={(tabId) => { if (requestGuardedNavigation(() => refreshTab(paneId, tabId), [tabId])) refreshTab(paneId, tabId) }}
           />
           <PaneMenu onOpenSection={(newSection) => openSection(newSection, SECTION_TITLES[newSection] || newSection, paneId)} />
         </div>
@@ -52,7 +54,7 @@ export function WorkspacePane({ paneId, showTabStrip, showFocusRing, renderSecti
       <div className="relative flex-1 overflow-hidden">
         {pane.tabs.map((tab) => (
           <MountedWorkspaceTab
-            key={tab.id}
+            key={`${tab.id}:${tab.rev || 0}`}
             tab={tab}
             active={tab.id === pane.activeTabId}
             hotkeysActive={tab.id === pane.activeTabId && (!showFocusRing || isFocused)}

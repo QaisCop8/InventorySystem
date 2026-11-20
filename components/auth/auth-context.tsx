@@ -302,6 +302,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     sessionStorage.removeItem("erp_active_branch")
     sessionStorage.removeItem("erp_active_department")
     sessionStorage.removeItem("default_screen_opened");
+    // تبويبات «فتح الصفحات كتبويبات» المحفوظة (contexts/workspace-context.tsx) لا تنتقل لمستخدم آخر
+    sessionStorage.removeItem("workspace_tabs_v1");
     localStorage.removeItem("erp_active_branch")
     localStorage.removeItem("erp_active_department")
     setUser(null)

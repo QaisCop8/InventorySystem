@@ -64,6 +64,9 @@ interface ProductAttributeLine {
 
 interface AttributeCatalogItem extends ProductAttributeLine {}
 
+/** اضافة مطعم: «مع / بدون» بسعرها، أو «اختيار من متعدد» من خياراتها (لكل خيار سعره) */
+type RestaurantExtraLine = { name: string; price: number | string; mode?: "toggle" | "multi"; options?: { name: string; price: number | string }[] }
+
 function AttributeNameInput({ value, catalog, onChange, onCreate }: { value: string; catalog: AttributeCatalogItem[]; onChange: (value: string) => void; onCreate: (name: string) => void }) {
   const [query, setQuery] = useState(value)
   const [open, setOpen] = useState(false)
@@ -312,7 +315,7 @@ interface ProductFormData {
   branch_ids?: number[],
   attributes?: ProductAttributeLine[],
   // اضافات المطعم: «مع/بدون» في شاشة المطعم؛ السعر (0–1000) يُجمع في سطر «اضافات» على خدمة الموقع
-  restaurant_extras?: { name: string; price: number | string }[],
+  restaurant_extras?: RestaurantExtraLine[],
   /** طريقة اختيار اضافات المطعم: toggle = «مع/بدون» لكل إضافة، multi = اختيار من متعدد بشاشة واحدة */
   restaurant_extras_mode?: "toggle" | "multi",
   /** «اظهار الاصناف التابعة للمجموعة بعد الاختيار»: مجموعة أصناف يُختار منها صنف بعد هذا الصنف في المطعم */
@@ -830,6 +833,20 @@ export function CompactProductForm({
       if (!Number.isFinite(price) || price < 0 || price > 1000) return fail(tr("سعر الإضافة {0} يجب أن يكون بين 0 و1000", name))
       if (extraNames.has(name)) return fail(tr("الإضافة {0} مكررة", name))
       extraNames.add(name)
+      if (extra.mode === "multi") {
+        const options = extra.options || []
+        if (!options.length) return fail(tr("أضف خيارات للإضافة {0} (اختيار من متعدد)", name))
+        const optionNames = new Set<string>()
+        for (const option of options) {
+          const optionName = String(option.name || "").trim()
+          const optionPrice = Number(option.price || 0)
+          if (!optionName) return fail(tr("اكتب اسم الخيار في الإضافة {0} أو احذفه", name))
+          if (optionName.length > 50) return fail(tr("الخيار {0} أطول من 50 حرفاً", optionName))
+          if (!Number.isFinite(optionPrice) || optionPrice < 0 || optionPrice > 1000) return fail(tr("سعر الخيار {0} يجب أن يكون بين 0 و1000", optionName))
+          if (optionNames.has(optionName)) return fail(tr("الخيار {0} مكرر في الإضافة {1}", optionName, name))
+          optionNames.add(optionName)
+        }
+      }
     }
 
     return true;
@@ -1111,7 +1128,10 @@ export function CompactProductForm({
       pos_sold_using_scale: isScaleProduct(product.pos_sold_using_scale),
       default_printer: product.default_printer || "",
       is_tobacco: product.is_tobacco === true || product.is_tobacco === "true",
-      restaurant_extras: Array.isArray(product.restaurant_extras) ? product.restaurant_extras.map((extra: any) => ({ name: String(extra?.name || ""), price: Number(extra?.price || 0) })) : [],
+      restaurant_extras: Array.isArray(product.restaurant_extras) ? product.restaurant_extras.map((extra: any) => ({
+        name: String(extra?.name || ""), price: Number(extra?.price || 0), mode: extra?.mode === "multi" ? "multi" as const : "toggle" as const,
+        options: (Array.isArray(extra?.options) ? extra.options : []).map((option: any) => ({ name: String(option?.name || ""), price: Number(option?.price || 0) })),
+      })) : [],
       restaurant_extras_mode: product.restaurant_extras_mode === "multi" ? "multi" : "toggle",
       restaurant_followup_group_id: Number(product.restaurant_followup_group_id) > 0 ? Number(product.restaurant_followup_group_id) : null,
       product_type: Number(product.product_type ?? 1) || 1,
@@ -3334,25 +3354,48 @@ export function CompactProductForm({
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-2">
-                        <RestaurantExtrasOptions
-                          mode={formData.restaurant_extras_mode || "toggle"}
-                          followupGroupId={formData.restaurant_followup_group_id ?? null}
-                          onChange={(patch) => setFormData((previous) => ({ ...previous, ...patch }))}
-                        />
                         {!(formData.restaurant_extras || []).length && <button type="button" onClick={() => setFormData((previous) => ({ ...previous, restaurant_extras: [{ name: "", price: 0 }] }))} className="w-full rounded-xl border-2 border-dashed p-8 text-muted-foreground hover:border-orange-400 hover:text-orange-700">{tr("+ إضافة أول إضافة (مثال: بندورة، بطاطا)")}</button>}
                         {(formData.restaurant_extras || []).map((extra, index) => {
-                          const updateExtra = (patch: Partial<{ name: string; price: number | string }>) => setFormData((previous) => ({ ...previous, restaurant_extras: (previous.restaurant_extras || []).map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) }))
+                          const updateExtra = (patch: Partial<RestaurantExtraLine>) => setFormData((previous) => ({ ...previous, restaurant_extras: (previous.restaurant_extras || []).map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) }))
+                          const multi = extra.mode === "multi"
+                          const options = extra.options || []
+                          const updateOption = (optionIndex: number, patch: Partial<{ name: string; price: number | string }>) => updateExtra({ options: options.map((option, i) => (i === optionIndex ? { ...option, ...patch } : option)) })
                           return (
-                            <div key={index} className="grid items-end gap-3 rounded-xl border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_160px_44px]">
-                              <div className="min-w-0"><Label>{tr("الاضافة *")}</Label><Input className="mt-1" maxLength={50} value={extra.name} placeholder={tr("مثال: بندورة")} onChange={(event) => updateExtra({ name: event.target.value.slice(0, 50) })} /></div>
-                              <div><Label>{tr("السعر")}</Label><Input className="mt-1" type="number" min={0} max={1000} step="0.01" value={extra.price} onChange={(event) => updateExtra({ price: event.target.value === "" ? "" : Math.min(1000, Math.max(0, Number(event.target.value))) })} /></div>
-                              <Button type="button" size="icon" variant="ghost" className="text-red-600" onClick={() => setFormData((previous) => ({ ...previous, restaurant_extras: (previous.restaurant_extras || []).filter((_, itemIndex) => itemIndex !== index) }))}><X className="h-4 w-4" /></Button>
+                            <div key={index} className="space-y-3 rounded-xl border bg-card p-3">
+                              <div className={`grid items-end gap-3 ${multi ? "sm:grid-cols-[minmax(0,1fr)_180px_44px]" : "sm:grid-cols-[minmax(0,1fr)_180px_140px_44px]"}`}>
+                                <div className="min-w-0"><Label>{tr("الاضافة *")}</Label><Input className="mt-1" maxLength={50} value={extra.name} placeholder={multi ? tr("مثال: صوص") : tr("مثال: بندورة")} onChange={(event) => updateExtra({ name: event.target.value.slice(0, 50) })} /></div>
+                                <div>
+                                  <Label>{tr("طريقة الاختيار")}</Label>
+                                  <select className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" value={multi ? "multi" : "toggle"}
+                                    onChange={(event) => updateExtra(event.target.value === "multi" ? { mode: "multi", options: options.length ? options : [{ name: "", price: 0 }] } : { mode: "toggle" })}>
+                                    <option value="toggle">{tr("مع / بدون")}</option>
+                                    <option value="multi">{tr("اختيار من متعدد")}</option>
+                                  </select>
+                                </div>
+                                {!multi && <div><Label>{tr("السعر")}</Label><Input className="mt-1" type="number" min={0} max={1000} step="0.01" value={extra.price} onChange={(event) => updateExtra({ price: event.target.value === "" ? "" : Math.min(1000, Math.max(0, Number(event.target.value))) })} /></div>}
+                                <Button type="button" size="icon" variant="ghost" className="text-red-600" title={tr("حذف الإضافة")} onClick={() => setFormData((previous) => ({ ...previous, restaurant_extras: (previous.restaurant_extras || []).filter((_, itemIndex) => itemIndex !== index) }))}><X className="h-4 w-4" /></Button>
+                              </div>
+                              {multi && (
+                                <div className="space-y-2 rounded-lg border border-dashed border-orange-200 bg-orange-50/40 p-3 dark:border-orange-900 dark:bg-orange-950/10">
+                                  <div className="text-xs font-bold text-orange-700 dark:text-orange-300">{tr("خيارات {0}", extra.name || tr("الإضافة"))}</div>
+                                  {options.map((option, optionIndex) => (
+                                    <div key={optionIndex} className="grid items-center gap-2 sm:grid-cols-[minmax(0,1fr)_140px_36px]">
+                                      <Input maxLength={50} value={option.name} placeholder={tr("مثال: كاتشب")} aria-label={tr("اسم الخيار")} onChange={(event) => updateOption(optionIndex, { name: event.target.value.slice(0, 50) })} />
+                                      <Input type="number" min={0} max={1000} step="0.01" value={option.price} aria-label={tr("سعر الخيار")} onChange={(event) => updateOption(optionIndex, { price: event.target.value === "" ? "" : Math.min(1000, Math.max(0, Number(event.target.value))) })} />
+                                      <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-red-600" title={tr("حذف الخيار")} onClick={() => updateExtra({ options: options.filter((_, i) => i !== optionIndex) })}><X className="h-4 w-4" /></Button>
+                                    </div>
+                                  ))}
+                                  <Button type="button" variant="outline" size="sm" onClick={() => updateExtra({ options: [...options, { name: "", price: 0 }] })}><Plus className="me-1 h-3.5 w-3.5" />{tr("إضافة خيار")}</Button>
+                                </div>
+                              )}
                             </div>
                           )
                         })}
-                        <p className="text-xs text-muted-foreground">{formData.restaurant_extras_mode === "multi"
-                          ? tr("عند إضافة الصنف في شاشة المطعم تظهر كل الإضافات في شاشة واحدة ويُختار منها أكثر من إضافة. المختار يُطبع تحت الصنف في قسيمة المطبخ، والإضافات التي لها سعر تُجمع في سطر «اضافات» على «خدمة اضافات المطعم» المحددة في الموقع.")
-                          : tr("عند إضافة الصنف في شاشة المطعم يظهر معالج لكل إضافة: «مع» أو «بدون». المختار «مع» يُطبع تحت الصنف في قسيمة المطبخ، والإضافات التي لها سعر تُجمع في سطر «اضافات» على «خدمة اضافات المطعم» المحددة في الموقع.")}</p>
+                        <p className="text-xs text-muted-foreground">{tr("عند إضافة الصنف في شاشة المطعم يظهر معالج بخطوة لكل إضافة حسب «طريقة الاختيار»: «مع / بدون»، أو «اختيار من متعدد» من خيارات الإضافة. المختار يُطبع تحت الصنف في قسيمة المطبخ، والأسعار تُجمع في سطر «اضافات» على «خدمة اضافات المطعم» المحددة في الموقع.")}</p>
+                        <RestaurantExtrasOptions
+                          followupGroupId={formData.restaurant_followup_group_id ?? null}
+                          onChange={(patch) => setFormData((previous) => ({ ...previous, ...patch }))}
+                        />
                       </CardContent>
                     </Card>
                   </TabsContent>
@@ -4102,10 +4145,9 @@ export function CompactProductForm({
 }
 
 /** خيارات اضافات المطعم: طريقة الاختيار + «اظهار الاصناف التابعة للمجموعة بعد الاختيار» ومجموعتها */
-function RestaurantExtrasOptions({ mode, followupGroupId, onChange }: {
-  mode: "toggle" | "multi"
+function RestaurantExtrasOptions({ followupGroupId, onChange }: {
   followupGroupId: number | null
-  onChange: (patch: { restaurant_extras_mode?: "toggle" | "multi"; restaurant_followup_group_id?: number | null }) => void
+  onChange: (patch: { restaurant_followup_group_id?: number | null }) => void
 }) {
   const [groups, setGroups] = useState<{ id: number; name: string }[]>([])
   const [showFollowup, setShowFollowup] = useState(Boolean(followupGroupId))
@@ -4120,14 +4162,7 @@ function RestaurantExtrasOptions({ mode, followupGroupId, onChange }: {
   }, [])
   const select = "mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
   return (
-    <div className="mb-3 grid gap-3 rounded-xl border border-orange-200 bg-orange-50/50 p-3 sm:grid-cols-2 dark:border-orange-900 dark:bg-orange-950/20">
-      <div>
-        <Label htmlFor="restaurant-extras-mode">{tr("طريقة الاختيار")}</Label>
-        <select id="restaurant-extras-mode" className={select} value={mode} onChange={(event) => onChange({ restaurant_extras_mode: event.target.value === "multi" ? "multi" : "toggle" })}>
-          <option value="toggle">{tr("مع / بدون")}</option>
-          <option value="multi">{tr("اختيار من متعدد")}</option>
-        </select>
-      </div>
+    <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50/50 p-3 dark:border-orange-900 dark:bg-orange-950/20">
       <div>
         <label className="flex h-6 items-center gap-2 text-sm font-medium">
           <Checkbox checked={showFollowup} onCheckedChange={(checked) => { const on = checked === true; setShowFollowup(on); if (!on) onChange({ restaurant_followup_group_id: null }) }} />

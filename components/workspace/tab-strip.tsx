@@ -1,7 +1,7 @@
 "use client"
 
-import { appDir } from "@/lib/i18n"
-import { X } from "lucide-react"
+import { tr, appDir } from "@/lib/i18n"
+import { RotateCw, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { WorkspaceTab } from "@/contexts/workspace-context"
 
@@ -10,13 +10,15 @@ interface TabStripProps {
   activeTabId: string | null
   onActivate: (tabId: string) => void
   onClose: (tabId: string) => void
+  /** تحديث صفحة هذا التبويب وحده (إعادة تحميلها من جديد) */
+  onRefresh?: (tabId: string) => void
 }
 
 // حاوية الأزرار نفسها (خلفية/حدود) مملوكة للأب (WorkspacePane) لا هذا المكوّن — يُعرَض هذا الشريط
 // دوماً بنفس صف PaneMenu حتى لو كان تبويبات هذا الجزء فارغة حالياً (جزء شاشة مقسمة حديث لم يُفتح
 // به شيء بعد)، فلا يصح أن يُخفي نفسه بالكامل (return null) وقتها كما كان سابقاً — كان هذا يُخفي زر
 // "فتح صفحة" معه أيضاً بالضبط باللحظة التي يحتاجها المستخدم لفتح أول صفحة بذلك الجزء.
-export function TabStrip({ tabs, activeTabId, onActivate, onClose }: TabStripProps) {
+export function TabStrip({ tabs, activeTabId, onActivate, onClose, onRefresh }: TabStripProps) {
   return (
     <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto" dir={appDir()}>
       {tabs.map((tab) => (
@@ -31,6 +33,20 @@ export function TabStrip({ tabs, activeTabId, onActivate, onClose }: TabStripPro
           onClick={() => onActivate(tab.id)}
         >
           <span className="truncate flex-1">{tab.title}</span>
+          {onRefresh && (
+            <button
+              type="button"
+              title={tr("تحديث هذا التبويب")}
+              aria-label={tr("تحديث هذا التبويب")}
+              className="h-4 w-4 shrink-0 flex items-center justify-center rounded hover:bg-emerald-600 hover:text-white"
+              onClick={(e) => {
+                e.stopPropagation()
+                onRefresh(tab.id)
+              }}
+            >
+              <RotateCw className="h-3 w-3" />
+            </button>
+          )}
           <button
             type="button"
             className="h-4 w-4 shrink-0 flex items-center justify-center rounded hover:bg-destructive hover:text-destructive-foreground"

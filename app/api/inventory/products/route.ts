@@ -327,17 +327,25 @@ function normalizeProductPayload(productData: any) {
   }
 }
 
-/** اضافات المطعم: اسم ≤ 50 حرفاً (بلا تكرار) وسعر بين 0 و1000 */
+/**
+ * اضافات المطعم: اسم ≤ 50 حرفاً (بلا تكرار) وسعر بين 0 و1000، و«طريقة الاختيار» لكل إضافة (2026-11-20):
+ * toggle = «مع / بدون» بسعر الإضافة، multi = «اختيار من متعدد» من خياراتها (≤ 30 خياراً، لكل خيار اسم وسعر).
+ */
 function cleanRestaurantExtras(input: any) {
   if (!Array.isArray(input)) return []
+  const money = (value: unknown) => Math.round(Math.min(1000, Math.max(0, Number(value) || 0)) * 100) / 100
   const seen = new Set<string>()
-  const rows: { name: string; price: number }[] = []
+  const rows: { name: string; price: number; mode: "toggle" | "multi"; options?: { name: string; price: number }[] }[] = []
   for (const entry of input.slice(0, 30)) {
     const name = safeText(entry?.name, "").trim().slice(0, 50)
-    const price = Math.round(Math.min(1000, Math.max(0, Number(entry?.price) || 0)) * 100) / 100
     if (!name || seen.has(name)) continue
     seen.add(name)
-    rows.push({ name, price })
+    const optionNames = new Set<string>()
+    const options = (Array.isArray(entry?.options) ? entry.options : []).slice(0, 30)
+      .map((option: any) => ({ name: safeText(option?.name, "").trim().slice(0, 50), price: money(option?.price) }))
+      .filter((option: { name: string }) => option.name && !optionNames.has(option.name) && optionNames.add(option.name))
+    const multi = entry?.mode === "multi" && options.length > 0
+    rows.push(multi ? { name, price: 0, mode: "multi", options } : { name, price: money(entry?.price), mode: "toggle" })
   }
   return rows
 }

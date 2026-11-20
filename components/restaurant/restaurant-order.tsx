@@ -24,7 +24,7 @@ export type Product = {
   /** خيارات كل تابع: addPrice = اضافة السعر عند الاختيار، noKitchenPrint = عدم الطباعة في فواتير المطبخ */
   relatedItems: { id: number; addPrice: boolean; noKitchenPrint: boolean }[]
   /** اضافات المطعم (تعريف الصنف): معالج «مع/بدون» عند الإضافة */
-  extras?: { name: string; price: number }[]
+  extras?: { name: string; price: number; mode?: "toggle" | "multi"; options?: { name: string; price: number }[] }[]
   /** طريقة اختيار الإضافات: toggle = «مع/بدون» لكل إضافة، multi = اختيار من متعدد بشاشة واحدة */
   extrasMode?: "toggle" | "multi"
   /** مجموعة الصنف (item_groups) */

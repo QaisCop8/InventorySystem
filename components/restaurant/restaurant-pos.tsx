@@ -32,7 +32,7 @@ import {
   PosPaymentDetailsDialog, type CurrencyOption, type LookupOption, type PaymentDetail, type PaymentMethod,
 } from "@/components/pos/pos-payment-details-dialog"
 import {
-  AddonsDialog, addonsText, attributesText, extrasLines, EXTRAS_GROUP, isExtraAddon, ExtrasWizard, FollowupPickDialog, ValueDialog, TakeawayInfoDialog, ItemEditDialog, LineQuantities, money, PayScopeDialog, qtyText, round2, round4, TablePickerDialog,
+  AddonsDialog, addonsText, attributesText, extrasLines, EXTRAS_GROUP, isExtraAddon, ExtrasWizard, type ExtraChoice, FollowupPickDialog, ValueDialog, TakeawayInfoDialog, ItemEditDialog, LineQuantities, money, PayScopeDialog, qtyText, round2, round4, TablePickerDialog,
   type Addon, type EditableLine, type FloorLocation, type FloorTable, type OrderItem,
 } from "./restaurant-dialogs"
 import { RestaurantFloor, type FloorStatusFilter, type Takeaway } from "./restaurant-floor"
@@ -110,7 +110,12 @@ function normalizeCatalog(data: any): Catalog {
       relatedMode: Number(row.related_items_mode || 1),
       relatedIds: (Array.isArray(row.related_ids) ? row.related_ids : []).map(Number),
       relatedItems: (Array.isArray(row.related_items) ? row.related_items : []).map((option: any) => ({ id: Number(option.related_id), addPrice: option.add_price !== false, noKitchenPrint: option.no_kitchen_print === true })),
-      extras: (Array.isArray(row.restaurant_extras) ? row.restaurant_extras : []).map((extra: any) => ({ name: String(extra.name || ""), price: Math.max(0, Number(extra.price) || 0) })).filter((extra: any) => extra.name),
+      extras: (Array.isArray(row.restaurant_extras) ? row.restaurant_extras : []).map((extra: any) => ({
+        name: String(extra.name || ""), price: Math.max(0, Number(extra.price) || 0),
+        // «طريقة الاختيار» لكل إضافة: مع/بدون، أو اختيار من متعدد من خياراتها
+        mode: extra.mode === "multi" ? "multi" as const : "toggle" as const,
+        options: (Array.isArray(extra.options) ? extra.options : []).map((option: any) => ({ name: String(option?.name || ""), price: Math.max(0, Number(option?.price) || 0) })).filter((option: any) => option.name),
+      })).filter((extra: any) => extra.name),
       extrasMode: row.restaurant_extras_mode === "multi" ? "multi" as const : "toggle" as const,
       groupId: Number(row.group_id) || null,
       followupGroupId: Number(row.restaurant_followup_group_id) || null,
@@ -187,7 +192,7 @@ export default function RestaurantPos() {
   const [addonsTarget, setAddonsTarget] = useState<
     | { kind: "pending"; key: string }
     | { kind: "item"; item: OrderItem }
-    | { kind: "new"; product: Product; related: Product[]; includeParent: boolean; chosen?: string[] }
+    | { kind: "new"; product: Product; related: Product[]; includeParent: boolean; chosen?: ExtraChoice[] }
     | null
   >(null)
   const [editing, setEditing] = useState<{ kind: "item"; item: OrderItem } | { kind: "pending"; key: string } | null>(null)
@@ -687,7 +692,7 @@ export default function RestaurantPos() {
     addLines(product, product.relatedMode === 2 || product.relatedMode === 3 ? related : [], product.relatedMode !== 2 || !related.length)
   }
 
-  const addLines = (product: Product, related: Product[], includeParent: boolean, chosen?: string[], attrs?: { addons: Addon[]; note: string }) => {
+  const addLines = (product: Product, related: Product[], includeParent: boolean, chosen?: ExtraChoice[], attrs?: { addons: Addon[]; note: string }) => {
     // الترتيب: «الخصائص والميزات» أولاً ثم «اضافات المطعم» — الإلغاء في أي منهما لا يضيف شيئاً
     // «المتغيرات والخصائص»: الاختيار قبل الإضافة — الصنف لا يظهر في الطلب حتى يُختار
     const parentGroups = includeParent ? product.addonGroups || [] : []
@@ -695,7 +700,7 @@ export default function RestaurantPos() {
     // اضافات المطعم: معالج «مع/بدون» بعد الخصائص، ويحمل الخصائص المختارة ليُعاد الاستدعاء بالاثنين
     const extras = includeParent ? product.extras || [] : []
     if (extras.length && chosen === undefined) { setExtrasWizard({ product, related, includeParent, attrs }); return }
-    const parentAddons: Addon[] = [...(attrs?.addons || []), ...(chosen || []).map((name) => ({ group: EXTRAS_GROUP, value: tr("مع {0}", name) }))]
+    const parentAddons: Addon[] = [...(attrs?.addons || []), ...(chosen || []).map((row) => ({ group: EXTRAS_GROUP, value: row.label }))]
     // سعر الصنف + فرق أسعار القيم المختارة (lib/attribute-prices.ts)
     const parentPrice = round4(Math.max(0, product.price + addonsPriceDelta(parentGroups, attrs?.addons)))
     if (includeParent && parentGroups.length && !(parentPrice > 0)) {
@@ -703,7 +708,8 @@ export default function RestaurantPos() {
       setMessage({ type: "error", text: tr("سعر الصنف المختار غير محدد يجب تحديد السعر للتمكن من الاستمرار") })
       return
     }
-    const extrasTotal = round2(extras.filter((extra) => chosen?.includes(extra.name)).reduce((sum, extra) => sum + extra.price, 0))
+    // أسعار الاختيارات (مع/بدون: سعر الإضافة، متعدد: سعر كل خيار) تُجمع في سطر «اضافات»
+    const extrasTotal = round2((chosen || []).reduce((sum, row) => sum + row.price, 0))
     const service = catalog?.extrasService || null
     if (extrasTotal > 0 && !service) {
       playPosBeep("noPrice")
@@ -1388,7 +1394,7 @@ export default function RestaurantPos() {
         canDiscount canDelete canReduce
         onSave={(value) => void saveEdit(value)} onDelete={() => void deleteEdit()} />
 
-      <ExtrasWizard open={extrasWizard !== null} mode={extrasWizard?.product.extrasMode || "toggle"} title={extrasWizard?.product.name || ""} price={extrasWizard?.product.price || 0} currency={currency} extras={extrasWizard?.product.extras || []}
+      <ExtrasWizard open={extrasWizard !== null} title={extrasWizard?.product.name || ""} price={extrasWizard?.product.price || 0} currency={currency} extras={extrasWizard?.product.extras || []}
         onCancel={() => setExtrasWizard(null)}
         onDone={(chosen) => { const target = extrasWizard; setExtrasWizard(null); if (target) addLines(target.product, target.related, target.includeParent, chosen, target.attrs) }} />
 

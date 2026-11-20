@@ -59,7 +59,11 @@ export async function attachProductExtras<T extends { id: number | string }>(pro
       related_items: relatedById.get(Number(product.id)) || [],
       // اضافات المطعم: معالج «مع/بدون» (السعر يُجمع في سطر «اضافات» على خدمة الموقع)
       restaurant_extras: (Array.isArray(extra?.restaurant_extras) ? extra.restaurant_extras : [])
-        .map((row: any) => ({ name: String(row?.name || "").trim(), price: Math.max(0, Number(row?.price) || 0) })).filter((row: any) => row.name) as { name: string; price: number }[],
+        .map((row: any) => ({
+          name: String(row?.name || "").trim(), price: Math.max(0, Number(row?.price) || 0),
+          mode: row?.mode === "multi" ? "multi" : "toggle",
+          options: (Array.isArray(row?.options) ? row.options : []).map((option: any) => ({ name: String(option?.name || "").trim(), price: Math.max(0, Number(option?.price) || 0) })).filter((option: any) => option.name),
+        })).filter((row: any) => row.name) as { name: string; price: number; mode: string; options: { name: string; price: number }[] }[],
       // طريقة اختيار الإضافات، ومجموعة الأصناف التي يُختار منها صنف بعد هذا الصنف (مثل مشروب)
       restaurant_extras_mode: extra?.restaurant_extras_mode === "multi" ? "multi" : "toggle",
       restaurant_followup_group_id: Number(extra?.restaurant_followup_group_id) > 0 ? Number(extra.restaurant_followup_group_id) : null,

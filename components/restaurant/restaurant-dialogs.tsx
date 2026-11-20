@@ -28,7 +28,8 @@ export type Addon = { group: string; value: string }
 /** prices: فرق سعر كل قيمة عن سعر الصنف («المتغيرات والخصائص» — lib/attribute-prices.ts) */
 export type AddonGroup = { name: string; values: string[]; prices?: Record<string, number> }
 /** اضافات المطعم (تبويب «اضافات المطعم» في تعريف الصنف): تُختار «مع/بدون» بمعالج، وتُحفظ على السطر كـ addons بهذه المجموعة */
-export type RestaurantExtra = { name: string; price: number }
+/** اضافة مطعم: «مع / بدون» بسعرها، أو «اختيار من متعدد» من خياراتها (لكل خيار سعره) */
+export type RestaurantExtra = { name: string; price: number; mode?: "toggle" | "multi"; options?: { name: string; price: number }[] }
 export const EXTRAS_GROUP = "اضافات المطعم"
 export const isExtraAddon = (addon: Addon) => addon.group === EXTRAS_GROUP
 export const addonsText = (addons?: Addon[] | null) => (addons || []).map((addon) => addon.value).join("، ")
@@ -228,23 +229,48 @@ export function PayScopeDialog(props: {
  * معالج اضافات المطعم (كشاشات الطلب الذاتي): شريحة لكل إضافة — «مع X» أو «بدون X» — ثم مراجعة.
  * الاختيار ينتقل للشريحة التالية تلقائياً؛ السعر الإضافي يظهر على «مع» ويُجمع في سطر «اضافات».
  */
+/** اختيار من «اضافات المطعم»: النص الذي يُطبع تحت الصنف (مع بندورة / صوص: كاتشب) وسعره */
+export type ExtraChoice = { label: string; price: number }
+
 type ExtrasDialogProps = {
   open: boolean; title: string; price: number; currency: string; extras: RestaurantExtra[]
-  onCancel: () => void; onDone: (chosen: string[]) => void
+  onCancel: () => void; onDone: (chosen: ExtraChoice[]) => void
 }
 
-/** اضافات المطعم حسب «طريقة الاختيار» في تعريف الصنف: «مع/بدون» لكل إضافة، أو اختيار من متعدد بشاشة واحدة */
-export function ExtrasWizard(props: ExtrasDialogProps & { mode?: "toggle" | "multi" }) {
-  const { mode, ...rest } = props
-  return mode === "multi" ? <ExtrasMultiDialog {...rest} /> : <ExtrasToggleWizard {...rest} />
-}
-
-/** اختيار من متعدد: كل الإضافات بطاقات تُحدَّد/يُلغى تحديدها، ثم «إضافة للطلب» (بلا اختيار = الصنف بدون إضافات) */
-function ExtrasMultiDialog({ open, title, price, currency, extras, onCancel, onDone }: ExtrasDialogProps) {
-  const [chosen, setChosen] = useState<string[]>([])
-  useEffect(() => { if (open) setChosen([]) }, [open])
-  const toggle = (name: string) => setChosen((current) => current.includes(name) ? current.filter((row) => row !== name) : [...current, name])
-  const extraTotal = round2(extras.filter((extra) => chosen.includes(extra.name)).reduce((sum, extra) => sum + extra.price, 0))
+/**
+ * معالج «اضافات المطعم»: خطوة لكل إضافة حسب «طريقة الاختيار» في تعريفها —
+ * «مع / بدون» (نعم/لا بسعر الإضافة)، أو «اختيار من متعدد» (أكثر من خيار من خيارات الإضافة، لكل خيار سعره).
+ */
+export function ExtrasWizard({ open, title, price, currency, extras, onCancel, onDone }: ExtrasDialogProps) {
+  const [step, setStep] = useState(0)
+  // مع/بدون: true/false — متعدد: قائمة الخيارات المختارة
+  const [choice, setChoice] = useState<Record<string, boolean | string[]>>({})
+  useEffect(() => { if (open) { setStep(0); setChoice({}) } }, [open])
+  const review = step >= extras.length
+  const isMulti = (extra: RestaurantExtra) => extra.mode === "multi" && (extra.options || []).length > 0
+  const choicesOf = (extra: RestaurantExtra): ExtraChoice[] => {
+    const value = choice[extra.name]
+    if (isMulti(extra)) return (extra.options || []).filter((option) => Array.isArray(value) && value.includes(option.name)).map((option) => ({ label: `${extra.name}: ${option.name}`, price: option.price }))
+    return value === true ? [{ label: tr("مع {0}", extra.name), price: extra.price }] : []
+  }
+  const chosen: ExtraChoice[] = extras.flatMap(choicesOf)
+  const extraTotal = round2(chosen.reduce((sum, row) => sum + row.price, 0))
+  const extra = extras[step]
+  const pick = (value: boolean) => {
+    if (!extra) return
+    setChoice((current) => ({ ...current, [extra.name]: value }))
+    setStep((current) => current + 1)
+  }
+  const toggleOption = (name: string) => {
+    if (!extra) return
+    setChoice((current) => {
+      const list = Array.isArray(current[extra.name]) ? (current[extra.name] as string[]) : []
+      return { ...current, [extra.name]: list.includes(name) ? list.filter((row) => row !== name) : [...list, name] }
+    })
+  }
+  // «اختيار من متعدد» يمكن تخطيه بلا اختيار؛ «مع / بدون» يحتاج جواباً
+  const answered = (row: RestaurantExtra) => isMulti(row) || choice[row.name] !== undefined
+  const card = "flex min-h-40 flex-col items-center justify-center gap-3 rounded-3xl border-4 bg-white p-4 text-xl font-black shadow-sm transition hover:-translate-y-0.5 dark:bg-slate-800"
   return (
     <Dialog open={open} onOpenChange={(value) => { if (!value) onCancel() }}>
       <DialogContent dir={appDir()} className="flex max-h-[calc(100%-1rem)] w-[calc(100vw-1rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0"
@@ -253,30 +279,88 @@ function ExtrasMultiDialog({ open, title, price, currency, extras, onCancel, onD
           <DialogHeader className="space-y-1 text-start">
             <DialogTitle className="text-xl font-black text-white">{title}</DialogTitle>
             <DialogDescription className="text-emerald-100">
-              {money(price)}{extraTotal > 0 ? ` + ${money(extraTotal)}` : ""} {currency} — {tr("اختر الإضافات ({0} مختارة)", chosen.length)}
+              {money(price)}{extraTotal > 0 ? ` + ${money(extraTotal)}` : ""} {currency} — {review ? tr("مراجعة الإضافات") : tr("الإضافة {0} من {1}", step + 1, extras.length)}
             </DialogDescription>
           </DialogHeader>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto bg-[#f6f1e9] p-5 dark:bg-slate-900">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {extras.map((extra) => {
-              const on = chosen.includes(extra.name)
-              return (
-                <button key={extra.name} type="button" onClick={() => toggle(extra.name)} aria-pressed={on}
-                  className={`relative flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border-4 bg-white p-3 text-center text-lg font-black shadow-sm transition hover:-translate-y-0.5 dark:bg-slate-800 ${on ? "border-emerald-600" : "border-transparent hover:border-emerald-300"}`}>
-                  <span className={`absolute end-2 top-2 grid h-6 w-6 place-items-center rounded-full ${on ? "bg-emerald-600 text-white" : "bg-slate-100 text-transparent dark:bg-slate-700"}`}><Check className="h-4 w-4" /></span>
-                  {extra.name}
-                  {extra.price > 0 && <span className="text-sm font-bold text-orange-600">+{money(extra.price)}</span>}
-                </button>
-              )
-            })}
+          <div className="mt-3 flex gap-1.5">
+            {extras.map((row, index) => (
+              <span key={row.name} className={`h-1.5 flex-1 rounded-full ${index < step ? (choicesOf(row).length ? "bg-orange-400" : "bg-white/70") : index === step ? "bg-white" : "bg-white/25"}`} />
+            ))}
           </div>
         </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[#f6f1e9] p-5 dark:bg-slate-900">
+          {!review && extra && !isMulti(extra) && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <div className="text-3xl font-black text-slate-800 dark:text-slate-100">{extra.name}</div>
+                {extra.price > 0 && <div className="mt-1 text-sm font-bold text-orange-600">+{money(extra.price)} {currency}</div>}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <button type="button" onClick={() => pick(true)} className={`${card} hover:border-emerald-500 ${choice[extra.name] === true ? "border-emerald-600" : "border-transparent"}`}>
+                  <span className="grid h-16 w-16 place-items-center rounded-full bg-emerald-600 text-white"><Check className="h-9 w-9" /></span>
+                  {tr("مع {0}", extra.name)}
+                </button>
+                <button type="button" onClick={() => pick(false)} className={`${card} hover:border-rose-400 ${choice[extra.name] === false ? "border-rose-500" : "border-transparent"}`}>
+                  <span className="grid h-16 w-16 place-items-center rounded-full bg-rose-500 text-white"><X className="h-9 w-9" /></span>
+                  {tr("بدون {0}", extra.name)}
+                </button>
+              </div>
+            </div>
+          )}
+          {!review && extra && isMulti(extra) && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <div className="text-3xl font-black text-slate-800 dark:text-slate-100">{extra.name}</div>
+                <div className="mt-1 text-sm font-semibold text-muted-foreground">{tr("اختر خياراً أو أكثر — أو «التالي» للتخطي")}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {(extra.options || []).map((option) => {
+                  const on = Array.isArray(choice[extra.name]) && (choice[extra.name] as string[]).includes(option.name)
+                  return (
+                    <button key={option.name} type="button" onClick={() => toggleOption(option.name)} aria-pressed={on}
+                      className={`relative flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border-4 bg-white p-3 text-center text-lg font-black shadow-sm transition hover:-translate-y-0.5 dark:bg-slate-800 ${on ? "border-emerald-600" : "border-transparent hover:border-emerald-300"}`}>
+                      <span className={`absolute end-2 top-2 grid h-6 w-6 place-items-center rounded-full ${on ? "bg-emerald-600 text-white" : "bg-slate-100 text-transparent dark:bg-slate-700"}`}><Check className="h-4 w-4" /></span>
+                      {option.name}
+                      {option.price > 0 && <span className="text-sm font-bold text-orange-600">+{money(option.price)}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          {review && (
+            <div className="space-y-2">
+              {extras.map((row) => {
+                const rowChoices = choicesOf(row)
+                if (!rowChoices.length) return (
+                  <div key={row.name} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm dark:bg-slate-800">
+                    <span className="flex items-center gap-2 font-bold text-slate-400 line-through"><X className="h-4 w-4" />{tr("بدون {0}", row.name)}</span>
+                  </div>
+                )
+                return rowChoices.map((item) => (
+                  <div key={item.label} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm dark:bg-slate-800">
+                    <span className="flex items-center gap-2 font-bold text-emerald-700 dark:text-emerald-400"><Check className="h-4 w-4" />{item.label}</span>
+                    {item.price > 0 && <b className="text-orange-600">+{money(item.price)}</b>}
+                  </div>
+                ))
+              })}
+              {extraTotal > 0 && (
+                <div className="flex items-center justify-between rounded-2xl border-2 border-dashed border-orange-300 px-4 py-3 font-black">
+                  <span>{tr("اضافات")}</span><span>{money(extraTotal)} {currency}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center justify-between gap-2 border-t bg-background p-3">
-          <Button variant="outline" className="h-12 px-5" onClick={onCancel}>{tr("إلغاء")}</Button>
-          <Button className="h-12 bg-orange-500 px-6 text-base font-black hover:bg-orange-600" onClick={() => onDone(extras.filter((extra) => chosen.includes(extra.name)).map((extra) => extra.name))}>
-            <Check className="me-1 h-5 w-5" />{chosen.length ? tr("إضافة للطلب") : tr("إضافة بدون إضافات")}
+          <Button variant="outline" className="h-12 px-5" onClick={() => (step > 0 ? setStep(step - 1) : onCancel())}>
+            <ArrowRight className="me-1 h-4 w-4 ltr:rotate-180" />{step > 0 ? tr("رجوع") : tr("إلغاء")}
           </Button>
+          {review
+            ? <Button className="h-12 bg-orange-500 px-6 text-base font-black hover:bg-orange-600" onClick={() => onDone(chosen)}><Check className="me-1 h-5 w-5" />{tr("إضافة للطلب")}</Button>
+            : <Button variant="ghost" className="h-12 px-5" disabled={!extra || !answered(extra)} onClick={() => setStep(step + 1)}>{tr("التالي")}<ArrowLeft className="ms-1 h-4 w-4 ltr:rotate-180" /></Button>}
         </div>
       </DialogContent>
     </Dialog>
@@ -314,90 +398,6 @@ export function FollowupPickDialog(props: {
         </div>
         <div className="flex items-center justify-between gap-2 border-t bg-background p-3">
           <Button variant="outline" className="h-12 px-6" onClick={onSkip}>{tr("تخطي")}</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function ExtrasToggleWizard(props: ExtrasDialogProps) {
-  const { open, title, price, currency, extras, onCancel, onDone } = props
-  const [step, setStep] = useState(0)
-  const [choice, setChoice] = useState<Record<string, boolean>>({})
-  useEffect(() => { if (open) { setStep(0); setChoice({}) } }, [open])
-  const review = step >= extras.length
-  const chosen = extras.filter((extra) => choice[extra.name])
-  const extraTotal = round2(chosen.reduce((sum, extra) => sum + extra.price, 0))
-  const extra = extras[step]
-  const pick = (value: boolean) => {
-    if (!extra) return
-    setChoice((current) => ({ ...current, [extra.name]: value }))
-    setStep((current) => current + 1)
-  }
-  const card = "flex min-h-40 flex-col items-center justify-center gap-3 rounded-3xl border-4 bg-white p-4 text-xl font-black shadow-sm transition hover:-translate-y-0.5 dark:bg-slate-800"
-  return (
-    <Dialog open={open} onOpenChange={(value) => { if (!value) onCancel() }}>
-      <DialogContent dir={appDir()} className="flex max-h-[calc(100%-1rem)] w-[calc(100vw-1rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0"
-        onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
-        <div className="bg-emerald-800 px-5 pb-4 pt-5 text-white">
-          <DialogHeader className="space-y-1 text-start">
-            <DialogTitle className="text-xl font-black text-white">{title}</DialogTitle>
-            <DialogDescription className="text-emerald-100">
-              {money(price)}{extraTotal > 0 ? ` + ${money(extraTotal)}` : ""} {currency} — {review ? tr("مراجعة الإضافات") : tr("الإضافة {0} من {1}", step + 1, extras.length)}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-3 flex gap-1.5">
-            {extras.map((row, index) => (
-              <span key={row.name} className={`h-1.5 flex-1 rounded-full ${index < step ? (choice[row.name] ? "bg-orange-400" : "bg-white/70") : index === step ? "bg-white" : "bg-white/25"}`} />
-            ))}
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto bg-[#f6f1e9] p-5 dark:bg-slate-900">
-          {!review && extra && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <div className="text-3xl font-black text-slate-800 dark:text-slate-100">{extra.name}</div>
-                {extra.price > 0 && <div className="mt-1 text-sm font-bold text-orange-600">+{money(extra.price)} {currency}</div>}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <button type="button" onClick={() => pick(true)} className={`${card} hover:border-emerald-500 ${choice[extra.name] === true ? "border-emerald-600" : "border-transparent"}`}>
-                  <span className="grid h-16 w-16 place-items-center rounded-full bg-emerald-600 text-white"><Check className="h-9 w-9" /></span>
-                  {tr("مع {0}", extra.name)}
-                </button>
-                <button type="button" onClick={() => pick(false)} className={`${card} hover:border-rose-400 ${choice[extra.name] === false ? "border-rose-500" : "border-transparent"}`}>
-                  <span className="grid h-16 w-16 place-items-center rounded-full bg-rose-500 text-white"><X className="h-9 w-9" /></span>
-                  {tr("بدون {0}", extra.name)}
-                </button>
-              </div>
-            </div>
-          )}
-          {review && (
-            <div className="space-y-2">
-              {extras.map((row) => (
-                <div key={row.name} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm dark:bg-slate-800">
-                  <span className={`flex items-center gap-2 font-bold ${choice[row.name] ? "text-emerald-700 dark:text-emerald-400" : "text-slate-400 line-through"}`}>
-                    {choice[row.name] ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}{choice[row.name] ? tr("مع {0}", row.name) : tr("بدون {0}", row.name)}
-                  </span>
-                  {choice[row.name] && row.price > 0 && <b className="text-orange-600">+{money(row.price)}</b>}
-                </div>
-              ))}
-              {extraTotal > 0 && (
-                <div className="flex items-center justify-between rounded-2xl border-2 border-dashed border-orange-300 px-4 py-3 font-black">
-                  <span>{tr("اضافات")}</span><span>{money(extraTotal)} {currency}</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between gap-2 border-t bg-background p-3">
-          <Button variant="outline" className="h-12 px-5" onClick={() => (step > 0 ? setStep(step - 1) : onCancel())}>
-            <ArrowRight className="me-1 h-4 w-4 ltr:rotate-180" />{step > 0 ? tr("رجوع") : tr("إلغاء")}
-          </Button>
-          {review
-            ? <Button className="h-12 bg-orange-500 px-6 text-base font-black hover:bg-orange-600" onClick={() => onDone(chosen.map((row) => row.name))}><Check className="me-1 h-5 w-5" />{tr("إضافة للطلب")}</Button>
-            : <Button variant="ghost" className="h-12 px-5" disabled={choice[extra?.name ?? ""] === undefined} onClick={() => setStep(step + 1)}>{tr("التالي")}<ArrowLeft className="ms-1 h-4 w-4 ltr:rotate-180" /></Button>}
         </div>
       </DialogContent>
     </Dialog>
@@ -536,7 +536,7 @@ export function TakeawayInfoDialog(props: {
     if (form.mobile.trim() && !/^[+\d][\d\s-]{5,}$/.test(form.mobile.trim())) { setError(tr("رقم الجوال غير صالح")); return }
     onConfirm({ name: form.name.trim(), mobile: form.mobile.trim(), address: form.address.trim() })
   }
-  const field = "h-12 rounded-xl border-slate-200 bg-white ps-11 text-base font-semibold shadow-sm transition focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-100"
+  const field = "h-12 rounded-xl border-slate-200 bg-white ps-11 text-base font-semibold shadow-sm transition focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-100"
   const icon = "pointer-events-none absolute start-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg bg-emerald-50 text-emerald-700"
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -553,7 +553,7 @@ export function TakeawayInfoDialog(props: {
         </DialogHeader>
         <div className="space-y-4 bg-gradient-to-b from-emerald-50/60 to-white px-5 py-5">
           <div className="space-y-2.5">
-            <Label htmlFor="takeaway-name" className="text-sm font-bold text-slate-700">{tr("اسم الزبون")} <span className="text-red-500">*</span></Label>
+            <Label htmlFor="takeaway-name" className="block text-sm font-bold leading-6 text-slate-700">{tr("اسم الزبون")} <span className="text-red-500">*</span></Label>
             <div className="relative">
               <span className={icon}><User className="h-4 w-4" /></span>
               <Input id="takeaway-name" autoFocus className={field} value={form.name} maxLength={100}
@@ -561,7 +561,7 @@ export function TakeawayInfoDialog(props: {
             </div>
           </div>
           <div className="space-y-2.5">
-            <Label htmlFor="takeaway-mobile" className="text-sm font-bold text-slate-700">{tr("رقم الجوال")}</Label>
+            <Label htmlFor="takeaway-mobile" className="block text-sm font-bold leading-6 text-slate-700">{tr("رقم الجوال")}</Label>
             <div className="relative">
               <span className={icon}><Phone className="h-4 w-4" /></span>
               <Input id="takeaway-mobile" type="tel" inputMode="tel" dir="ltr" className={`${field} text-end tabular-nums`} value={form.mobile} maxLength={30}
@@ -569,10 +569,10 @@ export function TakeawayInfoDialog(props: {
             </div>
           </div>
           <div className="space-y-2.5">
-            <Label htmlFor="takeaway-address" className="text-sm font-bold text-slate-700">{tr("العنوان")}</Label>
+            <Label htmlFor="takeaway-address" className="block text-sm font-bold leading-6 text-slate-700">{tr("العنوان")}</Label>
             <div className="relative">
               <span className={`${icon} top-6`}><MapPin className="h-4 w-4" /></span>
-              <Textarea id="takeaway-address" rows={2} className="min-h-[3rem] resize-none rounded-xl border-slate-200 bg-white ps-11 pt-3 text-base font-semibold shadow-sm focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-100"
+              <Textarea id="takeaway-address" rows={2} className="min-h-[3rem] resize-none rounded-xl border-slate-200 bg-white ps-11 pt-3 text-base font-semibold shadow-sm focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-100"
                 value={form.address} maxLength={300} onChange={(event) => set({ address: event.target.value })} />
             </div>
           </div>
