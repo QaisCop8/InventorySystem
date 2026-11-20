@@ -579,9 +579,14 @@ export async function processItemGroups(rows: Row[], ctx: StepContext) {
     if (!shamelCode || (await mapOne("item_group", shamelCode))) return "skipped"
     const name = text(r.name) || shamelCode
     const parentId = text(r.father_code) ? await mapOne("item_group", text(r.father_code)) : null
-    const existing = (await sql`SELECT id FROM item_groups WHERE group_code = ${shamelCode} LIMIT 1`)[0] as any
+    // رقم المجموعة 10 خانات كمجموعات النظام (MS000002 ⇐ MS00000002): البادئة + الرقم مكمّلاً بالأصفار
+    const prefixed = /^([A-Za-z]*)(\d+)$/.exec(shamelCode)
+    const groupCode = prefixed && prefixed[1].length + prefixed[2].replace(/^0+(?=\d)/, "").length <= 10
+      ? prefixed[1] + prefixed[2].replace(/^0+(?=\d)/, "").padStart(10 - prefixed[1].length, "0")
+      : shamelCode
+    const existing = (await sql`SELECT id FROM item_groups WHERE group_code IN (${shamelCode}, ${groupCode}) LIMIT 1`)[0] as any
     if (existing) { await mapSet("item_group", shamelCode, Number(existing.id)); return "updated" }
-    const id = await insertRow("item_groups", { group_code: await fitCode("item_groups", "group_code", shamelCode, shamelCode), group_name: name, parent_group_id: parentId, parent_id: parentId, is_active: true, status: 1 })
+    const id = await insertRow("item_groups", { group_code: await fitCode("item_groups", "group_code", groupCode, shamelCode), group_name: name, parent_group_id: parentId, parent_id: parentId, is_active: true, status: 1 })
     await mapSet("item_group", shamelCode, id)
     return "created"
   })

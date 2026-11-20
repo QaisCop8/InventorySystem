@@ -411,6 +411,8 @@ export default function RestaurantPos() {
   }, [loadCatalog, loadFloor])
 
   /** تنفيذ إجراء على الطلب؛ الاستجابة تحمل الطلب المحدَّث */
+  /** آخر خطأ أعاده act — نافذة الدفع تعرضه بدل «راجع الرسالة» */
+  const lastActError = useRef("")
   const act = useCallback(async (action: string, body: Record<string, unknown>, success?: string): Promise<any> => {
     setBusy(true)
     // دون اتصال (أو طلب عليه عمليات لم تُزامن): يُطبَّق محلياً ويُحفظ في طابور المزامنة — lib/restaurant-offline.ts
@@ -444,7 +446,9 @@ export default function RestaurantPos() {
       void loadFloor(true)
       return data
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : tr("تعذر تنفيذ العملية") })
+      const text = error instanceof Error ? error.message : tr("تعذر تنفيذ العملية")
+      lastActError.current = text
+      setMessage({ type: "error", text })
       return null
     } finally {
       setBusy(false)
@@ -945,6 +949,7 @@ export default function RestaurantPos() {
       payments: payments.filter((row) => row.amount > 0), refundAmount: changeAllowed ? change : 0,
       currencyCode: currency, pointName: point?.name || order.location_name,
     }
+    lastActError.current = ""
     const result = await act("pay", {
       order_id: order.id,
       revision: order.revision,
@@ -956,7 +961,8 @@ export default function RestaurantPos() {
       cash_change_amount: changeAllowed ? change : 0,
       cash_currency_amounts: (catalog?.currencies || []).filter((row) => (cashAmounts[row.currency_id] || 0) > 0).map((row) => ({ currency_id: row.currency_id, amount: cashAmounts[row.currency_id] })),
     })
-    if (!result) { setPayError(tr("تعذر الدفع؛ راجع الرسالة")); return }
+    // سبب الرفض الفعلي داخل نافذة الدفع (رسالة الشاشة تكون خلف النافذة)
+    if (!result) { setPayError(lastActError.current ? tr(lastActError.current) : tr("تعذر الدفع")); return }
     setPayLines(null)
     void printPosReceipt({ ...receiptSnapshot, pending: Boolean(result.offline), code: String(result.vch_code || "") }, {
       point, receiptSettings: catalog?.receiptSettings || {}, taxRate: catalog?.taxRate || 0,
@@ -1388,6 +1394,7 @@ export default function RestaurantPos() {
 
       {catalog && (
         <PosPaymentDetailsDialog open={payLines !== null} onOpenChange={(value) => { if (!value) setPayLines(null) }} mode="sale" total={payTotal}
+          hiddenMethods={["cheque", "account"]}
           currencyCode={currency} pointCurrencyId={pointCurrencyId} currencies={catalog.currencies} customers={catalog.customers}
           customerId={payCustomerId} onCustomerChange={setPayCustomerId}
           onCustomerAccount={(account) => {

@@ -235,3 +235,9 @@ Price of {0}
 Cannot change to a differently-priced option on a partly paid item
 No items for this location — check the location's «Warehouse» setting (items restricted to other warehouses are hidden)
 Loading this order's prices — try again in a moment
+Change due
+Amount received
+Full amount
+Confirm payment F3
+Confirm F3
+Payment failed
