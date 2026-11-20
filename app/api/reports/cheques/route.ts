@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     if (params.get("meta") === "1") {
       const [currencies, bankAccounts, branches] = await Promise.all([
         sql`SELECT id, currency_code AS code, currency_name AS name FROM currency WHERE COALESCE(is_active, true) ORDER BY id`,
-        sql`SELECT ba.id, ba.code, ba.name, ba.currency_id FROM bank_accounts ba WHERE COALESCE(ba.status, 1) <> 3 ORDER BY ba.code`,
+        (sql`SELECT ba.id, ba.code, ba.name, ba.currency_id FROM bank_accounts ba WHERE COALESCE(ba.status, 1) <> 3 ORDER BY ba.code` as Promise<any[]>).catch(() => [] as any[]),
         sql`SELECT id, branch_code AS code, branch_name AS name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) ORDER BY branch_name`,
       ])
       return NextResponse.json({ currencies, bankAccounts, branches })
@@ -74,12 +74,16 @@ export async function GET(request: NextRequest) {
     if (currencyId) journalWhere.push(`ba.currency_id = ${jbind(currencyId)}`)
     const journalAmount = currencyId ? "vjd.amount" : "COALESCE(vjd.base_curr_amount, vjd.amount * COALESCE(NULLIF(vjd.rate, 0), 1))"
     const [openingRows, previousRows] = await Promise.all([
-      sql.unsafe(`
+      // رصيد البنوك اختياري: جدول/عمود حسابات البنوك غير موجود في شركة لم تعرّف بنوكاً ⇐ يبدأ الكشف من صفر بدل فشل التقرير
+      (sql.unsafe(`
         SELECT COALESCE(SUM(CASE WHEN vjd.credit_debit = 1 THEN 1 ELSE -1 END * ${journalAmount}), 0) AS balance
         FROM voucher_journal_detail_tbl vjd
         JOIN voucher_header_tbl vh ON vh.id = vjd.voucher_id
         JOIN bank_accounts ba ON ba.jary_account_id = vjd.account_id
-        WHERE ${journalWhere.join(" AND ")}`, journalValues),
+        WHERE ${journalWhere.join(" AND ")}`, journalValues) as Promise<any[]>).catch((error: any) => {
+        console.error("[reports/cheques] opening balance skipped:", error?.message)
+        return [{ balance: 0 }]
+      }),
       periodOnly ? Promise.resolve([] as any[]) : sql.unsafe(`
         SELECT COALESCE(SUM(CASE WHEN chq.cheq_type = 1 THEN ${amount} ELSE 0 END), 0) AS cheque_in,
                COALESCE(SUM(CASE WHEN chq.cheq_type = 2 THEN ${amount} ELSE 0 END), 0) AS cheque_out,
@@ -154,6 +158,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ rows: [...head, ...rows], closing: running, from, to })
   } catch (error) {
     console.error("[reports/cheques] error:", error)
-    return NextResponse.json({ error: "تعذر تحميل تقرير الشيكات" }, { status: 500 })
+    // السبب الفعلي مع الرسالة (كان «تعذر تحميل تقرير الشيكات» فقط فلا يُعرف ما الخطأ)
+    const reason = error instanceof Error ? error.message : ""
+    return NextResponse.json({ error: reason ? `تعذر تحميل تقرير الشيكات: ${reason}` : "تعذر تحميل تقرير الشيكات" }, { status: 500 })
   }
 }
