@@ -28,6 +28,7 @@ export const RESTAURANT_MONITOR_ACTIONS = [
   { key: "pay", label: "دفع فاتورة", tone: "success" },
   { key: "pay_partial", label: "دفعة جزئية", tone: "success" },
   { key: "close", label: "إغلاق طلب", tone: "success" },
+  { key: "settle_zero_lines", label: "تسوية أسطر بقيمة صفر عند الإغلاق", tone: "neutral" },
   { key: "cancel", label: "إلغاء طلب", tone: "danger" },
   { key: "kitchen_done", label: "المطبخ: تم التجهيز", tone: "success" },
   { key: "kitchen_reject", label: "المطبخ: إلغاء الطلب", tone: "danger" },

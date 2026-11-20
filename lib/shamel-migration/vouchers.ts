@@ -93,6 +93,8 @@ async function stagedItems(runId: number, codes: string[]) {
 type BatchLookups = {
   baseCurrencyId: number | null
   books: Map<number, number | null>
+  /** دفتر السندات حسب اسمه (حرف الدفتر في رقم سند الشامل: JG… ⇐ G) */
+  booksByName: Map<string, number | null>
   currencies: Map<string, number>
   accounts: Map<string, number>
   accountCurrency: Map<number, number | null>
@@ -131,6 +133,7 @@ async function loadLookups(groups: Map<string, Row[]>, items: Map<string, Row[]>
   return {
     baseCurrencyId: await getBaseCurrencyId(),
     books: new Map(),
+    booksByName: new Map(),
     currencies: new Map(((await sql`SELECT shamel_key, web_id FROM shamel_migration_map WHERE kind = 'currency'`) as any[]).map((row) => [String(row.shamel_key), Number(row.web_id)])),
     accounts,
     accountCurrency,
@@ -457,8 +460,15 @@ async function prepareVoucher(code: string, lines: Row[], itemRows: Row[], ctx: 
   const vchDate = date(header.vch_date)
   if (!vchDate) throw new Error("تاريخ السند غير صالح")
 
+  // دفتر السندات = الحرف الثاني من رقم سند الشامل (JG00010658 ⇐ الدفتر G)؛ إن لم يوجد دفتر بهذا الاسم
+  // فالدفتر الافتراضي للمستخدم لنوع السند كما كان
+  const bookLetter = code.charAt(1).toUpperCase()
+  if (bookLetter && !lookups.booksByName.has(bookLetter)) {
+    const found = (await sql`SELECT id FROM voucher_books_tbl WHERE UPPER(TRIM(name)) = ${bookLetter} ORDER BY id LIMIT 1`)[0] as any
+    lookups.booksByName.set(bookLetter, found ? Number(found.id) : null)
+  }
   if (!lookups.books.has(type.vchType)) lookups.books.set(type.vchType, await voucherBookFor(ctx.run.created_by, type.vchType))
-  const bookId = lookups.books.get(type.vchType) ?? null
+  const bookId = (bookLetter ? lookups.booksByName.get(bookLetter) : null) ?? lookups.books.get(type.vchType) ?? null
   const { baseCurrencyId } = lookups
   const currency = currencyOf(lookups, header.currency_code) || baseCurrencyId || 1
   const rate = currency === baseCurrencyId ? 1 : num(header.rate) || (await rateOn(lookups, currency, vchDate))
@@ -681,6 +691,7 @@ export async function fixMigratedVouchers() {
     WHERE h.id = d.voucher_id AND COALESCE(h.amount, 0) = 0 AND d.debit_base > 0`
   await convertMigratedPricesToGross().catch((error: unknown) => console.error("[shamel-migration] gross price repair failed:", error))
   await repairMigratedItemTypes().catch((error: unknown) => console.error("[shamel-migration] item type repair failed:", error))
+  await repairMigratedVoucherBooks().catch((error: unknown) => console.error("[shamel-migration] voucher book repair failed:", error))
   await import("@/lib/shamel-migration/definitions").then((module) => module.repairPrimaryPriceClass())
     .catch((error: unknown) => console.error("[shamel-migration] price class repair failed:", error))
 }
@@ -690,6 +701,24 @@ export async function fixMigratedVouchers() {
  * ثم يطبّق خريطة SHAMEL_ITEM_TYPE — مرة واحدة لكل شركة (علامة repair:item_type_v1)، وللأصناف التي أنشأها الترحيل فقط
  * (ملاحظة «مُرحَّل من الشامل»)، لا لصنف موجود سابقاً رُبط به.
  */
+/**
+ * دفتر السندات للسندات المرحّلة سابقاً: كان يُؤخذ الدفتر الافتراضي للمستخدم (غالباً «0») بدل حرف الدفتر في رقم
+ * سند الشامل (الحرف الثاني: JG… ⇐ G). shamel_key في الخريطة = رقم الشامل الأصلي. مرة واحدة (repair:voucher_book_v1).
+ * تغيير vch_book_id وحده لا يمر بمشغّل فترة العمل/إقفال الفترات (المشغّل على التاريخ/الحالة/المبلغ/الفرع/الملاحظة فقط).
+ */
+async function repairMigratedVoucherBooks() {
+  const done = await sql`SELECT 1 FROM shamel_migration_map WHERE kind = 'repair' AND shamel_key = 'voucher_book_v1' LIMIT 1`
+  if (done.length) return
+  await withTenantTransaction(async () => {
+    await sql`
+      WITH books AS (SELECT DISTINCT ON (UPPER(TRIM(name))) UPPER(TRIM(name)) AS letter, id FROM voucher_books_tbl ORDER BY UPPER(TRIM(name)), id)
+      UPDATE voucher_header_tbl h SET vch_book_id = b.id
+      FROM shamel_migration_map m JOIN books b ON b.letter = UPPER(SUBSTRING(m.shamel_key FROM 2 FOR 1))
+      WHERE m.kind = 'voucher' AND h.id = m.web_id AND h.vch_book_id IS DISTINCT FROM b.id`
+    await sql`INSERT INTO shamel_migration_map (kind, shamel_key, web_id) VALUES ('repair', 'voucher_book_v1', 0) ON CONFLICT DO NOTHING`
+  })
+}
+
 async function repairMigratedItemTypes() {
   const done = await sql`SELECT 1 FROM shamel_migration_map WHERE kind = 'repair' AND shamel_key = 'item_type_v1' LIMIT 1`
   if (done.length) return

@@ -6,6 +6,8 @@ import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
 import { FileText, User, Percent, Users2, MessageSquare, Wallet, X } from "lucide-react"
+import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs"
+import { VoucherTabTrigger, voucherTabListClass } from "@/components/common/voucher-tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { Input } from "@/components/ui/input"
@@ -163,6 +165,7 @@ export default function UnifiedCreditNote({
   // "تمت العملية بنجاح" بعد حفظ السند (lib/transaction-success.ts)
   useTransactionSuccessMessages(messagesRef)
   const { toast } = useToast()
+  const [bottomTab, setBottomTab] = useState("extra")
   const [navLoading, setNavLoading] = useState(false)
   const [postDialogOpen, setPostDialogOpen] = useState(false)
 
@@ -816,14 +819,14 @@ export default function UnifiedCreditNote({
                 </div>
               </div>
 
-              {/* بيانات إضافية */}
-              <div className="mt-4 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="flex items-center gap-2 text-sm font-bold text-indigo-700">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 ring-1 ring-indigo-100">
-                    <Users2 className="h-3.5 w-3.5" />
-                  </span>
-                  {tr("بيانات إضافية")}
-                </div>
+              {/* بيانات إضافية / ملاحظات — تبويبات بالشكل الحديث المشترك (components/common/voucher-tabs.tsx).
+                  forceMount: حقول التبويب المخفي تبقى في الصفحة (ملاحظة السند الإجبارية، التنقل بـEnter). */}
+              <Tabs dir={appDir()} value={bottomTab} onValueChange={setBottomTab} className="mt-4">
+                <TabsList dir={appDir()} className={voucherTabListClass}>
+                  <VoucherTabTrigger value="extra" icon={Users2}>{tr("بيانات إضافية")}</VoucherTabTrigger>
+                  <VoucherTabTrigger value="notes" icon={MessageSquare} dot={!!String(form.note || "").trim()}>{tr("ملاحظة عامة للسند")}</VoucherTabTrigger>
+                </TabsList>
+              <TabsContent forceMount value="extra" className="mt-3 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm data-[state=inactive]:hidden sm:p-5">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                     <Label>{tr("مندوب المبيعات")}</Label>
@@ -862,16 +865,9 @@ export default function UnifiedCreditNote({
                     />
                   </div>
                 </div>
-              </div>
+              </TabsContent>
 
-              {/* ملاحظات */}
-              <div className="mt-4 space-y-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 ring-1 ring-slate-200">
-                    <MessageSquare className="h-3.5 w-3.5" />
-                  </span>
-                  {tr("ملاحظة عامة للسند")}
-                </div>
+              <TabsContent forceMount value="notes" className="mt-3 space-y-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm data-[state=inactive]:hidden sm:p-5">
                 <Textarea
                   id="vch-note"
                   value={form.note}
@@ -880,7 +876,8 @@ export default function UnifiedCreditNote({
                   rows={3}
                   className="focus-visible:border-slate-400 focus-visible:ring-slate-100"
                 />
-              </div>
+              </TabsContent>
+              </Tabs>
             </fieldset>
           </div>
         </DialogContent>

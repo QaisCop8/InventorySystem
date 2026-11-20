@@ -459,6 +459,17 @@ function layoutKitchen(document: PrintDocument, settings: VoucherPrintSettings, 
     if (index < slip.items.length - 1) { line(left, y, right, y); y += 6 }
   })
 
+  // ملاحظة الطلب كاملة
+  if (slip.note) {
+    y += 4
+    const note = `ملاحظة الطلب: ${slip.note}`
+    const lines = kLines(note, width - 10, subPt)
+    const noteHeight = lines * kLh(subPt) + 6
+    fill(left, y, width, noteHeight)
+    text(note, left + 5, y + 3, width - 10, lines * kLh(subPt), subPt, RTL, true)
+    y += noteHeight + 4
+  }
+
   // الخلاصة
   y += 2
   line(left, y, right, y, BLACK)

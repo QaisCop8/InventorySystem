@@ -118,6 +118,7 @@ body{font-family:"${settings.font_family}",Tahoma,Arial,sans-serif;color:#000;fo
   ${slip.waiter ? `<p class="k-info">النادل: <b>${escapeHtml(slip.waiter)}</b></p>` : ""}
   <div class="k-dash"></div>
   ${items}
+  ${slip.note ? `<p class="k-note" style="margin:0">ملاحظة الطلب: ${escapeHtml(slip.note)}</p>` : ""}
   <div class="k-foot">عدد الأصناف: ${slip.items.length} · مجموع الكميات: ${Math.round(totalQty * 1000) / 1000}</div>
 </section></body></html>`
 }

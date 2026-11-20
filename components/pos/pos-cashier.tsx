@@ -441,14 +441,18 @@ export default function PosCashier(){
    const failures:string[]=[]
    for(const group of groups.values()){
     // نفس الصنف بنفس الوحدة يظهر سطراً واحداً بمجموع كمياته
-    const merged=new Map<string,{name:string;unit:string;quantity:number}>()
-    for(const line of group.lines){const extras=[addonsText(line.addons),line.note||""].filter(Boolean).join(" — "),key=`${line.id}|${line.unitId??""}|${extras}`,row=merged.get(key)||{name:extras?`${line.name} + ${extras}`:line.name,unit:line.unitName||"",quantity:0};row.quantity+=line.quantity;merged.set(key,row)}
+    const merged=new Map<string,{name:string;unit:string;options:string;note:string;quantity:number}>()
+    for(const line of group.lines){const options=addonsText(line.addons),lineNote=String(line.note||"").trim(),extras=[options,lineNote].filter(Boolean).join(" — "),key=`${line.id}|${line.unitId??""}|${extras}`,row=merged.get(key)||{name:line.name,unit:line.unitName||"",options,note:lineNote,quantity:0};row.quantity+=line.quantity;merged.set(key,row)}
     const printedAt=localDateTime()
     const document:PrintDocument={noAudit:true,voucherTypeId:12,title:group.name||tr("مجموعة أصناف"),code,date:printedAt,
      fields:[{label:tr("نقطة البيع"),value:point?.name||""},{label:tr("الوقت"),value:printedAt.slice(11,16)}],
      columns:[{key:"name",label:tr("الصنف"),weight:3.2},{key:"quantity",label:tr("الكمية"),align:"center",weight:1}],
-     rows:[...merged.values()].map(row=>({name:row.unit?`${row.name} (${row.unit})`:row.name,quantity:quantityText(row.quantity)})),
-     notes:note.trim()}
+     rows:[...merged.values()].map(row=>({name:`${row.unit?`${row.name} (${row.unit})`:row.name}${[row.options,row.note].filter(Boolean).length?` + ${[row.options,row.note].filter(Boolean).join(" — ")}`:""}`,quantity:quantityText(row.quantity)})),
+     notes:note.trim(),
+     // تخطيط قسيمة المطبخ (lib/voucher-print/win-service.ts layoutKitchen) — الأعمدة أعلاه احتياط فقط
+     kitchen:{station:group.name||tr("مجموعة أصناف"),place:tr("فاتورة {0}",code),location:point?.name||"",time:printedAt.slice(0,16),
+      items:[...merged.values()].map(row=>({name:row.unit?`${row.name} (${row.unit})`:row.name,quantity:quantityText(row.quantity),options:row.options||undefined,note:row.note||undefined})),
+      note:note.trim()||undefined}}
     try{await printVoucherWithSettings(document,{...slipSettings,printer_name:group.printer,printer_scope:group.printer?"fixed":"pos"},company)}
     catch(error){failures.push(`${group.name} (${group.printer}): ${error instanceof Error?error.message:"تعذرت الطباعة"}`)}
    }

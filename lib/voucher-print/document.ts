@@ -50,6 +50,8 @@ export type KitchenSlip = {
   /** وقت الإرسال YYYY-MM-DD HH:mm */
   time: string
   items: { name: string; quantity: string; options?: string; extras?: string[]; note?: string }[]
+  /** ملاحظة الطلب/الفاتورة كاملة (تُطبع أسفل الأصناف) */
+  note?: string
 }
 
 export type PrintBox = { title?: string; items: { label: string; value: PrintCell }[] }

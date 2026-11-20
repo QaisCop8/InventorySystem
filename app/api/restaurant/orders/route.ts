@@ -405,10 +405,21 @@ async function handleCancel(ctx: Ctx, order: any) {
   await logRestaurant(Number(order.id), "cancel", { reason }, ctx.userId)
 }
 
-/** إغلاق الطلب كمدفوع إن لم يبقَ عليه شيء غير مدفوع */
-async function closeIfSettled(orderId: number, userId: string) {
-  const left = (await sql`SELECT COALESCE(SUM(GREATEST(quantity - paid_quantity, 0)), 0) AS q FROM restaurant_order_items_tbl WHERE order_id = ${orderId}`)[0]
-  if (num(left?.q) > 0.00001) return false
+/** سطر غير مدفوع قيمته المتبقية صفر (خدمة طاولة بسعر 0، صنف مجاني، خصم 100%) */
+const zeroValueRemaining = (item: any) => remainingQuantity(item) > 0.00001 && Math.abs(lineNet(num(item.price), remainingQuantity(item), num(item.discount))) < 0.005
+
+/**
+ * إغلاق الطلب كمدفوع إن لم يبقَ عليه شيء غير مدفوع. settleZeroLines (زر «إغلاق»): أسطر بقيمة صفر متبقية
+ * لا تمنع الإغلاق — تُعلَّم مدفوعة (لا مبلغ عليها). كانت طلبات تبقى مفتوحة بـ«المتبقي 0» بسبب سطر خدمة طاولة بسعر 0
+ * لم يدخل أي دفعة جزئية، وزر الإغلاق مخفي لوجوده.
+ */
+async function closeIfSettled(orderId: number, userId: string, settleZeroLines = false) {
+  const unpaid = (await sql`SELECT * FROM restaurant_order_items_tbl WHERE order_id = ${orderId} AND quantity - paid_quantity > 0.00001`) as any[]
+  if (unpaid.some((item) => !(settleZeroLines && zeroValueRemaining(item)))) return false
+  if (unpaid.length) {
+    await sql`UPDATE restaurant_order_items_tbl SET paid_quantity = quantity, updated_at = NOW() WHERE id = ANY(${unpaid.map((item) => Number(item.id))}::int[])`
+    await logRestaurant(orderId, "settle_zero_lines", { items: unpaid.map((item) => ({ item_id: Number(item.id), product_name: item.product_name, quantity: remainingQuantity(item), price: num(item.price) })) }, userId)
+  }
   await sql`UPDATE restaurant_orders_tbl SET status = ${ORDER_STATUS.paid}, closed_at = NOW(), closed_by = ${userId} WHERE id = ${orderId}`
   await releaseOrderTables(orderId)
   return true
@@ -417,7 +428,7 @@ async function closeIfSettled(orderId: number, userId: string) {
 async function handleClose(ctx: Ctx, order: any) {
   const payments = (await sql`SELECT COUNT(*)::int AS n FROM restaurant_order_payments_tbl WHERE order_id = ${Number(order.id)}`)[0]
   if (!Number(payments?.n)) throw fail("لا توجد دفعات على الطلب؛ استخدم إلغاء الطلب")
-  if (!(await closeIfSettled(Number(order.id), ctx.userId))) throw fail("ما زالت هناك أصناف غير مدفوعة")
+  if (!(await closeIfSettled(Number(order.id), ctx.userId, true))) throw fail("ما زالت هناك أصناف غير مدفوعة")
   await logRestaurant(Number(order.id), "close", {}, ctx.userId)
 }
 
@@ -483,6 +494,20 @@ async function handlePay(ctx: Ctx, order: any) {
     const quantity = requested ? Math.min(requested.get(Number(item.id)) ?? 0, remaining) : remaining
     if (requested && (requested.get(Number(item.id)) ?? 0) > remaining + 0.00001) throw fail(`الكمية المطلوب دفعها من ${item.product_name} أكبر من غير المدفوع (${remaining})`)
     if (quantity > 0) selected.push({ item, quantity: qty(quantity) })
+  }
+  // دفعة جزئية تُغطي كل ما له قيمة: الأسطر المتبقية بقيمة صفر (خدمة طاولة بسعر 0…) تدخل نفس الفاتورة بصفر
+  // فيُغلق الطلب — وإلا بقيت الطاولة مفتوحة بـ«المتبقي 0» دون أي طريقة لدفعها
+  if (requested && selected.length) {
+    const covered = (item: any) => (selected.find((row) => Number(row.item.id) === Number(item.id))?.quantity ?? 0)
+    const leftover = items.filter((item: any) => remainingQuantity(item) - covered(item) > 0.00001)
+    if (leftover.length && leftover.every((item: any) => Math.abs(lineNet(num(item.price), remainingQuantity(item) - covered(item), num(item.discount))) < 0.005)) {
+      for (const item of leftover) {
+        const extra = qty(remainingQuantity(item) - covered(item))
+        const existing = selected.find((row) => Number(row.item.id) === Number(item.id))
+        if (existing) existing.quantity = qty(existing.quantity + extra)
+        else selected.push({ item, quantity: extra })
+      }
+    }
   }
   if (!selected.length) throw fail("لا توجد كميات غير مدفوعة للدفع")
   // ولا دفع (حفظ فاتورة) لسطر صنف بلا إضافاته المطلوبة

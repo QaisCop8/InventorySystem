@@ -3,7 +3,8 @@
 import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
-import { Plus, ListPlus, Paperclip, FileText } from "lucide-react"
+import { Plus, ListPlus, Paperclip, FileText, BookOpen, ClipboardList, MessageSquare } from "lucide-react"
+import { VoucherTabTrigger, voucherTabListClass } from "@/components/common/voucher-tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { Input } from "@/components/ui/input"
@@ -31,8 +32,7 @@ import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 import { useTransactionSuccessMessages } from "@/lib/transaction-success"
 
-const voucherTabTriggerClass =
-  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
+// شكل التبويبات الحديث المشترك مع بقية السندات — components/common/voucher-tabs.tsx
 
 export interface JournalEntryRow {
   account_id: number | null
@@ -1231,12 +1231,12 @@ export default function UnifiedJournal({
               </div>
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 min-w-0 flex-1 flex-col pt-3">
-              <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
-                <TabsTrigger value="journal" className={voucherTabTriggerClass}>{tr("الحسابات")}</TabsTrigger>
-                <TabsTrigger value="extra-data" className={voucherTabTriggerClass}>{tr("بيانات اضافية")}</TabsTrigger>
-                <TabsTrigger value="notes" className={voucherTabTriggerClass}>{tr("ملاحظات")}</TabsTrigger>
-                <TabsTrigger value="attachments" className={voucherTabTriggerClass}>{tr("المرفقات")}</TabsTrigger>
+            <Tabs dir={appDir()} value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 min-w-0 flex-1 flex-col pt-3">
+              <TabsList dir={appDir()} className={voucherTabListClass}>
+                <VoucherTabTrigger value="journal" icon={BookOpen}>{tr("الحسابات")}</VoucherTabTrigger>
+                <VoucherTabTrigger value="extra-data" icon={ClipboardList}>{tr("بيانات اضافية")}</VoucherTabTrigger>
+                <VoucherTabTrigger value="notes" icon={MessageSquare} dot={!!String(form.note || "").trim()}>{tr("ملاحظات")}</VoucherTabTrigger>
+                <VoucherTabTrigger value="attachments" icon={Paperclip}>{tr("المرفقات")}</VoucherTabTrigger>
               </TabsList>
 
               <TabsContent value="journal" className="mt-3 flex flex-none flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">

@@ -1306,12 +1306,14 @@ export default function RestaurantPos() {
 
   // ---------------- شاشة الطلب ----------------
   const hasRemaining = remainingLines.length > 0
+  // أسطر غير مدفوعة بقيمة (أسطر بقيمة صفر كخدمة طاولة بسعر 0 لا تمنع «إغلاق» — الخادم يسوّيها)
+  const hasRemainingValue = remainingLines.some(({ item, quantity }) => Math.abs(item.price * quantity * (1 - Number(item.discount || 0) / 100)) >= 0.005)
   const actions: OrderAction[] = [
     { key: "transfer", label: isTakeaway ? tr("إلى طاولة") : tr("نقل"), icon: ArrowRightLeft, show: true, onClick: gated("transfer", () => { setTransferFrom(order.tables[0]?.table_id ?? null); setPicker("transfer") }, order.location_id) },
     { key: "merge", label: tr("دمج"), icon: Combine, show: !isTakeaway, onClick: gated("merge", () => setPicker("merge"), order.location_id) },
     { key: "split", label: tr("فصل"), icon: Split, show: true, disabled: !hasRemaining, onClick: gated("split", () => { setSplitQty({}); setSplitOpen(true) }, order.location_id) },
     { key: "print", label: tr("طباعة الحساب"), icon: Printer, show: true, disabled: !hasRemaining, onClick: gated("printBill", () => void printBill(), order.location_id) },
-    { key: "cancel", label: order.payments.length ? tr("إغلاق") : tr("إلغاء"), icon: Ban, show: order.payments.length ? !hasRemaining : true, tone: "text-red-600",
+    { key: "cancel", label: order.payments.length ? tr("إغلاق") : tr("إلغاء"), icon: Ban, show: order.payments.length ? !hasRemainingValue : true, tone: "text-red-600",
       onClick: gated(order.payments.length ? "pay" : "cancelOrder", () => { if (order.payments.length) void act("close", { order_id: order.id }, tr("تم إغلاق الطاولة")); else { setCancelReason(""); setCancelOpen(true) } }, order.location_id) },
     { key: "custody", label: tr("العهدة"), icon: Wallet, show: canCustody, onClick: () => void openCustody(order.location_id) },
     { key: "waiter", label: tr("النادل"), icon: UserCog, show: can("assignWaiter"), onClick: () => void openAssign() },
