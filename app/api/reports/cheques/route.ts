@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         SELECT COALESCE(SUM(CASE WHEN chq.cheq_type = 1 THEN ${amount} ELSE 0 END), 0) AS cheque_in,
                COALESCE(SUM(CASE WHEN chq.cheq_type = 2 THEN ${amount} ELSE 0 END), 0) AS cheque_out,
                COUNT(*) FILTER (WHERE chq.cheq_type = 1)::int AS count_in, COUNT(*) FILTER (WHERE chq.cheq_type = 2)::int AS count_out
-        ${base} AND chq.due_date::date < ${fromParam}::date`, values),
+        ${base} AND chq.due_date::date < ${fromParam}::date`, values.slice(0, -1)), // بلا معامل «إلى تاريخ» (آخر قيمة) — غير مستخدم هنا فيرفضه الخادم: bind message supplies 3 parameters…
     ])
     const openingJournal = Number(openingRows[0]?.balance) || 0
     const prev = previousRows[0] || null
