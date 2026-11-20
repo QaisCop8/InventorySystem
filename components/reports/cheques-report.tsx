@@ -1,4 +1,5 @@
 "use client"
+import { Switch } from "@/components/ui/switch"
 import { tr } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
@@ -122,9 +123,20 @@ function ChequesReport({ view }: { view: View }) {
               <option value="monthly">{tr("شهري")}</option>
             </Select>
           )}
-          <div className="flex flex-col justify-end gap-2 text-sm">
-            <label className="flex items-center gap-2"><input type="checkbox" checked={filters.showReturned} onChange={(event) => set({ showReturned: event.target.checked })} className="h-4 w-4 accent-emerald-600" />{tr("إظهار الشيكات الراجعة")}</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={filters.periodOnly} onChange={(event) => set({ periodOnly: event.target.checked })} className="h-4 w-4 accent-emerald-600" />{tr("التقرير بشيكات الفترة فقط")}</label>
+          {/* خيارات التقرير: بطاقات بمفتاح تشغيل بنفس ارتفاع وحدود حقول الفلتر (كانت مربعات اختيار صغيرة) */}
+          <div className="grid gap-2 self-end sm:grid-cols-2">
+            {([
+              ["showReturned", tr("إظهار الشيكات الراجعة"), tr("ضمن المجاميع والرصيد")],
+              ["periodOnly", tr("شيكات الفترة فقط"), tr("بدون المستحقة قبل الفترة")],
+            ] as const).map(([key, title, hint]) => (
+              <label key={key} className={`flex h-10 cursor-pointer items-center justify-between gap-3 rounded-md border px-3 transition ${filters[key] ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30" : "border-input bg-background hover:border-emerald-300"}`}>
+                <span className="min-w-0 leading-tight">
+                  <span className="block truncate text-sm font-semibold">{title}</span>
+                  <span className="block truncate text-[10px] text-muted-foreground">{hint}</span>
+                </span>
+                <Switch checked={filters[key]} onCheckedChange={(checked) => set({ [key]: checked } as any)} />
+              </label>
+            ))}
           </div>
         </div>
         <div className="mt-4 flex justify-end">
