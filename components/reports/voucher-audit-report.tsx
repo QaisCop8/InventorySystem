@@ -3,7 +3,7 @@ import { tr, appDir } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useEffect, useMemo, useState } from "react"
-import { Archive, Copy, Eye, FilePen, Loader2, Printer, RefreshCw, Search, Trash2 } from "lucide-react"
+import { Archive, Copy, FilePen, FileSearch, Loader2, Printer, RefreshCw, Search, Trash2 } from "lucide-react"
 import { ReportHeader, ReportPage } from "@/components/reports/report-page"
 import { ReportFilters } from "@/components/reports/report-filters"
 import { Badge } from "@/components/ui/badge"
@@ -33,7 +33,7 @@ type AuditRow = {
   has_after: boolean
 }
 type Snapshot = { header: Record<string, any>; items: any[]; journal?: any[] }
-type AuditDetail = AuditRow & { before_data: Snapshot | null; after_data: Snapshot | null }
+type AuditDetail = AuditRow & { before_data: Snapshot | null; after_data: Snapshot | null; names?: Record<string, string> }
 
 const ACTION_LABELS: Record<string, string> = {
   create: tr("إدخال السند"), update: tr("تعديل السند"), post: tr("ترحيل السند"), cancel: tr("إلغاء السند"), delete: tr("حذف السند"),
@@ -55,9 +55,30 @@ const HEADER_LABELS: Record<string, string> = {
   general_notes: tr("ملاحظات"), notes: tr("ملاحظات"), status: tr("الحالة"), vch_book_id: tr("الدفتر"), branch_id: tr("الفرع"), salesman_id: tr("المندوب"),
   discount: tr("الخصم"), discount_amount: tr("الخصم"), vat: tr("الضريبة"), vat_amount: tr("الضريبة"), manual_voucher: tr("رقم يدوي"),
   manual_date: tr("تاريخ يدوي"), due_date: tr("تاريخ الاستحقاق"), delivery_date: tr("تاريخ التسليم"), store_id: tr("المستودع"),
-  to_store_id: tr("إلى مستودع"), insert_user: tr("مستخدم الإدخال"), is_printed: tr("مطبوع"), order_status: tr("حالة الطلبية"),
+  to_store_id: tr("إلى مستودع"), is_printed: tr("مطبوع"), order_status: tr("حالة الطلبية"),
+  warehouse_id: tr("المستودع"), to_warehouse_id: tr("إلى مستودع"), vat_percent: tr("نسبة الضريبة"), vat_included: tr("السعر شامل الضريبة"),
+  discount_type: tr("نوع الخصم"), discount_value: tr("قيمة الخصم"), campaign_discount_amount: tr("خصم العروض"), reference: tr("المرجع"),
 }
+// 2026-11-20: يُعرض فقط ما له اسم مفهوم في HEADER_LABELS — الحقول التقنية (vch_type، is_maqasa، pos_client_sale_id، ...) لا تفيد المستخدم
 const HIDDEN_HEADER = new Set(["id", "company_id", "last_update_date", "updated_at", "created_at", "insert_date", "vch_status", "update_user"])
+const isUserField = (key: string) => key in HEADER_LABELS && !HIDDEN_HEADER.has(key)
+// حقول تُخفى إن كانت صفراً (لا خصم/لا عروض)، وحقول نعم/لا مخزّنة 0/1
+const HIDE_ZERO = new Set(["discount", "discount_amount", "discount_value", "campaign_discount_amount"])
+const YES_NO = new Set(["is_printed", "vat_included"])
+const DISCOUNT_TYPES: Record<string, string> = { amount: tr("مبلغ"), value: tr("مبلغ"), percent: tr("نسبة"), percentage: tr("نسبة") }
+// معرّفات تُعرض بأسمائها (names من /api/voucher-audit?id=)
+const NAMED_KEYS = new Set(["branch_id", "currency_id", "store_id", "to_store_id", "warehouse_id", "to_warehouse_id", "vch_book_id", "account_id", "customer_id", "supplier_id", "to_account_id", "salesman_id"])
+type Names = Record<string, string>
+const display = (key: string, value: unknown, names?: Names) => {
+  if (value == null || value === "") return ""
+  if (HIDE_ZERO.has(key) && Number(value) === 0) return ""
+  if (YES_NO.has(key)) return value === true || value === 1 || value === "1" || value === "true" ? tr("نعم") : tr("لا")
+  if (key === "discount_type") return DISCOUNT_TYPES[String(value).toLowerCase()] || String(value)
+  if (NAMED_KEYS.has(key) && names?.[`${key}:${value}`]) return names[`${key}:${value}`]
+  return show(key, value)
+}
+// تاريخ انتهاء افتراضي (1990-01-01 / 1900-01-01) = بلا تاريخ
+const isPlaceholderDate = (value: unknown) => /^(1900|1990)-01-01/.test(String(value || ""))
 
 const STATUS_TEXT: Record<string, string> = { "1": tr("فعال"), "2": tr("معتمد"), "3": tr("ملغي") }
 const dateTime = (value?: string | null) => {
@@ -174,7 +195,7 @@ export default function VoucherAuditReport() {
             { key: "branch_name", label: tr("الفرع"), width: 120 },
             { key: "amount", label: tr("المبلغ"), type: "number", width: 130 },
             { key: "note", label: tr("ملاحظة"), width: "*", minWidth: 160, value: (row: any) => [row.details?.channel === "pos" ? "نقطة البيع" : row.details?.channel, row.details?.copy_label, row.details?.phone].filter(Boolean).join(" · ") },
-            { key: "details", label: tr("التفاصيل"), width: 100, render: (row: any) => <Button size="sm" variant="ghost" className="h-7" onClick={() => setSelected(row)}><Eye className="me-1 h-4 w-4" />{tr("عرض")}</Button> },
+            { key: "details", label: tr("التفاصيل"), width: 100, render: (row: any) => <button type="button" onClick={() => setSelected(row)} className="inline-flex h-7 items-center gap-1 rounded-full bg-emerald-50 px-2.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100"><FileSearch className="h-3.5 w-3.5" style={{ fill: "none" }} />{tr("عرض")}</button> },
           ]}/>
       {!loading && !rows.length && <div className="py-16 text-center text-muted-foreground">{tr("لا توجد عمليات مطابقة للفلاتر")}</div>}
     </div>
@@ -227,9 +248,9 @@ function AuditDetails({ row }: { row: AuditRow }) {
     </div>
 
     {(before || after) ? <>
-      {before && after && <HeaderDiff before={before.header} after={after.header} />}
-      {before && !after && <SnapshotView title={detail.action === "delete" ? tr("نسخة السند قبل الحذف") : tr("نسخة السند قبل العملية")} snapshot={before} tone="red" />}
-      {!before && after && <SnapshotView title={tr("السند كما حُفظ")} snapshot={after} tone="emerald" />}
+      {before && after && <HeaderDiff before={before.header} after={after.header} names={detail.names} />}
+      {before && !after && <SnapshotView title={detail.action === "delete" ? tr("نسخة السند قبل الحذف") : tr("نسخة السند قبل العملية")} snapshot={before} tone="red" names={detail.names} />}
+      {!before && after && <SnapshotView title={tr("السند كما حُفظ")} snapshot={after} tone="emerald" names={detail.names} />}
       {before && after && <div className="grid gap-4 @5xl:grid-cols-2">
         <SnapshotView title={tr("قبل التعديل")} snapshot={before} tone="red" hideHeader />
         <SnapshotView title={tr("بعد التعديل")} snapshot={after} tone="emerald" hideHeader />
@@ -251,19 +272,19 @@ function AuditDetails({ row }: { row: AuditRow }) {
   </div>
 }
 
-function HeaderDiff({ before, after }: { before: Record<string, any>; after: Record<string, any> }) {
+function HeaderDiff({ before, after, names }: { before: Record<string, any>; after: Record<string, any>; names?: Names }) {
   const keys = Array.from(new Set([...Object.keys(before || {}), ...Object.keys(after || {})]))
-    .filter(key => !HIDDEN_HEADER.has(key))
-    .filter(key => show(key, before?.[key]) !== show(key, after?.[key]))
+    .filter(isUserField)
+    .filter(key => display(key, before?.[key], names) !== display(key, after?.[key], names))
   if (!keys.length) return <p className="rounded-xl border bg-slate-50 p-3 text-sm text-muted-foreground">{tr("لا تغيير على بيانات رأس السند — راجع الأصناف/القيد أدناه.")}</p>
   return <div>
     <h3 className="mb-2 font-bold">{tr("الحقول التي تغيّرت")}</h3>
     <div className="overflow-x-auto"><table className="w-full min-w-[420px] text-sm">
       <thead className="bg-slate-100"><tr><th className="p-2 text-start">{tr("الحقل")}</th><th className="p-2 text-start">{tr("قبل")}</th><th className="p-2 text-start">{tr("بعد")}</th></tr></thead>
       <tbody>{keys.map(key => <tr key={key} className="border-t">
-        <td className="p-2 font-semibold">{HEADER_LABELS[key] || key}</td>
-        <td className="p-2 text-red-700 line-through decoration-red-300">{show(key, before?.[key]) || "—"}</td>
-        <td className="p-2 font-semibold text-emerald-700">{show(key, after?.[key]) || "—"}</td>
+        <td className="p-2 font-semibold">{HEADER_LABELS[key]}</td>
+        <td className="p-2 text-red-700 line-through decoration-red-300">{display(key, before?.[key], names) || "—"}</td>
+        <td className="p-2 font-semibold text-emerald-700">{display(key, after?.[key], names) || "—"}</td>
       </tr>)}</tbody>
     </table></div>
   </div>
@@ -273,16 +294,16 @@ const ITEM_COLUMNS: Array<[string[], string]> = [
   [["item_name", "product_name"], "الصنف"], [["qnty", "quantity"], "الكمية"], [["bonus", "bonus_quantity", "free_quantity"], "بونص"],
   [["price", "unit_price"], "السعر"], [["discount"], "الخصم"], [["batch_no", "batch_number"], "التشغيلة"], [["expiry_date"], "الانتهاء"], [["note", "notes"], "ملاحظة"],
 ]
-const pick = (row: any, keys: string[]) => { for (const key of keys) if (row?.[key] != null && row[key] !== "") return row[key]; return "" }
+const pick = (row: any, keys: string[]) => { for (const key of keys) if (row?.[key] != null && row[key] !== "" && !(key === "expiry_date" && isPlaceholderDate(row[key]))) return row[key]; return "" }
 
-function SnapshotView({ title, snapshot, tone, hideHeader = false }: { title: string; snapshot: Snapshot; tone: "red" | "emerald"; hideHeader?: boolean }) {
+function SnapshotView({ title, snapshot, tone, hideHeader = false, names }: { title: string; snapshot: Snapshot; tone: "red" | "emerald"; hideHeader?: boolean; names?: Names }) {
   const header = snapshot.header || {}
-  const headerKeys = Object.keys(header).filter(key => !HIDDEN_HEADER.has(key) && show(key, header[key]) !== "")
+  const headerKeys = Object.keys(header).filter(key => isUserField(key) && display(key, header[key], names) !== "")
   const itemColumns = ITEM_COLUMNS.filter(([keys]) => (snapshot.items || []).some(item => pick(item, keys) !== ""))
   return <div className={`min-w-0 rounded-2xl border-2 p-3 @md:p-4 ${tone === "red" ? "border-red-200 bg-red-50/30" : "border-emerald-200 bg-emerald-50/30"}`}>
     <h3 className="mb-3 flex items-center gap-2 font-bold"><Copy className="h-4 w-4" />{title}</h3>
     {!hideHeader && <div className="mb-4 grid gap-x-4 gap-y-1 text-sm @md:grid-cols-2 @3xl:grid-cols-3">
-      {headerKeys.map(key => <div key={key} className="flex gap-2"><span className="text-muted-foreground">{HEADER_LABELS[key] || key}:</span><b className="break-all">{show(key, header[key])}</b></div>)}
+      {headerKeys.map(key => <div key={key} className="flex gap-2"><span className="text-muted-foreground">{HEADER_LABELS[key]}:</span><b className="break-words">{display(key, header[key], names)}</b></div>)}
     </div>}
     {(snapshot.items || []).length > 0 && <>
       <h4 className="mb-1 text-sm font-bold">{tr("الأصناف (")}{snapshot.items.length})</h4>

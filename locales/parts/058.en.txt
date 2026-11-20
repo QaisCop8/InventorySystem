@@ -248,3 +248,4 @@ e.g. HP LaserJet
 e.g. POS-80
 For all pages, vouchers and reports. Empty = print-settings printer or the Windows default printer
 Cashier receipts, restaurant bills/invoices and custody slips, and kitchen tickets whose item or group has no printer
+Promotions discount

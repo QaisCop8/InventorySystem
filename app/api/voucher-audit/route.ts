@@ -8,6 +8,28 @@ const REPORT_SECTION = "voucher-audit-report"
 const CLIENT_ACTIONS = new Set<VoucherAuditAction>(["print", "print_original", "print_copy", "print_review", "clone", "whatsapp", "pdf"])
 const SOURCES = new Set<AuditSource>(["voucher", "order", "purchase_order"])
 
+// معرّفات رأس السند ⇐ جدول الاسم (للعرض فقط؛ أي فشل استعلام يُتجاهل فيبقى الرقم)
+const NAME_SOURCES: Array<{ keys: string[]; query: (ids: number[]) => Promise<any[]> }> = [
+  { keys: ["branch_id"], query: (ids) => sql`SELECT id, branch_name AS name FROM branches WHERE id = ANY(${ids}::int[])` },
+  { keys: ["currency_id"], query: (ids) => sql`SELECT id, COALESCE(NULLIF(currency_name, ''), currency_code) AS name FROM currency WHERE id = ANY(${ids}::int[])` },
+  { keys: ["store_id", "to_store_id", "warehouse_id", "to_warehouse_id"], query: (ids) => sql`SELECT id, warehouse_name AS name FROM warehouses WHERE id = ANY(${ids}::int[])` },
+  { keys: ["vch_book_id"], query: (ids) => sql`SELECT id, name FROM voucher_books_tbl WHERE id = ANY(${ids}::int[])` },
+  { keys: ["account_id", "customer_id", "supplier_id", "to_account_id"], query: (ids) => sql`SELECT id, CONCAT_WS(' - ', code, name) AS name FROM account_tbl WHERE id = ANY(${ids}::int[])` },
+  { keys: ["salesman_id"], query: (ids) => sql`SELECT id, name FROM salesmen WHERE id = ANY(${ids}::int[])` },
+]
+async function headerNames(headers: Array<Record<string, any> | null | undefined>) {
+  const names: Record<string, string> = {}
+  await Promise.all(NAME_SOURCES.map(async (source) => {
+    const ids = [...new Set(headers.flatMap((header) => source.keys.map((key) => Number(header?.[key]))).filter((id) => Number.isInteger(id) && id > 0))]
+    if (!ids.length) return
+    try {
+      const rows = await source.query(ids)
+      for (const row of rows) for (const key of source.keys) names[`${key}:${row.id}`] = String(row.name || "")
+    } catch { /* جدول/عمود غير موجود: يبقى الرقم */ }
+  }))
+  return names
+}
+
 // GET: قائمة تقرير ارشفة السندات (بدون النسخ الكاملة) — أو ?id= لسطر واحد مع النسخة قبل/بعد
 export async function GET(request: NextRequest) {
   try {
@@ -26,8 +48,8 @@ export async function GET(request: NextRequest) {
         WHERE l.id = ${id}
       `)[0]
       if (!row) return NextResponse.json({ error: "السجل غير موجود" }, { status: 404 })
-      // السجل السابق لنفس السند (لعرض ما تغيّر عند الإدخال/الترحيل دون نسخة "قبل")
-      return NextResponse.json(row)
+      // أسماء المعرّفات في رأس السند (الفرع/العملة/المستودع/الدفتر/الحسابات/المندوب) بدل الأرقام: names["branch_id:1"] = "الفرع الرئيسي"
+      return NextResponse.json({ ...row, names: await headerNames([row.before_data?.header, row.after_data?.header]) })
     }
 
     const from = params.get("from") || null

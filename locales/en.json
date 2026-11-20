@@ -7753,6 +7753,7 @@
  "خصم الصنف يجب ألا يتجاوز قيمته أو 100%": "The item discount must not exceed its value or 100%",
  "خصم الصنف:": "Item discount:",
  "خصم الطلب": "Order discount",
+ "خصم العروض": "Promotions discount",
  "خصم الفاتورة": "Invoice discount",
  "خصم تأخير": "Lateness deduction",
  "خصم خروج مبكر": "Early leaving deduction",
