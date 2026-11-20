@@ -218,7 +218,7 @@ const voucherTabTriggerClass =
 const voucherTabIconClass =
   "grid h-6 w-6 place-items-center rounded-lg bg-slate-100 text-slate-500 transition-colors group-hover:bg-emerald-100 group-hover:text-emerald-700 group-data-[state=active]:bg-gradient-to-br group-data-[state=active]:from-emerald-500 group-data-[state=active]:to-teal-500 group-data-[state=active]:text-white dark:bg-slate-800"
 const voucherTabPanelClass =
-  "mt-3 min-h-[360px] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_-18px_rgba(15,23,42,.25)] sm:p-5 data-[state=active]:animate-in data-[state=active]:fade-in-0 dark:border-slate-800 dark:bg-slate-900"
+  "mt-3 min-h-[360px] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_-18px_rgba(15,23,42,.25)] sm:p-5 dark:border-slate-800 dark:bg-slate-900"
 
 // فئات سعر خاصة (معرّفات سالبة) تُعرَض دائماً في أعلى قائمة "فئة السعر" قبل صفوف جدول pricecategory
 // الحقيقية — نفس فكرة prices_class_list.splice في StockInVoucher.js القديم. "سعر الإنتاج" مُعطَّلة
@@ -2462,7 +2462,7 @@ export default function UnifiedStockVoucher({
         />
 
         <div
-          className="relative flex min-h-0 flex-1 flex-col overflow-y-auto rounded-b-3xl bg-slate-50/60 px-3 py-2 sm:px-4 sm:py-3 [scrollbar-color:#94a3b8_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-track]:bg-transparent"
+          className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden rounded-b-3xl bg-slate-50/60 px-3 py-2 sm:px-4 sm:py-3 [scrollbar-color:#94a3b8_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-track]:bg-transparent"
           style={{ scrollbarWidth: "thin" }}
           onKeyDown={handleFormEnterAsTab}
         >
@@ -2502,7 +2502,7 @@ export default function UnifiedStockVoucher({
               disabled صريح على الحقل نفسه. لذا كل حقل هنا يحمل disabled={isLocked} صراحة عدا رقم السند. */}
           <>
             {/* تفاصيل السند (يضم أيضاً العميل/المستودعات ضمن نفس البطاقة) */}
-            <div className="stock-voucher-details-fields relative min-w-0 space-y-3 overflow-hidden rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_10px_30px_-18px_rgba(15,23,42,.25)] sm:rounded-2xl sm:p-5 dark:border-slate-800 dark:bg-slate-900">
+            <div className="stock-voucher-details-fields relative min-w-0 shrink-0 space-y-3 overflow-hidden rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_10px_30px_-18px_rgba(15,23,42,.25)] sm:rounded-2xl sm:p-5 dark:border-slate-800 dark:bg-slate-900">
               <span aria-hidden className="absolute inset-y-0 start-0 w-1 bg-gradient-to-b from-emerald-500 to-teal-400" />
               <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3 text-sm font-bold text-slate-800 dark:border-slate-800 dark:text-slate-100">
                 <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-sm">
