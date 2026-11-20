@@ -1,6 +1,7 @@
 import { logVoucherAudit } from "@/lib/audit-client"
 import { invoiceQrDataUrl, qrReceiptHtml, type QrInvoice } from "@/lib/pos-invoice-qr"
 import { isLauncherPrinting, printPagesDirect } from "@/lib/local-print"
+import { userPrinter } from "@/lib/user-printers"
 
 // طباعة فاتورة نقطة البيع — مشتركة بين كاشير نقطة البيع وشاشة المطعم: مشغّل ويندوز NoonERP نفسه أو خدمة الطباعة
 // المحلية (CashService ws://localhost:32999) على الحاسوب (lib/local-print.ts)، ومعاينة داخل الصفحة على الجوال، وفاتورة QR فقط حسب إعداد invoice_print_mode للنقطة.
@@ -214,7 +215,8 @@ export async function printPosReceipt(receiptData: PosReceipt, ctx: PosReceiptCo
   text("شكراً لتسوقكم معنا",left,y,fullWidth,16,8,1,1);y+=19
   }
   try{
-   await printPagesDirect([{commands,printerName:"",paper:"POS 80mm",paperWidth:315,paperHeight:Math.max(220,y+8),openDrawer:false}])
+   // «الطابعة الافتراضية - كاشير ومطاعم» للمستخدم، وإلا طابعة ويندوز الافتراضية
+   await printPagesDirect([{commands,printerName:await userPrinter("pos"),paper:"POS 80mm",paperWidth:315,paperHeight:Math.max(220,y+8),openDrawer:false}])
    ctx.onMessage({type:"success",text:"تم إرسال الفاتورة إلى الطابعة الافتراضية"})
   }catch(error){
    ctx.onMessage({type:"error",text:error instanceof Error?error.message:isLauncherPrinting()?"تعذرت طباعة الفاتورة":"تعذرت طباعة الفاتورة. تأكد من تشغيل خدمة الطباعة"})

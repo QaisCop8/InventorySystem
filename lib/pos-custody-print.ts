@@ -109,6 +109,7 @@ export async function printCustodyHandover(input: CustodyPrintInput): Promise<Pr
   const { settings, company } = await loadVoucherPrintSettings(12)
   return printVoucherWithSettings(document, {
     ...settings,
+    printer_scope: "pos" as const,
     paper_size: "Receipt80" as const,
     orientation: "portrait" as const,
     print_method: settings.print_method === "browser" ? "browser" : "auto",

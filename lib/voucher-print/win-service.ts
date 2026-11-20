@@ -5,6 +5,7 @@ import { amountInArabicWords, cellText, headerPrintFields, type PrintCell, type 
 import { copyLabelsFor, visibleColumns, type PrintContext } from "./html"
 import { paperDimensions, type VoucherPrintSettings } from "./settings"
 import { printPagesDirect } from "@/lib/local-print"
+import { userPrinter } from "@/lib/user-printers"
 
 // CashService (ws://localhost:32999/cashier) — or the NoonERP Windows launcher itself (lib/local-print.ts) — draws GDI+ commands in 1/100 inch with fonts
 // in points. textFormat is passed as StringFormatFlags: 1 = right-to-left (right aligned), 0 = left
@@ -353,9 +354,12 @@ export function buildCashierServicePages(document: PrintDocument, settings: Vouc
 
 export async function printWithCashierService(document: PrintDocument, settings: VoucherPrintSettings, context: PrintContext) {
   const paper = paperDimensions(settings)
+  // طابعة المستخدم الافتراضية (عامة أو كاشير ومطاعم) تتقدّم على طابعة إعدادات الطباعة، إلا الطابعة المحددة (fixed)
+  const scope = settings.printer_scope || "general"
+  const printerName = scope === "fixed" ? settings.printer_name : (await userPrinter(scope)) || settings.printer_name
   await printPagesDirect(buildCashierServicePages(document, settings, context).map((page) => ({
     commands: page.commands,
-    printerName: settings.printer_name,
+    printerName,
     paper: paper.name,
     paperWidth: mmToUnits(paper.widthMm),
     paperHeight: page.height,

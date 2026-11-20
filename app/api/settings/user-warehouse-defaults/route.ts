@@ -15,7 +15,10 @@ async function ensureColumns() { return runSchemaOnce("app/api/settings/user-war
   // (1+نسبة الضريبة/100)) قبل تخزينه في unit_price — انظر handleCellEditEnded في
   // components/sales/unified-sales-delivery.tsx.
   await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS price_entry_includes_tax BOOLEAN DEFAULT false`
-}) }
+  // الطابعة الافتراضية للمستخدم (2026-11-20): لكل الصفحات والتقارير، وطابعة الكاشير والمطاعم — lib/user-printers.ts
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS default_printer VARCHAR(200)`
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS pos_printer VARCHAR(200)`
+}) }
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,7 +37,9 @@ export async function GET(request: NextRequest) {
         w2.warehouse_name AS finished_goods_warehouse_name,
         us.raw_materials_warehouse_id,
         w3.warehouse_name AS raw_materials_warehouse_name,
-        us.price_entry_includes_tax
+        us.price_entry_includes_tax,
+        us.default_printer,
+        us.pos_printer
       FROM user_settings us
       LEFT JOIN warehouses w1 ON w1.id = us.default_item_warehouse_id
       LEFT JOIN warehouses w2 ON w2.id = us.finished_goods_warehouse_id
@@ -71,6 +76,8 @@ export async function PUT(request: NextRequest) {
         finished_goods_warehouse_id = ${data.finished_goods_warehouse_id ?? null},
         raw_materials_warehouse_id = ${data.raw_materials_warehouse_id ?? null},
         price_entry_includes_tax = ${Boolean(data.price_entry_includes_tax)},
+        default_printer = ${String(data.default_printer ?? "").trim().slice(0, 200) || null},
+        pos_printer = ${String(data.pos_printer ?? "").trim().slice(0, 200) || null},
         updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${data.user_id}::integer
       RETURNING id

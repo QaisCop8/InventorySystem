@@ -67,7 +67,7 @@ const syncExtras = (rows: Pending[]) => rows.flatMap((row) => {
   return parent ? [parent.quantity === row.quantity ? row : { ...row, quantity: parent.quantity }] : []
 })
 const kitchenSlip = (settings: any) => ({ ...settings, paper_size: "Receipt80" as const, orientation: "portrait" as const, print_method: "service" as const, copies: 1, copy_labels: "", show_logo: false, show_company_info: false, header_text: "", show_fields: true, show_row_numbers: true, hidden_columns: [], show_totals: false, show_amount_in_words: false, show_notes: false, show_barcode: false, show_signatures: false, show_footer: false, show_page_numbers: false })
-const billSlip = (settings: any) => ({ ...settings, paper_size: "Receipt80" as const, orientation: "portrait" as const, show_totals: true, show_signatures: false, show_amount_in_words: false })
+const billSlip = (settings: any) => ({ ...settings, printer_scope: "pos" as const, paper_size: "Receipt80" as const, orientation: "portrait" as const, show_totals: true, show_signatures: false, show_amount_in_words: false })
 type KitchenTicket = { printer: string; title: string; document: PrintDocument }
 // الجهاز المشترك (تابلت للنوادل): يُقفل بعد دقيقتين بلا استخدام ويطلب رمز PIN
 const SHARED_KEY = "restaurant-shared-device"
@@ -274,7 +274,7 @@ export default function RestaurantPos() {
         for (const ticket of tickets) {
           try {
             if (ticket.kind === "bill") await printVoucherWithSettings(ticket.document, billSlip(settings), company)
-            else await printVoucherWithSettings(ticket.document, { ...kitchenSlip(settings), printer_name: ticket.printer || settings.printer_name }, company)
+            else await printVoucherWithSettings(ticket.document, { ...kitchenSlip(settings), printer_name: ticket.printer || settings.printer_name, printer_scope: ticket.printer ? "fixed" : "pos" }, company)
             printed.push(ticket.id)
           } catch (error) {
             failed.push({ id: ticket.id, error: error instanceof Error ? error.message : "تعذرت الطباعة" })
@@ -798,7 +798,7 @@ export default function RestaurantPos() {
       const { settings, company } = await loadVoucherPrintSettings(12)
       const failures: string[] = []
       for (const ticket of tickets) {
-        try { await printVoucherWithSettings(ticket.document, { ...kitchenSlip(settings), printer_name: ticket.printer }, company) }
+        try { await printVoucherWithSettings(ticket.document, { ...kitchenSlip(settings), printer_name: ticket.printer, printer_scope: ticket.printer ? "fixed" : "pos" }, company) }
         catch (error) { failures.push(`${ticket.title}: ${error instanceof Error ? error.message : "تعذرت الطباعة"}`) }
       }
       if (failures.length) setMessage({ type: "error", text: tr("أُرسلت الأصناف لكن تعذرت طباعة المطبخ: {0}", failures.join(" — ")) })

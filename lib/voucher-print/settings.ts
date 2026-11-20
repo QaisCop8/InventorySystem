@@ -14,6 +14,8 @@ export type VoucherPrintSettings = {
   margin_left_mm: number
   print_method: PrintMethod
   printer_name: string
+  /** طابعة المستخدم (lib/user-printers.ts): general (افتراضي) أو pos (كاشير ومطاعم) تتقدّم على printer_name؛ fixed = printer_name كما هو (طابعة صنف/مجموعة المطبخ) */
+  printer_scope?: "general" | "pos" | "fixed"
   copies: number
   copy_labels: string
   template: PrintTemplate

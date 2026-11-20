@@ -449,7 +449,7 @@ export default function PosCashier(){
      columns:[{key:"name",label:tr("الصنف"),weight:3.2},{key:"quantity",label:tr("الكمية"),align:"center",weight:1}],
      rows:[...merged.values()].map(row=>({name:row.unit?`${row.name} (${row.unit})`:row.name,quantity:quantityText(row.quantity)})),
      notes:note.trim()}
-    try{await printVoucherWithSettings(document,{...slipSettings,printer_name:group.printer},company)}
+    try{await printVoucherWithSettings(document,{...slipSettings,printer_name:group.printer,printer_scope:group.printer?"fixed":"pos"},company)}
     catch(error){failures.push(`${group.name} (${group.printer}): ${error instanceof Error?error.message:"تعذرت الطباعة"}`)}
    }
    if(failures.length)setMessage({type:"error",text:tr("تعذرت طباعة مجموعات الأصناف: {0}", failures.join(" — "))})

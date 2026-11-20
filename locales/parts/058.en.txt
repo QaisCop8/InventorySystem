@@ -243,3 +243,8 @@ Confirm F3
 Payment failed
 User roles that permissions are built on
 User accounts, roles and branches
+Default printer - cashier & restaurants
+e.g. HP LaserJet
+e.g. POS-80
+For all pages, vouchers and reports. Empty = print-settings printer or the Windows default printer
+Cashier receipts, restaurant bills/invoices and custody slips, and kitchen tickets whose item or group has no printer

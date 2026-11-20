@@ -1,5 +1,6 @@
 "use client"
 
+import { invalidateUserPrinters } from "@/lib/user-printers"
 import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { tr, appDir } from "@/lib/i18n"
 import React, { useEffect, useState, useMemo, useRef } from "react"
@@ -66,6 +67,8 @@ export default function VirtualAccounts() {
   // unified-sales-delivery.tsx).
   const [otherSettingsSectionOpen, setOtherSettingsSectionOpen] = useState(true)
   const [priceEntryIncludesTax, setPriceEntryIncludesTax] = useState(false)
+  // الطابعة الافتراضية للمستخدم: عامة (الصفحات والتقارير) وكاشير ومطاعم — lib/user-printers.ts
+  const [printers, setPrinters] = useState({ default_printer: "", pos_printer: "" })
 
   const gridRef = useRef<any>(null)
   const messagesRef = useRef<any>(null)
@@ -133,6 +136,7 @@ export default function VirtualAccounts() {
       setUserCurrencyMappings(Array.isArray(accounts.rows) ? accounts.rows : [])
       setWarehouseDefaults({ ...emptyWarehouseDefaults, ...defaults })
       setPriceEntryIncludesTax(Boolean(defaults.price_entry_includes_tax))
+      setPrinters({ default_printer: String(defaults.default_printer || ""), pos_printer: String(defaults.pos_printer || "") })
       return true
     } catch (error) {
       if (requestId === requestRef.current) showErrorMessage(error instanceof Error ? error.message : 'Failed to load defaults')
@@ -146,6 +150,7 @@ export default function VirtualAccounts() {
     setUserCurrencyMappings([])
     setWarehouseDefaults(emptyWarehouseDefaults)
     setPriceEntryIncludesTax(false)
+    setPrinters({ default_printer: "", pos_printer: "" })
     if (selectedUser) void loadDefaults(selectedUser.user_id)
     else setLoading(false)
     return () => { requestRef.current += 1 }
@@ -503,11 +508,14 @@ export default function VirtualAccounts() {
             finished_goods_warehouse_id: warehouseDefaults.finished_goods_warehouse_id,
             raw_materials_warehouse_id: warehouseDefaults.raw_materials_warehouse_id,
             price_entry_includes_tax: priceEntryIncludesTax,
+            default_printer: printers.default_printer.trim(),
+            pos_printer: printers.pos_printer.trim(),
           }),
         })
         const warehousesData = await warehousesResponse.json().catch(() => ({}))
         if (!warehousesResponse.ok || !warehousesData.success) failures.push(`${user.display_name}: ${warehousesData.error || 'فشل حفظ المستودعات'}`)
       }
+      invalidateUserPrinters()
       if (failures.length) {
         showErrorMessage(failures.slice(0, 3).join(' — '))
       } else if (selectedUser && await loadDefaults(selectedUser.user_id)) {
@@ -686,6 +694,21 @@ export default function VirtualAccounts() {
               disabled={!selectedUser}
             />
             </label>
+            {/* الطابعة الافتراضية: اسم الطابعة كما يظهر في ويندوز — تُطبَّق على الطباعة المباشرة (المشغّل / CashService) */}
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="default-printer" className="text-sm font-semibold text-slate-800">{tr("الطابعة الافتراضية")}</Label>
+                <Input id="default-printer" dir="ltr" maxLength={200} disabled={!selectedUser} placeholder={tr("مثال: HP LaserJet")} value={printers.default_printer}
+                  onChange={(event) => setPrinters((current) => ({ ...current, default_printer: event.target.value }))} />
+                <p className="text-xs text-slate-500">{tr("لكل الصفحات والسندات والتقارير. فارغة = طابعة إعدادات الطباعة أو طابعة ويندوز الافتراضية")}</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pos-printer" className="text-sm font-semibold text-slate-800">{tr("الطابعة الافتراضية - كاشير ومطاعم")}</Label>
+                <Input id="pos-printer" dir="ltr" maxLength={200} disabled={!selectedUser} placeholder={tr("مثال: POS-80")} value={printers.pos_printer}
+                  onChange={(event) => setPrinters((current) => ({ ...current, pos_printer: event.target.value }))} />
+                <p className="text-xs text-slate-500">{tr("إيصالات الكاشير وحساب وفواتير المطعم والعهدة، وقسائم المطبخ التي ليس لصنفها أو مجموعتها طابعة")}</p>
+              </div>
+            </div>
           </CardContent>
         )}
       </Card>
