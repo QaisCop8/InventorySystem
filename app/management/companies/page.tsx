@@ -58,12 +58,12 @@ interface Company {
   requested_by_email?: string | null
 }
 
-// "شعار" بصري مميَّز لكل شركة (أول حرف من اسمها) بتدرّجات هوية شاشة الدخول (زمردي/سماوي/بنفسجي).
+// "شعار" بصري مميَّز لكل شركة (أول حرف من اسمها) بتدرّجات هوية شاشة الدخول (ألوان شعار نون الخضراء).
 const AVATAR_PALETTES = [
-  "from-emerald-400 to-cyan-500",
-  "from-sky-400 to-indigo-500",
-  "from-violet-400 to-fuchsia-500",
-  "from-teal-400 to-emerald-600",
+  "from-green-400 to-lime-500",
+  "from-lime-400 to-green-500",
+  "from-lime-400 to-lime-500",
+  "from-lime-400 to-green-600",
   "from-amber-400 to-orange-500",
   "from-rose-400 to-pink-500",
 ]
@@ -78,12 +78,12 @@ const TRIAL_EXPIRY_DAYS = 10
 const formatArabicDate = (date: Date) => date.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })
 
 const STATUS_CONFIG: Record<Company["status"], { label: string; icon: typeof ShieldCheck; classes: string }> = {
-  approved: { label: tr("جاهزة"), icon: ShieldCheck, classes: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" },
+  approved: { label: tr("جاهزة"), icon: ShieldCheck, classes: "bg-green-50 text-green-700 ring-1 ring-inset ring-green-200" },
   pending: { label: tr("في انتظار الموافقة"), icon: Clock, classes: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200" },
   rejected: { label: tr("مرفوضة"), icon: XCircle, classes: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200" },
   stopped: { label: tr("موقوفة"), icon: Ban, classes: "bg-stone-50 text-slate-600 ring-1 ring-inset ring-[#ece3d3]" },
-  awaiting_payment: { label: tr("بانتظار الدفع"), icon: CreditCard, classes: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200" },
-  provisioning: { label: tr("جاري اعتماد الشركة"), icon: Loader2, classes: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" },
+  awaiting_payment: { label: tr("بانتظار الدفع"), icon: CreditCard, classes: "bg-lime-50 text-lime-700 ring-1 ring-inset ring-lime-200" },
+  provisioning: { label: tr("جاري اعتماد الشركة"), icon: Loader2, classes: "bg-green-50 text-green-700 ring-1 ring-inset ring-green-200" },
   provisioning_failed: { label: tr("فشل اعتماد الشركة"), icon: XCircle, classes: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200" },
 }
 
@@ -93,9 +93,9 @@ const css = `
 .cp-root{position:relative;isolation:isolate;overflow-x:hidden;background:#f8f4ec;color:#0f172a}
 .cp-aurora{position:fixed;inset:0;z-index:-2;background:
   radial-gradient(60% 50% at 15% 10%,rgba(217,186,140,.28),transparent 70%),
-  radial-gradient(50% 45% at 90% 20%,rgba(16,185,129,.07),transparent 70%),
+  radial-gradient(50% 45% at 90% 20%,rgba(46,139,58,.07),transparent 70%),
   radial-gradient(55% 55% at 80% 95%,rgba(232,213,180,.35),transparent 70%),
-  radial-gradient(45% 45% at 10% 90%,rgba(20,184,166,.06),transparent 70%),linear-gradient(180deg,#fbf8f2,#f5efe4)}
+  radial-gradient(45% 45% at 10% 90%,rgba(124,193,66,.06),transparent 70%),linear-gradient(180deg,#fbf8f2,#f5efe4)}
 .cp-blob{position:fixed;border-radius:9999px;filter:blur(70px);z-index:-1;opacity:.35;animation:cp-drift 16s ease-in-out infinite}
 @keyframes cp-drift{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(40px,-50px,0) scale(1.12)}}
 .cp-dots{position:fixed;inset:0;z-index:-1;opacity:.45;background-image:radial-gradient(rgba(120,90,50,.16) 1px,transparent 1.2px);background-size:26px 26px;
@@ -103,29 +103,29 @@ const css = `
 .cp-glass{border:1px solid #ece3d3;background:linear-gradient(150deg,rgba(255,255,255,.95),rgba(255,253,249,.85));
   box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 24px 50px -32px rgba(120,90,50,.35)}
 .cp-card{position:relative;border-radius:26px;padding:1.5px;background:#ece3d3;transition:transform .25s ease,box-shadow .25s ease}
-.cp-card.is-open:hover{transform:translateY(-6px);background:conic-gradient(from var(--cp-angle),rgba(16,185,129,0),#10b981,#38bdf8,#a78bfa,rgba(16,185,129,0) 60%);
-  animation:cp-spin 5s linear infinite;box-shadow:0 30px 60px -35px rgba(120,90,50,.45),0 0 50px -25px rgba(16,185,129,.4)}
+.cp-card.is-open:hover{transform:translateY(-6px);background:conic-gradient(from var(--cp-angle),rgba(46,139,58,0),#2e8b3a,#9ed36a,#1f7a33,rgba(46,139,58,0) 60%);
+  animation:cp-spin 5s linear infinite;box-shadow:0 30px 60px -35px rgba(120,90,50,.45),0 0 50px -25px rgba(46,139,58,.4)}
 @keyframes cp-spin{to{--cp-angle:360deg}}
 .cp-card-in{height:100%;border-radius:25px;background:#fffdf9;box-shadow:0 1px 0 rgba(255,255,255,.9) inset}
 .cp-action{border-radius:26px;border:1.5px dashed #d9c9ae;background:rgba(255,255,255,.55);transition:all .25s ease}
-.cp-action:hover{border-color:rgba(52,211,153,.6);background:rgba(16,185,129,.07);transform:translateY(-4px)}
-.cp-action.is-trial:hover{border-color:rgba(167,139,250,.65);background:rgba(139,92,246,.08)}
+.cp-action:hover{border-color:rgba(124,193,66,.6);background:rgba(46,139,58,.07);transform:translateY(-4px)}
+.cp-action.is-trial:hover{border-color:rgba(140,198,63,.65);background:rgba(110,180,60,.08)}
 .cp-field{height:3rem;width:100%;border-radius:14px;border:1px solid #e7dccb;background:#fff;padding:0 1rem;font-size:15px;color:#0f172a;outline:none;
   box-shadow:inset 0 1px 2px rgba(120,90,50,.08);transition:border-color .2s,background .2s,box-shadow .2s}
-.cp-field:focus{border-color:#10b981;background:#fff;box-shadow:0 0 0 4px rgba(16,185,129,.15)}
-.cp-btn{position:relative;overflow:hidden;border-radius:14px;background:linear-gradient(100deg,#10b981,#06b6d4);border-bottom:4px solid #0a6a63;
-  box-shadow:0 18px 30px -14px rgba(16,185,129,.8);transition:transform .12s,border-bottom-width .12s,filter .2s}
+.cp-field:focus{border-color:#2e8b3a;background:#fff;box-shadow:0 0 0 4px rgba(46,139,58,.15)}
+.cp-btn{position:relative;overflow:hidden;border-radius:14px;background:linear-gradient(100deg,#2e8b3a,#7cc142);border-bottom:4px solid #145a22;
+  box-shadow:0 18px 30px -14px rgba(46,139,58,.8);transition:transform .12s,border-bottom-width .12s,filter .2s}
 .cp-btn:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-2px)}
 .cp-btn:active:not(:disabled){transform:translateY(3px);border-bottom-width:1px}
 .cp-btn:disabled{opacity:.55;cursor:not-allowed}
-.cp-btn.is-trial{background:linear-gradient(100deg,#8b5cf6,#6366f1);border-bottom-color:#4c1d95;box-shadow:0 18px 30px -14px rgba(139,92,246,.8)}
+.cp-btn.is-trial{background:linear-gradient(100deg,#8cc63f,#4f9a2f);border-bottom-color:#2f6b1c;box-shadow:0 18px 30px -14px rgba(110,180,60,.8)}
 .cp-progress{position:relative;height:6px;overflow:hidden;border-radius:9999px;background:#ece3d3}
-.cp-progress::after{content:"";position:absolute;inset:0;width:40%;border-radius:9999px;background:linear-gradient(90deg,#10b981,#38bdf8);animation:cp-indeterminate 1.4s ease-in-out infinite}
+.cp-progress::after{content:"";position:absolute;inset:0;width:40%;border-radius:9999px;background:linear-gradient(90deg,#2e8b3a,#9ed36a);animation:cp-indeterminate 1.4s ease-in-out infinite}
 @keyframes cp-indeterminate{0%{transform:translateX(260%)}100%{transform:translateX(-120%)}}
 @keyframes cp-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 .cp-rise{animation:cp-rise .65s cubic-bezier(.2,.8,.2,1) both}
 .cp-dialog{border:1px solid #ece3d3!important;background:#fffdf9!important;color:#0f172a!important;border-radius:24px!important;
-  box-shadow:0 40px 80px -35px rgba(120,90,50,.4),0 0 60px -30px rgba(16,185,129,.3)!important}
+  box-shadow:0 40px 80px -35px rgba(120,90,50,.4),0 0 60px -30px rgba(46,139,58,.3)!important}
 .cp-dialog [data-slot="dialog-close"],.cp-dialog button[aria-label="Close"],.cp-dialog>button:last-child{color:#78716c}
 @media (prefers-reduced-motion:reduce){.cp-root *{animation:none!important;transition:none!important}}
 `
@@ -403,7 +403,7 @@ export default function ManagementCompaniesPage() {
       <div className="cp-root flex min-h-screen items-center justify-center">
         <style dangerouslySetInnerHTML={{ __html: css }} />
         <div className="cp-aurora" aria-hidden="true" />
-        <Loader2 className="h-9 w-9 animate-spin text-emerald-700" />
+        <Loader2 className="h-9 w-9 animate-spin text-green-700" />
       </div>
     )
   }
@@ -414,7 +414,7 @@ export default function ManagementCompaniesPage() {
       <div className="cp-aurora" aria-hidden="true" />
       <div className="cp-dots" aria-hidden="true" />
       <div className="cp-blob -start-24 top-0 h-80 w-80 bg-amber-200/60" aria-hidden="true" />
-      <div className="cp-blob -end-24 bottom-0 h-96 w-96 bg-emerald-200/50 [animation-delay:-6s]" aria-hidden="true" />
+      <div className="cp-blob -end-24 bottom-0 h-96 w-96 bg-green-200/50 [animation-delay:-6s]" aria-hidden="true" />
 
       <header className="sticky top-0 z-20 border-b border-[#ece3d3] bg-[#f8f4ec]/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
@@ -446,18 +446,18 @@ export default function ManagementCompaniesPage() {
       <main className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <section className="cp-rise mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#ece3d3] bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 backdrop-blur">
+            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#ece3d3] bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-green-700 backdrop-blur">
               <Sparkles className="h-3.5 w-3.5" />{tr("بوابة الشركات")}
             </p>
             <h1 className="text-4xl font-black leading-tight sm:text-5xl">
-              {tr("شركاتي ")}<span className="bg-gradient-to-l from-emerald-300 via-cyan-300 to-violet-300 bg-clip-text text-transparent">{tr("بضغطة واحدة")}</span>
+              {tr("شركاتي ")}<span className="bg-gradient-to-l from-green-300 via-lime-300 to-lime-300 bg-clip-text text-transparent">{tr("بضغطة واحدة")}</span>
             </h1>
             <p className="mt-3 max-w-xl text-[15px] leading-7 text-slate-600">{tr("اختر شركة للمتابعة إلى نظامها، أو أضف شركة جديدة أو تجريبية.")}</p>
           </div>
           <div className="grid grid-cols-3 gap-3 sm:min-w-[420px]">
             {[
-              { icon: Building2, label: tr("كل الشركات"), value: companies.length, tone: "text-cyan-700" },
-              { icon: CheckCircle2, label: tr("جاهزة للدخول"), value: readyCount, tone: "text-emerald-700" },
+              { icon: Building2, label: tr("كل الشركات"), value: companies.length, tone: "text-lime-700" },
+              { icon: CheckCircle2, label: tr("جاهزة للدخول"), value: readyCount, tone: "text-green-700" },
               { icon: Hourglass, label: tr("بانتظار الموافقة"), value: pendingCount, tone: "text-amber-700" },
             ].map((stat) => (
               <div key={stat.label} className="cp-glass rounded-2xl p-3.5">
@@ -476,7 +476,7 @@ export default function ManagementCompaniesPage() {
           </div>
         )}
         {notice && (
-          <div className="mb-6 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <div className="mb-6 flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />{notice}
           </div>
         )}
@@ -508,12 +508,12 @@ export default function ManagementCompaniesPage() {
                     }
                   }}
                   className={
-                    "cp-card-in group flex min-h-[230px] flex-col gap-4 p-6 text-start outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 " +
+                    "cp-card-in group flex min-h-[230px] flex-col gap-4 p-6 text-start outline-none focus-visible:ring-2 focus-visible:ring-green-400/60 " +
                     (canOpenCompany ? "cursor-pointer" : ["awaiting_payment", "provisioning", "provisioning_failed", "approved"].includes(company.status) ? "cursor-default" : "cursor-not-allowed opacity-60")
                   }
                 >
                   <div className="flex w-full items-start justify-between">
-                    <div className={"grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br text-xl font-black text-white shadow-[0_12px_30px_-10px_rgba(16,185,129,.7)] ring-1 ring-white/25 " + paletteFor(company.id)}>
+                    <div className={"grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br text-xl font-black text-white shadow-[0_12px_30px_-10px_rgba(46,139,58,.7)] ring-1 ring-white/25 " + paletteFor(company.id)}>
                       {isSelecting ? <Loader2 className="h-6 w-6 animate-spin" /> : company.name.trim().charAt(0).toUpperCase() || <Building2 className="h-6 w-6" />}
                     </div>
                     <span className={"inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold " + status.classes}>
@@ -525,7 +525,7 @@ export default function ManagementCompaniesPage() {
                   <div className="flex flex-1 flex-col gap-2">
                     <h3 className="line-clamp-2 text-lg font-black text-slate-900">{company.name}</h3>
                     {company.is_trial && (
-                      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-700 ring-1 ring-violet-200">
+                      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-lime-50 px-2.5 py-1 text-[11px] font-bold text-lime-700 ring-1 ring-lime-200">
                         <Gift className="h-3 w-3" />
                         {tr("نسخة تجريبية")}
                       </span>
@@ -552,9 +552,9 @@ export default function ManagementCompaniesPage() {
                   </div>
 
                   {company.status === "provisioning" && !company.provisioning_stale && (
-                    <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="space-y-2 rounded-2xl border border-green-200 bg-green-50 p-3">
                       <div className="cp-progress" />
-                      <p className="text-xs leading-5 text-emerald-700">{tr("تم استلام الدفع — يتم الآن تجهيز قاعدة بيانات الشركة واعتمادها تلقائياً، لحظات وتصبح جاهزة.")}</p>
+                      <p className="text-xs leading-5 text-green-700">{tr("تم استلام الدفع — يتم الآن تجهيز قاعدة بيانات الشركة واعتمادها تلقائياً، لحظات وتصبح جاهزة.")}</p>
                     </div>
                   )}
                   {(company.status === "provisioning_failed" || (company.status === "provisioning" && company.provisioning_stale)) && (
@@ -597,7 +597,7 @@ export default function ManagementCompaniesPage() {
                     </button>
                   )}
                   {canOpenCompany && (
-                    <span className="inline-flex items-center gap-1.5 self-start text-sm font-black text-emerald-700 transition group-hover:text-emerald-800">
+                    <span className="inline-flex items-center gap-1.5 self-start text-sm font-black text-green-700 transition group-hover:text-green-800">
                       {tr("دخول الشركة ")}<ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                     </span>
                   )}
@@ -606,32 +606,32 @@ export default function ManagementCompaniesPage() {
             )
           })}
 
-          <button type="button" onClick={() => setShowAddDialog(true)} className="cp-action cp-rise group flex min-h-[230px] flex-col items-center justify-center gap-3 p-8 text-slate-600 hover:text-emerald-800">
-            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/80 ring-1 ring-[#ece3d3] transition group-hover:bg-emerald-50 group-hover:ring-emerald-200">
+          <button type="button" onClick={() => setShowAddDialog(true)} className="cp-action cp-rise group flex min-h-[230px] flex-col items-center justify-center gap-3 p-8 text-slate-600 hover:text-green-800">
+            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/80 ring-1 ring-[#ece3d3] transition group-hover:bg-green-50 group-hover:ring-green-200">
               <Plus className="h-7 w-7" />
             </span>
             <span className="text-base font-black">{tr("اضافة شركة جديدة")}</span>
             <span className="text-xs text-stone-500">{paymentEnabled ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("ادفع إلكترونياً وتُفعَّل فوراً") : tr("أرسل طلبك للمبيعات وتُفعَّل بعد الاعتماد")) : tr("تُفعَّل بعد موافقة إدارة النظام")}</span>
           </button>
 
-          <button type="button" disabled={trialLimitReached} onClick={() => setShowTrialDialog(true)} className="cp-action is-trial cp-rise group flex min-h-[230px] flex-col items-center justify-center gap-3 p-8 text-violet-700 disabled:cursor-not-allowed disabled:opacity-60">
-            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-violet-50 ring-1 ring-violet-200 transition group-hover:bg-violet-500/25">
+          <button type="button" disabled={trialLimitReached} onClick={() => setShowTrialDialog(true)} className="cp-action is-trial cp-rise group flex min-h-[230px] flex-col items-center justify-center gap-3 p-8 text-lime-700 disabled:cursor-not-allowed disabled:opacity-60">
+            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-lime-50 ring-1 ring-lime-200 transition group-hover:bg-lime-500/25">
               <Gift className="h-7 w-7" />
             </span>
             <span className="text-base font-black">{tr("شركة تجريبية")}</span>
             {/* معلومة الانتهاء على الزر نفسه بلا حاجة لفتح الحوار؛ التاريخ الفعلي (اليوم + المدة) يُحسب داخل الحوار. */}
-            <span className="text-xs text-violet-700/80">{trialLimitReached ? tr("استخدمت الحد الأقصى: شركتان تجريبيتان") : <>{tr("مجانية لمدة ")}{TRIAL_EXPIRY_DAYS}{tr(" أيام — اعتماد فوري بلا انتظار")}</>}</span>
+            <span className="text-xs text-lime-700/80">{trialLimitReached ? tr("استخدمت الحد الأقصى: شركتان تجريبيتان") : <>{tr("مجانية لمدة ")}{TRIAL_EXPIRY_DAYS}{tr(" أيام — اعتماد فوري بلا انتظار")}</>}</span>
           </button>
         </div>
 
         {companies.length === 0 && (
           <p className="mt-10 text-center text-sm text-stone-500">
-            <Sparkles className="mx-auto mb-2 h-5 w-5 text-emerald-700" />
+            <Sparkles className="mx-auto mb-2 h-5 w-5 text-green-700" />
             {tr("لا توجد شركات بعد — أضف أول شركة لك للبدء باستخدام النظام")}
           </p>
         )}
 
-        <p className="mt-12 flex items-center justify-center gap-1.5 text-xs text-stone-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />{tr("اتصال مشفّر · ")}<span dir="ltr">Noon ERP</span></p>
+        <p className="mt-12 flex items-center justify-center gap-1.5 text-xs text-stone-500"><ShieldCheck className="h-3.5 w-3.5 text-green-600" />{tr("اتصال مشفّر · ")}<span dir="ltr">Noon ERP</span></p>
         <div className="mt-2 flex justify-center"><PoweredBy /></div>
       </main>
 
@@ -664,7 +664,7 @@ export default function ManagementCompaniesPage() {
         <DialogContent dir={appDir()} className="cp-dialog max-w-md">
           <style dangerouslySetInnerHTML={{ __html: css }} />
           <DialogHeader className="text-start">
-            <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Building2 className="h-5 w-5 text-emerald-700" />{tr("اضافة شركة جديدة")}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Building2 className="h-5 w-5 text-green-700" />{tr("اضافة شركة جديدة")}</DialogTitle>
             <DialogDescription className="text-stone-500">{paymentEnabled ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("ادفع الاشتراك إلكترونياً وتُفعَّل الشركة فوراً.") : tr("أرسل طلبك لفريق المبيعات وتُفعَّل الشركة لسنة كاملة فور اعتمادها.")) : tr("تُرسل للموافقة من إدارة النظام قبل تفعيلها.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -692,10 +692,10 @@ export default function ManagementCompaniesPage() {
           {paymentEnabled && pricing ? (() => {
             const quote = priceFor(pricing, { users: Number(newCompanyUsers) || 1, branches: Number(newCompanyBranches) || 1, posPoints: Number(newCompanyPosPoints) || 0, restaurantLocations: Number(newCompanyRestaurants) || 0 })
             return (
-              <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                <p className="flex items-center gap-2 text-sm font-black text-emerald-700"><CreditCard className="h-4 w-4" />{tr("تكلفة الاشتراك السنوي")}</p>
+              <div className="space-y-2 rounded-2xl border border-green-200 bg-green-50 p-4">
+                <p className="flex items-center gap-2 text-sm font-black text-green-700"><CreditCard className="h-4 w-4" />{tr("تكلفة الاشتراك السنوي")}</p>
                 {/* أسعار الإضافات: كم يزيد الاشتراك عند زيادة كل عدد */}
-                <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-emerald-100 bg-white/70 p-2">
+                <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-green-100 bg-white/70 p-2">
                   {[
                     { label: tr("كل مستخدم إضافي"), amount: pricing.per_user },
                     { label: tr("كل فرع إضافي"), amount: pricing.per_branch },
@@ -704,14 +704,14 @@ export default function ManagementCompaniesPage() {
                   ].map((price) => (
                     <div key={price.label} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1 text-[11px] text-slate-600">
                       <span>{price.label}</span>
-                      <span className="font-bold tabular-nums text-emerald-700" dir="ltr">+{Number(price.amount || 0).toFixed(2)} {quote.currency}</span>
+                      <span className="font-bold tabular-nums text-green-700" dir="ltr">+{Number(price.amount || 0).toFixed(2)} {quote.currency}</span>
                     </div>
                   ))}
                 </div>
                 {quote.lines.filter((line) => line.amount > 0).map((line) => (
                   <div key={line.label} className="flex justify-between text-xs text-slate-600"><span>{line.label}</span><span className="tabular-nums" dir="ltr">{line.amount.toFixed(2)}</span></div>
                 ))}
-                <div className="flex justify-between border-t border-[#ece3d3] pt-2 text-base font-black"><span>{tr("الإجمالي")}</span><span className="tabular-nums text-emerald-700" dir="ltr">{quote.total.toFixed(2)} {quote.currency}</span></div>
+                <div className="flex justify-between border-t border-[#ece3d3] pt-2 text-base font-black"><span>{tr("الإجمالي")}</span><span className="tabular-nums text-green-700" dir="ltr">{quote.total.toFixed(2)} {quote.currency}</span></div>
                 <p className="text-[11px] leading-5 text-stone-500">{ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("الدفع ببطاقة عبر بوابة لحظة الآمنة، وتُنشأ الشركة فوراً بعد نجاح الدفع.") : tr("بعد الإنشاء أرسل بطاقة لفريق المبيعات، وتُفعَّل الشركة لسنة كاملة فور اعتمادها.")}</p>
                 {ONLINE_COMPANY_PAYMENT_VISIBLE && paymentTestMode && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-5 text-amber-700" dir={appDir()}>{tr("وضع تجريبي: استخدم البطاقة ")}<span dir="ltr" className="font-mono">4111 1111 1111 1111</span>{tr(" — تاريخ ")}<span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
               </div>
@@ -739,7 +739,7 @@ export default function ManagementCompaniesPage() {
         <DialogContent dir={appDir()} className="cp-dialog max-w-md">
           <style dangerouslySetInnerHTML={{ __html: css }} />
           <DialogHeader className="text-start">
-            <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Gift className="h-5 w-5 text-violet-700" />{tr("شركة تجريبية")}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Gift className="h-5 w-5 text-lime-700" />{tr("شركة تجريبية")}</DialogTitle>
             <DialogDescription className="text-stone-500">{tr("تجربة كاملة للنظام بلا انتظار موافقة.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -751,8 +751,8 @@ export default function ManagementCompaniesPage() {
             <input id="trial-company-mobile" type="tel" inputMode="tel" dir="ltr" placeholder="05XXXXXXXX" value={trialMobile} onChange={(e) => setTrialMobile(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && trialCompanyName.trim() && trialMobileValid && !trialSaving) void handleAddTrialCompany() }} className="cp-field text-start" aria-invalid={Boolean(trialMobile.trim()) && !trialMobileValid} />
             {trialMobile.trim() && !trialMobileValid && <p className="text-xs font-semibold text-rose-600">{tr("رقم الجوال غير صحيح")}</p>}
           </div>
-          <div className="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-sm leading-6 text-violet-700">
-            <Clock className="mt-1 h-4 w-4 shrink-0 text-violet-700" />
+          <div className="flex items-start gap-2 rounded-xl border border-lime-200 bg-lime-50 px-3 py-2.5 text-sm leading-6 text-lime-700">
+            <Clock className="mt-1 h-4 w-4 shrink-0 text-lime-700" />
             <span>
               {tr("ستُعتمَد الشركة فوراً بلا انتظار موافقة، وتنتهي صلاحيتها تلقائياً بعد ")}{TRIAL_EXPIRY_DAYS}{tr(" أيام من الآن — بتاريخ")}{" "}
               <strong>{formatArabicDate(new Date(Date.now() + TRIAL_EXPIRY_DAYS * 24 * 60 * 60 * 1000))}</strong>.

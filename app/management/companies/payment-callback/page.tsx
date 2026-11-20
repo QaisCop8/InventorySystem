@@ -15,9 +15,9 @@ type Result =
 
 const css = `
 .pc-root{position:relative;isolation:isolate;min-height:100vh;overflow:hidden;background:#050b14;color:#fff}
-.pc-aurora{position:fixed;inset:0;z-index:-2;background:radial-gradient(60% 50% at 15% 10%,rgba(16,185,129,.3),transparent 70%),radial-gradient(50% 45% at 90% 20%,rgba(56,189,248,.2),transparent 70%),radial-gradient(55% 55% at 80% 95%,rgba(139,92,246,.2),transparent 70%),#050b14}
-.pc-card{border-radius:28px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(160deg,rgba(13,22,36,.94),rgba(8,15,26,.96));box-shadow:0 50px 90px -35px rgba(0,0,0,.9),0 0 80px -30px rgba(16,185,129,.5)}
-.pc-btn{border-radius:14px;background:linear-gradient(100deg,#10b981,#06b6d4);border-bottom:4px solid #0a6a63;box-shadow:0 18px 30px -14px rgba(16,185,129,.8);transition:transform .12s,filter .2s}
+.pc-aurora{position:fixed;inset:0;z-index:-2;background:radial-gradient(60% 50% at 15% 10%,rgba(46,139,58,.3),transparent 70%),radial-gradient(50% 45% at 90% 20%,rgba(158,211,106,.2),transparent 70%),radial-gradient(55% 55% at 80% 95%,rgba(110,180,60,.2),transparent 70%),#050b14}
+.pc-card{border-radius:28px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(160deg,rgba(13,22,36,.94),rgba(8,15,26,.96));box-shadow:0 50px 90px -35px rgba(0,0,0,.9),0 0 80px -30px rgba(46,139,58,.5)}
+.pc-btn{border-radius:14px;background:linear-gradient(100deg,#2e8b3a,#7cc142);border-bottom:4px solid #145a22;box-shadow:0 18px 30px -14px rgba(46,139,58,.8);transition:transform .12s,filter .2s}
 .pc-btn:hover{filter:brightness(1.08);transform:translateY(-2px)}
 `
 
@@ -57,13 +57,13 @@ function PaymentCallback() {
       <div className="pc-card w-full max-w-md p-8 text-center">
         {result.kind === "checking" || result.kind === "provisioning" ? (
           <>
-            <Loader2 className="mx-auto h-14 w-14 animate-spin text-emerald-300" />
+            <Loader2 className="mx-auto h-14 w-14 animate-spin text-green-300" />
             <h1 className="mt-5 text-2xl font-black">{result.kind === "checking" ? tr("جاري التحقق من الدفع…") : tr("تم الدفع — جاري إنشاء شركتك…")}</h1>
             <p className="mt-2 text-sm leading-7 text-slate-400">{result.kind === "checking" ? tr("نتأكد من عملية الدفع لدى بوابة لحظة.") : tr("يتم تجهيز قاعدة بيانات الشركة، قد يستغرق ذلك دقيقة.")}</p>
           </>
         ) : result.kind === "approved" ? (
           <>
-            <span className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-emerald-400 to-cyan-500 shadow-[0_18px_40px_-12px_rgba(16,185,129,.9)]"><CheckCircle2 className="h-10 w-10 text-white" /></span>
+            <span className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-green-400 to-lime-500 shadow-[0_18px_40px_-12px_rgba(46,139,58,.9)]"><CheckCircle2 className="h-10 w-10 text-white" /></span>
             <h1 className="mt-6 text-2xl font-black">{tr("تم الدفع وإنشاء الشركة 🎉")}</h1>
             <p className="mt-2 text-sm leading-7 text-slate-400">{tr("شركة ")}<b className="text-white">{result.companyName}</b>{tr(" جاهزة، واشتراكها ساري لمدة سنة.")}</p>
             <a href="/management/companies" className="pc-btn mt-7 inline-flex h-12 w-full items-center justify-center gap-2 text-sm font-black text-white">{tr("الذهاب إلى شركاتي")}<ArrowLeft className="h-4 w-4" /></a>

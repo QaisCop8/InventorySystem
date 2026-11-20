@@ -420,7 +420,7 @@ export default function ManagementAdminPage() {
       <div dir={appDir()} className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-50 px-4 text-center">
         <ShieldAlert className="h-12 w-12 text-red-400" />
         <p className="text-slate-600">{tr("لا تملك صلاحية الوصول لهذه الصفحة")}</p>
-        <Link href="/management/companies" className="text-sm text-violet-600 hover:underline">
+        <Link href="/management/companies" className="text-sm text-green-600 hover:underline">
           {tr("العودة لشركاتي")}
         </Link>
       </div>
@@ -437,7 +437,7 @@ export default function ManagementAdminPage() {
               type="button"
               onClick={() => void refreshAll()}
               disabled={refreshing}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-sm font-medium text-violet-700 transition hover:bg-violet-50 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-white px-3 py-1.5 text-sm font-medium text-green-700 transition hover:bg-green-50 disabled:opacity-60"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               {tr("تحديث")}
@@ -451,19 +451,19 @@ export default function ManagementAdminPage() {
         <div className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-200">
           <button
             onClick={() => setTab("pending")}
-            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "pending" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "pending" ? "border-b-2 border-green-600 text-green-700" : "text-slate-500"}`}
           >
             {tr("الشركات بانتظار الموافقة")}
           </button>
           <button
             onClick={() => setTab("companies")}
-            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "companies" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "companies" ? "border-b-2 border-green-600 text-green-700" : "text-slate-500"}`}
           >
             {tr("الشركات")}
           </button>
           <button
             onClick={() => setTab("licenses")}
-            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "licenses" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "licenses" ? "border-b-2 border-green-600 text-green-700" : "text-slate-500"}`}
           >
             {tr("طلبات الترخيص")}
             {allCompanies.reduce((sum, company) => sum + Number(company.pending_license_requests || 0), 0) > 0 && (
@@ -474,43 +474,43 @@ export default function ManagementAdminPage() {
           </button>
           <button
             onClick={() => setTab("users")}
-            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "users" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "users" ? "border-b-2 border-green-600 text-green-700" : "text-slate-500"}`}
           >
             {tr("المستخدمون")}
           </button>
           <button
             onClick={() => setTab("login-report")}
-            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "login-report" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "login-report" ? "border-b-2 border-green-600 text-green-700" : "text-slate-500"}`}
           >
             {tr("سجل الدخول")}
           </button>
           <button
             onClick={() => setTab("site-activity")}
-            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "site-activity" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "site-activity" ? "border-b-2 border-green-600 text-green-700" : "text-slate-500"}`}
           >
             {tr("سجل الدخول للموقع")}
           </button>
           <button
             onClick={() => setTab("permissions")}
-            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "permissions" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "permissions" ? "border-b-2 border-green-600 text-green-700" : "text-slate-500"}`}
           >
             {tr("تعريف الصلاحيات")}
           </button>
           <button
             onClick={() => setTab("pricing")}
-            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "pricing" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "pricing" ? "border-b-2 border-green-600 text-green-700" : "text-slate-500"}`}
           >
             {tr("الأسعار")}
           </button>
           <button
             onClick={() => setTab("feature-requests")}
-            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "feature-requests" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "feature-requests" ? "border-b-2 border-green-600 text-green-700" : "text-slate-500"}`}
           >
             {tr("بريد الرسائل والتحسينات")}
           </button>
           <button
             onClick={() => setTab("backups")}
-            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "backups" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "backups" ? "border-b-2 border-green-600 text-green-700" : "text-slate-500"}`}
           >
             {tr("النسخ الاحتياطي")}
           </button>
@@ -577,7 +577,7 @@ export default function ManagementAdminPage() {
                         : tr("موقوفة")
                 const statusClasses =
                   company.status === "approved"
-                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
+                    ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-200"
                     : company.status === "pending"
                       ? "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200"
                       : company.status === "rejected"
@@ -603,7 +603,7 @@ export default function ManagementAdminPage() {
                         </div>
                       )}
                       <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
-                        <Database className="h-3.5 w-3.5 text-violet-600" />
+                        <Database className="h-3.5 w-3.5 text-green-600" />
                         {tr("مساحة قاعدة البيانات: ")}<span dir="ltr" className="font-semibold tabular-nums text-slate-800">{formatDatabaseStorage(company.storage_bytes)}</span>
                       </div>
                       {company.expiry_date && (
@@ -620,7 +620,7 @@ export default function ManagementAdminPage() {
                           variant="outline"
                           className={
                             company.status === "stopped"
-                              ? "gap-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                              ? "gap-1 border-green-200 text-green-600 hover:bg-green-50"
                               : "gap-1 border-amber-200 text-amber-700 hover:bg-amber-50"
                           }
                           disabled={subscriptionBusyId === company.id}
@@ -640,7 +640,7 @@ export default function ManagementAdminPage() {
                       {expired && (
                         <Button
                           size="sm"
-                          className="gap-1 bg-violet-600 text-white hover:bg-violet-700"
+                          className="gap-1 bg-green-600 text-white hover:bg-green-700"
                           disabled={subscriptionBusyId === company.id}
                           onClick={() => handleSubscriptionAction(company.id, "extend")}
                         >
@@ -670,7 +670,7 @@ export default function ManagementAdminPage() {
                     <div className="flex items-center gap-2 font-semibold text-slate-800">
                       {user.full_name}
                       {user.is_platform_admin && (
-                        <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-200">
+                        <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-200">
                           {tr("مسؤول الموقع")}
                         </span>
                       )}
@@ -682,7 +682,7 @@ export default function ManagementAdminPage() {
                     </div>
                     <div className="text-sm text-slate-500">{user.email}</div>
                     {user.mobile ? (
-                      <a href={`tel:${user.mobile}`} className="mt-0.5 inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:underline" dir="ltr">
+                      <a href={`tel:${user.mobile}`} className="mt-0.5 inline-flex items-center gap-1 text-sm font-medium text-green-700 hover:underline" dir="ltr">
                         <Phone className="h-3.5 w-3.5" />{user.mobile}
                       </a>
                     ) : (
@@ -690,13 +690,13 @@ export default function ManagementAdminPage() {
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                  <Button size="sm" variant="outline" className="gap-1 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={() => setPasswordUser(user)}>
+                  <Button size="sm" variant="outline" className="gap-1 border-green-200 text-green-700 hover:bg-green-50" onClick={() => setPasswordUser(user)}>
                     <KeyRound className="h-4 w-4" />{tr(" تغيير كلمة المرور")}
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    className={user.is_active ? "gap-1 border-red-200 text-red-600 hover:bg-red-50" : "gap-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50"}
+                    className={user.is_active ? "gap-1 border-red-200 text-red-600 hover:bg-red-50" : "gap-1 border-green-200 text-green-600 hover:bg-green-50"}
                     disabled={busyId === user.id}
                     onClick={() => handleToggleUser(user)}
                   >

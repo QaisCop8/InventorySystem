@@ -46,9 +46,9 @@ export default function VerifyEmailPage() {
         )}
         {status === "success" && (
           <>
-            <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
+            <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-green-600" />
             <h1 className="text-xl font-bold text-slate-900">{tr("تم تأكيد البريد الإلكتروني بنجاح")}</h1>
-            <Link href="/management/login" className="mt-6 inline-block text-sm font-medium text-violet-600 hover:underline">
+            <Link href="/management/login" className="mt-6 inline-block text-sm font-medium text-green-700 hover:underline">
               {tr("الذهاب لتسجيل الدخول")}
             </Link>
           </>
@@ -58,7 +58,7 @@ export default function VerifyEmailPage() {
             <XCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
             <h1 className="text-xl font-bold text-slate-900">{tr("تعذّر تأكيد البريد الإلكتروني")}</h1>
             <p className="mt-2 text-sm text-slate-500">{error}</p>
-            <Link href="/management/login" className="mt-6 inline-block text-sm font-medium text-violet-600 hover:underline">
+            <Link href="/management/login" className="mt-6 inline-block text-sm font-medium text-green-700 hover:underline">
               {tr("الذهاب لتسجيل الدخول")}
             </Link>
           </>

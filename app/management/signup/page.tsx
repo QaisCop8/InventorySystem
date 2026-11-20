@@ -17,9 +17,9 @@ const css = `
 .su-root{--mx:0;--my:0;position:relative;isolation:isolate;overflow:hidden;background:#f8f4ec;color:#0f172a}
 .su-aurora{position:absolute;inset:0;z-index:-2;background:
   radial-gradient(60% 50% at 85% 10%,rgba(217,186,140,.28),transparent 70%),
-  radial-gradient(50% 45% at 10% 20%,rgba(16,185,129,.07),transparent 70%),
+  radial-gradient(50% 45% at 10% 20%,rgba(46,139,58,.07),transparent 70%),
   radial-gradient(55% 55% at 20% 95%,rgba(232,213,180,.35),transparent 70%),
-  radial-gradient(45% 45% at 90% 90%,rgba(20,184,166,.06),transparent 70%),linear-gradient(180deg,#fbf8f2,#f5efe4)}
+  radial-gradient(45% 45% at 90% 90%,rgba(124,193,66,.06),transparent 70%),linear-gradient(180deg,#fbf8f2,#f5efe4)}
 .su-blob{position:absolute;border-radius:9999px;filter:blur(70px);z-index:-1;opacity:.35;animation:su-drift 16s ease-in-out infinite}
 @keyframes su-drift{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(-40px,-50px,0) scale(1.12)}}
 .su-dots{position:absolute;inset:0;z-index:-1;opacity:.5;background-image:radial-gradient(rgba(120,90,50,.16) 1px,transparent 1.2px);background-size:26px 26px;
@@ -27,17 +27,17 @@ const css = `
 .su-wrap{perspective:1400px;width:100%;max-width:480px}
 .su-card{position:relative;border-radius:30px;padding:2px;transform-style:preserve-3d;
   transform:rotateX(calc(var(--my)*-4deg)) rotateY(calc(var(--mx)*5deg));transition:transform .2s ease-out;
-  background:conic-gradient(from var(--su-angle),rgba(16,185,129,0),#10b981,#38bdf8,#a78bfa,rgba(16,185,129,0) 60%);animation:su-spin 7s linear infinite;
-  box-shadow:0 40px 80px -40px rgba(120,90,50,.35),0 0 60px -30px rgba(16,185,129,.35)}
+  background:conic-gradient(from var(--su-angle),rgba(46,139,58,0),#2e8b3a,#9ed36a,#1f7a33,rgba(46,139,58,0) 60%);animation:su-spin 7s linear infinite;
+  box-shadow:0 40px 80px -40px rgba(120,90,50,.35),0 0 60px -30px rgba(46,139,58,.35)}
 @keyframes su-spin{to{--su-angle:360deg}}
 .su-card-in{border-radius:28px;background:#fffdf9;box-shadow:0 1px 0 rgba(255,255,255,.9) inset}
 .su-field{height:3.1rem;width:100%;border-radius:14px;border:1px solid #e7dccb;background:#fff;font-size:15px;color:#0f172a;outline:none;
   box-shadow:inset 0 1px 2px rgba(120,90,50,.08);transition:border-color .2s,background .2s,box-shadow .2s}
 .su-field::placeholder{color:#a8a29e}
-.su-field:focus{border-color:#10b981;background:#fff;box-shadow:0 0 0 4px rgba(16,185,129,.15)}
+.su-field:focus{border-color:#2e8b3a;background:#fff;box-shadow:0 0 0 4px rgba(46,139,58,.15)}
 .su-field:-webkit-autofill{-webkit-text-fill-color:#0f172a;box-shadow:0 0 0 40px #fff inset}
-.su-btn{position:relative;overflow:hidden;border-radius:14px;background:linear-gradient(100deg,#10b981,#06b6d4);border-bottom:4px solid #0a6a63;
-  box-shadow:0 18px 30px -14px rgba(16,185,129,.8);transition:transform .12s,border-bottom-width .12s,box-shadow .2s,filter .2s}
+.su-btn{position:relative;overflow:hidden;border-radius:14px;background:linear-gradient(100deg,#2e8b3a,#7cc142);border-bottom:4px solid #145a22;
+  box-shadow:0 18px 30px -14px rgba(46,139,58,.8);transition:transform .12s,border-bottom-width .12s,box-shadow .2s,filter .2s}
 .su-btn::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.45) 50%,transparent 65%);transform:translateX(-120%);transition:transform .7s}
 .su-btn:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-2px)}
 .su-btn:hover:not(:disabled)::after{transform:translateX(120%)}
@@ -67,8 +67,8 @@ function passwordStrength(password: string) {
   return [
     { score: 1, label: tr("ضعيفة"), color: "bg-rose-400" },
     { score: 2, label: tr("مقبولة"), color: "bg-amber-300" },
-    { score: 3, label: tr("جيدة"), color: "bg-cyan-300" },
-    { score: 4, label: tr("قوية"), color: "bg-emerald-400" },
+    { score: 3, label: tr("جيدة"), color: "bg-lime-300" },
+    { score: 4, label: tr("قوية"), color: "bg-green-400" },
   ][level - 1]
 }
 
@@ -136,7 +136,7 @@ export default function ManagementSignupPage() {
       <div className="su-aurora" aria-hidden="true" />
       <div className="su-dots" aria-hidden="true" />
       <div className="su-blob -end-24 top-0 h-80 w-80 bg-amber-200/60" aria-hidden="true" />
-      <div className="su-blob -start-24 bottom-0 h-96 w-96 bg-emerald-200/50 [animation-delay:-6s]" aria-hidden="true" />
+      <div className="su-blob -start-24 bottom-0 h-96 w-96 bg-green-200/50 [animation-delay:-6s]" aria-hidden="true" />
 
       <section className="relative flex min-h-screen flex-col items-center justify-center px-5 py-10 sm:px-8">
         <div className="mb-8 lg:hidden"><Wordmark /></div>
@@ -145,7 +145,7 @@ export default function ManagementSignupPage() {
             <div className="su-card-in p-7 sm:p-9">
               {success ? (
                 <div className="py-4 text-center">
-                  <span className="su-pop mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-emerald-400 to-cyan-500 shadow-[0_18px_40px_-12px_rgba(16,185,129,.9)] ring-1 ring-white/30">
+                  <span className="su-pop mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-green-400 to-lime-500 shadow-[0_18px_40px_-12px_rgba(46,139,58,.9)] ring-1 ring-white/30">
                     <CheckCircle2 className="h-10 w-10 text-white" />
                   </span>
                   <h2 className="mt-6 text-[1.75rem] font-black">{tr("تم إنشاء الحساب بنجاح! 🎉")}</h2>
@@ -157,7 +157,7 @@ export default function ManagementSignupPage() {
               ) : (
                 <>
                   <div className="mb-7">
-                    <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200"><UserPlus className="h-3.5 w-3.5" />{tr("حساب إدارة جديد")}</span>
+                    <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-[11px] font-bold text-green-700 ring-1 ring-green-200"><UserPlus className="h-3.5 w-3.5" />{tr("حساب إدارة جديد")}</span>
                     <h1 className="text-[1.75rem] font-black leading-tight">{tr("أنشئ حسابك ✨")}</h1>
                     <p className="mt-1.5 text-sm text-stone-500">{tr("دقيقة واحدة وتبدأ بإدارة شركاتك من بوابة واحدة")}</p>
                   </div>
@@ -232,7 +232,7 @@ export default function ManagementSignupPage() {
                           </div>
                         )}
                         {form.confirmPassword && (
-                          <p className={`flex items-center gap-1.5 text-xs font-semibold ${confirmMismatch ? "text-rose-600" : "text-emerald-700"}`}>
+                          <p className={`flex items-center gap-1.5 text-xs font-semibold ${confirmMismatch ? "text-rose-600" : "text-green-700"}`}>
                             {confirmMismatch ? <AlertCircle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                             {confirmMismatch ? tr("كلمتا المرور غير متطابقتين") : tr("كلمتا المرور متطابقتان")}
                           </p>
@@ -248,12 +248,12 @@ export default function ManagementSignupPage() {
               )}
 
               <div className="mt-6 border-t border-[#ece3d3] pt-5 text-center text-sm text-stone-500">
-                {tr("لديك حساب بالفعل؟ ")}<Link href="/management/login" className="font-semibold text-emerald-700 transition-colors hover:text-emerald-800">{tr("تسجيل الدخول")}</Link>
+                {tr("لديك حساب بالفعل؟ ")}<Link href="/management/login" className="font-semibold text-green-700 transition-colors hover:text-green-800">{tr("تسجيل الدخول")}</Link>
               </div>
             </div>
           </div>
         </div>
-        <p className="mt-6 flex items-center gap-1.5 text-xs text-stone-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />{tr("اتصال مشفّر · ")}<span dir="ltr">Noon ERP</span></p>
+        <p className="mt-6 flex items-center gap-1.5 text-xs text-stone-500"><ShieldCheck className="h-3.5 w-3.5 text-green-400" />{tr("اتصال مشفّر · ")}<span dir="ltr">Noon ERP</span></p>
         <PoweredBy className="mt-2" />
       </section>
 
@@ -261,12 +261,12 @@ export default function ManagementSignupPage() {
         <div className="su-rise flex justify-end"><Wordmark /></div>
 
         <div className="su-rise max-w-xl [animation-delay:.1s]">
-          <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#ece3d3] bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 backdrop-blur">
+          <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#ece3d3] bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-green-700 backdrop-blur">
             <Sparkles className="h-3.5 w-3.5" />{tr("ابدأ مجاناً")}
           </p>
           <h2 className="text-4xl font-black leading-[1.3] xl:text-[3.25rem]">
             {tr("ابدأ إدارة شركتك")}<br />
-            <span className="bg-gradient-to-l from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">{tr("في دقائق")}</span>
+            <span className="bg-gradient-to-l from-green-600 via-lime-600 to-lime-600 bg-clip-text text-transparent">{tr("في دقائق")}</span>
           </h2>
           <p className="mt-5 max-w-md text-[15px] leading-8 text-slate-600">{tr("أنشئ حساب إدارة، أضف شركتك أو جرّب شركة تجريبية لمدة 10 أيام، وادخل إلى المخزون والمبيعات والحسابات والتقارير من مكان واحد.")}</p>
         </div>
@@ -278,7 +278,7 @@ export default function ManagementSignupPage() {
             { title: tr("ادخل إلى النظام"), text: tr("كل شركة بقاعدة بيانات معزولة") },
           ].map((step, index) => (
             <li key={step.title} className="flex items-center gap-4 rounded-2xl border border-[#ece3d3] bg-white/80 p-3.5 backdrop-blur-xl">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-400/30 to-cyan-400/10 text-base font-black text-emerald-700 ring-1 ring-emerald-200/60">{index + 1}</span>
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-green-400/30 to-lime-400/10 text-base font-black text-green-700 ring-1 ring-green-200/60">{index + 1}</span>
               <span><b className="block text-sm">{step.title}</b><span className="text-xs text-stone-500">{step.text}</span></span>
             </li>
           ))}
@@ -290,8 +290,8 @@ export default function ManagementSignupPage() {
             { icon: ShieldCheck, title: tr("حماية البيانات"), text: tr("تشفير وصلاحيات") },
             { icon: Zap, title: tr("بداية سريعة"), text: tr("إعداد بسيط") },
           ].map((item) => (
-            <div key={item.title} className="rounded-2xl border border-[#ece3d3] bg-white/80 p-3.5 backdrop-blur-xl transition duration-300 hover:-translate-y-1.5 hover:border-emerald-300/30 hover:bg-white">
-              <span className="mb-2 grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-400/25 to-cyan-400/10 text-emerald-700 ring-1 ring-emerald-200/60"><item.icon className="h-[18px] w-[18px]" /></span>
+            <div key={item.title} className="rounded-2xl border border-[#ece3d3] bg-white/80 p-3.5 backdrop-blur-xl transition duration-300 hover:-translate-y-1.5 hover:border-green-300/30 hover:bg-white">
+              <span className="mb-2 grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-green-400/25 to-lime-400/10 text-green-700 ring-1 ring-green-200/60"><item.icon className="h-[18px] w-[18px]" /></span>
               <b className="block text-[13px]">{item.title}</b>
               <span className="text-xs leading-5 text-stone-500">{item.text}</span>
             </div>
