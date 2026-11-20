@@ -55,5 +55,5 @@ export default function ManagementLoginPage() {
     router.push("/management/companies")
   }
 
-  return <ManagementLogin onLogin={handleLogin} footer={<Link href="/management/signup" className="font-semibold text-green-300 transition-colors hover:text-green-200">{tr("إنشاء مستخدم جديد")}</Link>} />
+  return <ManagementLogin onLogin={handleLogin} footer={<Link href="/management/signup" className="font-semibold text-emerald-300 transition-colors hover:text-emerald-200">{tr("إنشاء مستخدم جديد")}</Link>} />
 }

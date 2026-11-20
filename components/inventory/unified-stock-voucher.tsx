@@ -35,7 +35,7 @@ import PrimeDropdown from "@/components/common/FocusDropdown"
 import DateTimeControl from "@/components/common/date-time-control"
 import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
-import { FileText, Package, Calculator, MessageSquare, RefreshCw } from "lucide-react"
+import { FileText, Package, Calculator, MessageSquare, RefreshCw, Layers, Wallet } from "lucide-react"
 import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPayload } from "@/lib/voucher-clipboard"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
@@ -209,8 +209,16 @@ const TYPE_LABELS: Record<StockVoucherType, { title: string }> = {
 
 // نفس تدرّج التبويبات (زمردي←تركوازي عند التفعيل) المُطبَّق أصلاً بـunified-journal.tsx/unified-
 // receipt-voucher.tsx — يُطبَّق هنا أيضاً لتوحيد شكل التبويبات عبر كل شاشات السندات.
+// تجربة تصميم حديث لسند البضاعة فقط (2026-11-20): تبويبات "حبوب" بأيقونة وخط سفلي متوهج عند التفعيل.
 const voucherTabTriggerClass =
-  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
+  "group relative gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-500 transition-all duration-200 hover:bg-emerald-50 hover:text-emerald-700 " +
+  "data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-[0_6px_18px_-8px_rgba(5,150,105,.55)] data-[state=active]:ring-1 data-[state=active]:ring-emerald-200 " +
+  "after:absolute after:inset-x-4 after:-bottom-px after:h-[3px] after:scale-x-0 after:rounded-full after:bg-gradient-to-l after:from-emerald-500 after:to-teal-500 after:transition-transform after:duration-300 data-[state=active]:after:scale-x-100 " +
+  "dark:text-slate-400 dark:hover:bg-slate-800 dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:text-emerald-300 dark:data-[state=active]:ring-emerald-800"
+const voucherTabIconClass =
+  "grid h-6 w-6 place-items-center rounded-lg bg-slate-100 text-slate-500 transition-colors group-hover:bg-emerald-100 group-hover:text-emerald-700 group-data-[state=active]:bg-gradient-to-br group-data-[state=active]:from-emerald-500 group-data-[state=active]:to-teal-500 group-data-[state=active]:text-white dark:bg-slate-800"
+const voucherTabPanelClass =
+  "mt-3 min-h-[360px] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_-18px_rgba(15,23,42,.25)] sm:p-5 data-[state=active]:animate-in data-[state=active]:fade-in-0 dark:border-slate-800 dark:bg-slate-900"
 
 // فئات سعر خاصة (معرّفات سالبة) تُعرَض دائماً في أعلى قائمة "فئة السعر" قبل صفوف جدول pricecategory
 // الحقيقية — نفس فكرة prices_class_list.splice في StockInVoucher.js القديم. "سعر الإنتاج" مُعطَّلة
@@ -2461,9 +2469,15 @@ export default function UnifiedStockVoucher({
           <ProgressSpinner loading={isSaving} />
           <Messages innerRef={messagesRef} />
 
-          <DialogHeader className="mb-2 shrink-0 overflow-hidden rounded-xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-3 py-1.5 shadow-lg sm:rounded-2xl sm:px-5 sm:py-3">
-            <DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-extrabold tracking-tight text-white sm:text-xl">
-              <Package className="h-5 w-5" />
+          <DialogHeader className="relative mb-3 shrink-0 overflow-hidden rounded-xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-500 px-3 py-2 shadow-[0_14px_30px_-16px_rgba(5,150,105,.8)] sm:rounded-2xl sm:px-5 sm:py-3.5">
+            {/* زخرفة خلفية خفيفة: دوائر شفافة + نقاط */}
+            <span aria-hidden className="pointer-events-none absolute -top-10 end-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+            <span aria-hidden className="pointer-events-none absolute -bottom-12 start-1/3 h-28 w-28 rounded-full bg-teal-300/20 blur-2xl" />
+            <span aria-hidden className="pointer-events-none absolute inset-0 opacity-[.12] [background-image:radial-gradient(#fff_1px,transparent_1.2px)] [background-size:16px_16px]" />
+            <DialogTitle className="relative flex flex-wrap items-center gap-2.5 text-lg font-extrabold tracking-tight text-white sm:text-xl">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/15 shadow-inner ring-1 ring-white/30 backdrop-blur">
+                <Package className="h-5 w-5" />
+              </span>
               {labels.title}
               {form.id > 0 ? (
                 <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{form.vch_code}</span>
@@ -2488,9 +2502,12 @@ export default function UnifiedStockVoucher({
               disabled صريح على الحقل نفسه. لذا كل حقل هنا يحمل disabled={isLocked} صراحة عدا رقم السند. */}
           <>
             {/* تفاصيل السند (يضم أيضاً العميل/المستودعات ضمن نفس البطاقة) */}
-            <div className="stock-voucher-details-fields min-w-0 space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-2xl sm:p-5">
-              <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
-                <FileText className="h-3.5 w-3.5" />
+            <div className="stock-voucher-details-fields relative min-w-0 space-y-3 overflow-hidden rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_10px_30px_-18px_rgba(15,23,42,.25)] sm:rounded-2xl sm:p-5 dark:border-slate-800 dark:bg-slate-900">
+              <span aria-hidden className="absolute inset-y-0 start-0 w-1 bg-gradient-to-b from-emerald-500 to-teal-400" />
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3 text-sm font-bold text-slate-800 dark:border-slate-800 dark:text-slate-100">
+                <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-sm">
+                  <FileText className="h-3.5 w-3.5" />
+                </span>
                 {tr("تفاصيل السند")}
               </div>
               <div className="grid gap-3">
@@ -2681,15 +2698,33 @@ export default function UnifiedStockVoucher({
             {/* dir صريح هنا (بدل الاعتماد فقط على وراثته من DialogContent) لضمان أن "الاصناف" —
                 أول عنصر بترتيب DOM — يظهر في أقصى اليمين دائماً، بصرف النظر عن أي تعارض في تتالي
                 الاتجاه عبر بوابة Radix Dialog/Tabs. */}
-            <TabsList dir={appDir()} className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
-              <TabsTrigger value="items" className={voucherTabTriggerClass}>{tr("الاصناف")}</TabsTrigger>
-              <TabsTrigger value="quantities" className={voucherTabTriggerClass}>{tr("تفاصيل كميات الصنف")}</TabsTrigger>
-              {isUseVoucher && <TabsTrigger value="accounts" className={voucherTabTriggerClass}>{tr("تفاصيل حسابات الاصناف")}</TabsTrigger>}
-              <TabsTrigger value="notes" className={voucherTabTriggerClass}>{tr("ملاحظات")}</TabsTrigger>
+            <TabsList dir={appDir()} className="flex h-auto flex-wrap justify-start gap-1.5 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-slate-50 to-slate-100/80 p-1.5 shadow-inner dark:border-slate-800 dark:from-slate-900 dark:to-slate-900">
+              <TabsTrigger value="items" className={voucherTabTriggerClass}>
+                <span className={voucherTabIconClass}><Package className="h-3.5 w-3.5" /></span>
+                {tr("الاصناف")}
+                <span className="min-w-[1.5rem] rounded-full bg-emerald-100 px-1.5 py-0.5 text-center text-[11px] font-bold tabular-nums text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                  {items.filter((r) => r.product_id).length}
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value="quantities" className={voucherTabTriggerClass}>
+                <span className={voucherTabIconClass}><Layers className="h-3.5 w-3.5" /></span>
+                {tr("تفاصيل كميات الصنف")}
+              </TabsTrigger>
+              {isUseVoucher && (
+                <TabsTrigger value="accounts" className={voucherTabTriggerClass}>
+                  <span className={voucherTabIconClass}><Wallet className="h-3.5 w-3.5" /></span>
+                  {tr("تفاصيل حسابات الاصناف")}
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="notes" className={voucherTabTriggerClass}>
+                <span className={voucherTabIconClass}><MessageSquare className="h-3.5 w-3.5" /></span>
+                {tr("ملاحظات")}
+                {String(form.note || "").trim() ? <span className="h-2 w-2 rounded-full bg-amber-400 ring-2 ring-amber-100" /> : null}
+              </TabsTrigger>
             </TabsList>
 
             <fieldset className="contents">
-              <TabsContent value="items" className="mt-4 min-h-[360px] flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 data-[state=active]:flex data-[state=active]:flex-col">
+              <TabsContent value="items" className={`${voucherTabPanelClass} flex-1 data-[state=active]:flex data-[state=active]:flex-col`}>
                 <div className="flex min-h-[300px] w-full max-w-full flex-1 flex-col overflow-x-auto">
                   <DataGridView
                     key={`stock-items-${form.id}-${form.status}`}
@@ -2719,7 +2754,7 @@ export default function UnifiedStockVoucher({
                 </div>
               </TabsContent>
 
-              <TabsContent value="quantities" className="mt-4 min-h-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <TabsContent value="quantities" className={voucherTabPanelClass}>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-sm">
                     <thead>
@@ -2745,7 +2780,7 @@ export default function UnifiedStockVoucher({
               </TabsContent>
 
               {isUseVoucher && (
-                <TabsContent value="accounts" className="mt-4 min-h-[360px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <TabsContent value="accounts" className={`${voucherTabPanelClass} space-y-3`}>
                   <div className="w-full max-w-full overflow-x-auto">
                     <DataGridView
                       innerRef={accountsGridRef}
@@ -2762,7 +2797,7 @@ export default function UnifiedStockVoucher({
                 </TabsContent>
               )}
 
-              <TabsContent value="notes" className="mt-4 min-h-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <TabsContent value="notes" className={voucherTabPanelClass}>
                 <div className="grid gap-1.5">
                   <Label className="flex items-center gap-2">
                     <MessageSquare className="h-3.5 w-3.5" />
@@ -2775,19 +2810,21 @@ export default function UnifiedStockVoucher({
           </Tabs>
 
           {/* ملخص المبالغ */}
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-            <div className="mb-3 flex items-center gap-2 text-sm font-bold text-emerald-700">
-              <Calculator className="h-3.5 w-3.5" />
+          <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_-18px_rgba(15,23,42,.25)] sm:p-5 dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-3 flex items-center gap-2.5 text-sm font-bold text-slate-800 dark:text-slate-100">
+              <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-sm">
+                <Calculator className="h-3.5 w-3.5" />
+              </span>
               {tr("ملخص المبالغ")}
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                <span className="text-muted-foreground">{tr("مجموع الكميات")}</span>
-                <span className="text-lg font-bold">{Util.formatNumber(chequesTotal, Util.getSystemSetting(17))}</span>
+              <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-gradient-to-l from-slate-50 to-white px-4 py-3 dark:border-slate-800 dark:from-slate-900 dark:to-slate-900">
+                <span className="text-sm font-medium text-muted-foreground">{tr("مجموع الكميات")}</span>
+                <span className="text-xl font-extrabold tabular-nums text-slate-800 dark:text-slate-100">{Util.formatNumber(chequesTotal, Util.getSystemSetting(17))}</span>
               </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                <span className="text-muted-foreground">{tr("المجموع")}</span>
-                <span className="text-lg font-bold">{Util.formatNumber(amountTotal, Util.getSystemSetting(17))}</span>
+              <div className="flex items-center justify-between rounded-xl bg-gradient-to-l from-emerald-600 to-teal-500 px-4 py-3 text-white shadow-[0_10px_24px_-14px_rgba(5,150,105,.9)]">
+                <span className="text-sm font-medium text-emerald-50">{tr("المجموع")}</span>
+                <span className="text-xl font-extrabold tabular-nums">{Util.formatNumber(amountTotal, Util.getSystemSetting(17))}</span>
               </div>
             </div>
           </div>

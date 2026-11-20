@@ -23,7 +23,7 @@ type Checkout = {
 const money = (value: number) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const telHref = (value: string) => `tel:${value.replace(/[^\d+]/g, "")}`
 const waHref = (value: string) => `https://wa.me/${value.replace(/\D/g, "")}`
-const inputClass = "h-11 w-full rounded-xl border-0 bg-slate-50 px-3.5 text-sm font-medium text-slate-900 ring-1 ring-slate-200 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-green-500"
+const inputClass = "h-11 w-full rounded-xl border-0 bg-slate-50 px-3.5 text-sm font-medium text-slate-900 ring-1 ring-slate-200 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500"
 
 export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -105,7 +105,7 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
   }
 
   if (loadError) return <Centered><XCircle className="mx-auto h-10 w-10 text-rose-500" /><p className="mt-3 text-sm text-slate-600">{loadError}</p><BackLink /></Centered>
-  if (!data) return <Centered><Loader2 className="mx-auto h-8 w-8 animate-spin text-green-600" /></Centered>
+  if (!data) return <Centered><Loader2 className="mx-auto h-8 w-8 animate-spin text-emerald-600" /></Centered>
 
   const alreadyActive = data.company.status === "approved" || payState.kind === "approved"
 
@@ -116,39 +116,39 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
     <main dir={appDir()} className="relative min-h-screen overflow-hidden bg-[#f4f8f7] text-slate-900">
       {/* خلفية ناعمة: توهّجات + شبكة خافتة */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-40 start-[-10%] h-[520px] w-[520px] rounded-full bg-green-300/25 blur-3xl" />
-        <div className="absolute bottom-[-20%] end-[-10%] h-[480px] w-[480px] rounded-full bg-lime-200/30 blur-3xl" />
+        <div className="absolute -top-40 start-[-10%] h-[520px] w-[520px] rounded-full bg-emerald-300/25 blur-3xl" />
+        <div className="absolute bottom-[-20%] end-[-10%] h-[480px] w-[480px] rounded-full bg-teal-200/30 blur-3xl" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(15,118,110,.05)_1px,transparent_1px),linear-gradient(90deg,rgba(15,118,110,.05)_1px,transparent_1px)] bg-[size:44px_44px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_30%,#000_30%,transparent_80%)]" />
       </div>
 
       <div className="relative mx-auto max-w-6xl px-4 py-6 sm:py-10">
         <div className="flex items-center justify-between gap-3">
           <BackLink />
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-green-700 ring-1 ring-green-100 backdrop-blur"><Lock className="h-3.5 w-3.5" />{tr("اتصال آمن ومشفّر")}</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100 backdrop-blur"><Lock className="h-3.5 w-3.5" />{tr("اتصال آمن ومشفّر")}</span>
         </div>
 
         <header className="mt-6 sm:mt-8">
-          <p className="inline-flex items-center gap-1.5 rounded-full bg-green-600/10 px-3 py-1 text-xs font-bold text-green-700"><Sparkles className="h-3.5 w-3.5" />{tr("خطوة أخيرة")}</p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">{tr("أكمل اشتراكك في ")}<span className="bg-gradient-to-l from-green-600 to-lime-500 bg-clip-text text-transparent">Noon ERP</span></h1>
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600/10 px-3 py-1 text-xs font-bold text-emerald-700"><Sparkles className="h-3.5 w-3.5" />{tr("خطوة أخيرة")}</p>
+          <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">{tr("أكمل اشتراكك في ")}<span className="bg-gradient-to-l from-emerald-600 to-teal-500 bg-clip-text text-transparent">Noon ERP</span></h1>
           <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">{ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("ادفع الآن عبر الإنترنت وتُفعَّل شركتك فوراً، أو تحدّث مع فريق المبيعات ونساعدك في اختيار ما يناسبك.") : tr("أرسل طلبك لفريق المبيعات وسنتواصل معك لإتمام الاشتراك، وتُفعَّل شركتك لسنة كاملة فور اعتمادها.")}</p>
         </header>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.15fr_1fr]">
           {/* ملخص الاشتراك والدفع */}
           <section className="overflow-hidden rounded-3xl bg-white shadow-[0_24px_60px_-30px_rgba(15,80,70,.35)] ring-1 ring-slate-900/5">
-            <div className="relative bg-gradient-to-l from-green-700 via-green-600 to-lime-500 p-6 text-white sm:p-7">
+            <div className="relative bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-500 p-6 text-white sm:p-7">
               <div aria-hidden className="absolute -end-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
               <div className="relative flex items-center gap-3">
                 <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25"><Building2 className="h-6 w-6" /></span>
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-green-50/80">{tr("الشركة")}</p>
+                  <p className="text-xs font-medium text-emerald-50/80">{tr("الشركة")}</p>
                   <p className="truncate text-lg font-black">{data.company.name}</p>
                 </div>
               </div>
               <div className="relative mt-6 flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <p className="text-xs font-medium text-green-50/80">{tr("الاشتراك السنوي")}</p>
-                  <p className="mt-1 text-4xl font-black tabular-nums" dir="ltr">{money(data.quote.total)} <span className="text-lg font-bold text-green-50/90">{data.quote.currency}</span></p>
+                  <p className="text-xs font-medium text-emerald-50/80">{tr("الاشتراك السنوي")}</p>
+                  <p className="mt-1 text-4xl font-black tabular-nums" dir="ltr">{money(data.quote.total)} <span className="text-lg font-bold text-emerald-50/90">{data.quote.currency}</span></p>
                 </div>
                 <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/25">{tr("يُجدَّد سنوياً")}</span>
               </div>
@@ -159,7 +159,7 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
                 <ul className="divide-y divide-slate-100 rounded-2xl bg-slate-50/80 px-4 ring-1 ring-slate-100">
                   {lines.map((line) => (
                     <li key={line.label} className="flex items-center justify-between gap-3 py-3 text-sm">
-                      <span className="flex items-center gap-2 text-slate-600"><Check className="h-4 w-4 shrink-0 text-green-600" />{line.label}</span>
+                      <span className="flex items-center gap-2 text-slate-600"><Check className="h-4 w-4 shrink-0 text-emerald-600" />{line.label}</span>
                       <span className="font-bold tabular-nums text-slate-800" dir="ltr">{money(line.amount)}</span>
                     </li>
                   ))}
@@ -167,15 +167,15 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
               )}
 
               {alreadyActive ? (
-                <div className="mt-6 rounded-2xl bg-green-50 p-6 text-center ring-1 ring-green-100">
-                  <CheckCircle2 className="mx-auto h-12 w-12 text-green-600" />
-                  <p className="mt-3 text-lg font-black text-green-800">{tr("تم الدفع وإنشاء الشركة")}</p>
-                  <a href="/management/companies" className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-green-600 px-6 text-sm font-bold text-white transition hover:bg-green-700">{tr("الذهاب إلى شركاتي")}</a>
+                <div className="mt-6 rounded-2xl bg-emerald-50 p-6 text-center ring-1 ring-emerald-100">
+                  <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" />
+                  <p className="mt-3 text-lg font-black text-emerald-800">{tr("تم الدفع وإنشاء الشركة")}</p>
+                  <a href="/management/companies" className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-6 text-sm font-bold text-white transition hover:bg-emerald-700">{tr("الذهاب إلى شركاتي")}</a>
                 </div>
               ) : ONLINE_COMPANY_PAYMENT_VISIBLE ? (
                 <>
                   <button type="button" onClick={() => void payOnline()} disabled={!data.online || busy}
-                    className="group mt-6 flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-l from-green-600 to-lime-500 text-base font-black text-white shadow-lg shadow-green-600/25 transition hover:shadow-xl hover:shadow-green-600/30 hover:brightness-105 active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none">
+                    className="group mt-6 flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-l from-emerald-600 to-teal-500 text-base font-black text-white shadow-lg shadow-emerald-600/25 transition hover:shadow-xl hover:shadow-emerald-600/30 hover:brightness-105 active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none">
                     {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
                     {payState.kind === "verifying" ? tr("جاري التحقق من الدفع…") : tr("ادفع {0} {1} الآن", money(data.quote.total), data.quote.currency)}
                   </button>
@@ -184,13 +184,13 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
                   {payState.kind === "error" && <p className="mt-3 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-rose-100"><XCircle className="h-4 w-4 shrink-0" />{payState.text}</p>}
                 </>
               ) : (
-                <p className="mt-6 rounded-2xl bg-green-50/70 p-4 text-center text-sm leading-7 text-green-800 ring-1 ring-green-100">{tr("لإتمام الاشتراك أرسل طلبك لفريق المبيعات من النموذج المجاور، وسنتواصل معك لترتيب الدفع وتفعيل الشركة.")}</p>
+                <p className="mt-6 rounded-2xl bg-emerald-50/70 p-4 text-center text-sm leading-7 text-emerald-800 ring-1 ring-emerald-100">{tr("لإتمام الاشتراك أرسل طلبك لفريق المبيعات من النموذج المجاور، وسنتواصل معك لترتيب الدفع وتفعيل الشركة.")}</p>
               )}
 
               {ONLINE_COMPANY_PAYMENT_VISIBLE && <div className="mt-6 grid grid-cols-3 gap-2 border-t border-slate-100 pt-5 text-center text-[11px] font-semibold text-slate-500">
-                <span className="flex flex-col items-center gap-1.5"><ShieldCheck className="h-5 w-5 text-green-600" />{tr("دفع آمن عبر لحظة")}</span>
-                <span className="flex flex-col items-center gap-1.5"><Zap className="h-5 w-5 text-green-600" />{tr("تفعيل فوري")}</span>
-                <span className="flex flex-col items-center gap-1.5"><CreditCard className="h-5 w-5 text-green-600" />Visa · Mastercard</span>
+                <span className="flex flex-col items-center gap-1.5"><ShieldCheck className="h-5 w-5 text-emerald-600" />{tr("دفع آمن عبر لحظة")}</span>
+                <span className="flex flex-col items-center gap-1.5"><Zap className="h-5 w-5 text-emerald-600" />{tr("تفعيل فوري")}</span>
+                <span className="flex flex-col items-center gap-1.5"><CreditCard className="h-5 w-5 text-emerald-600" />Visa · Mastercard</span>
               </div>}
             </div>
           </section>
@@ -198,12 +198,12 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
           {/* التواصل مع المبيعات */}
           <div className="flex flex-col gap-6">
             <section className="rounded-3xl bg-white p-6 shadow-[0_24px_60px_-34px_rgba(15,80,70,.3)] ring-1 ring-slate-900/5 sm:p-7">
-              <h2 className="flex items-center gap-2 text-lg font-black"><Headphones className="h-5 w-5 text-green-600" />{tr("تحدّث مع المبيعات")}</h2>
+              <h2 className="flex items-center gap-2 text-lg font-black"><Headphones className="h-5 w-5 text-emerald-600" />{tr("تحدّث مع المبيعات")}</h2>
               <p className="mt-1 text-sm text-slate-500">{tr("فريقنا جاهز للإجابة عن أسئلتك ومساعدتك في الاشتراك.")}</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                 {data.contacts.phone && (
-                  <a href={telHref(data.contacts.phone)} className="group flex items-center gap-3 rounded-2xl p-4 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:bg-green-50/60 hover:ring-green-200">
-                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-green-600 text-white shadow-md shadow-green-600/25"><Phone className="h-5 w-5" /></span>
+                  <a href={telHref(data.contacts.phone)} className="group flex items-center gap-3 rounded-2xl p-4 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:bg-emerald-50/60 hover:ring-emerald-200">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-600/25"><Phone className="h-5 w-5" /></span>
                     <span className="min-w-0"><span className="block text-xs text-slate-500">{tr("اتصل بنا")}</span><span className="block truncate text-base font-black text-slate-900" dir="ltr">{data.contacts.phone}</span></span>
                   </a>
                 )}
@@ -217,13 +217,13 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
             </section>
 
             <form onSubmit={sendLead} className="rounded-3xl bg-white p-6 shadow-[0_24px_60px_-34px_rgba(15,80,70,.3)] ring-1 ring-slate-900/5 sm:p-7">
-              <h2 className="flex items-center gap-2 text-lg font-black"><Send className="h-5 w-5 text-green-600" />{tr("اطلب اتصالاً من المبيعات")}</h2>
+              <h2 className="flex items-center gap-2 text-lg font-black"><Send className="h-5 w-5 text-emerald-600" />{tr("اطلب اتصالاً من المبيعات")}</h2>
               <p className="mt-1 text-sm text-slate-500">{tr("اترك بياناتك وسنتواصل معك في أقرب وقت.")}</p>
               {leadState.kind === "sent" ? (
-                <div className="mt-5 rounded-2xl bg-green-50 p-6 text-center ring-1 ring-green-100">
-                  <CheckCircle2 className="mx-auto h-11 w-11 text-green-600" />
-                  <p className="mt-2 font-black text-green-800">{tr("تم إرسال طلبك")}</p>
-                  <p className="mt-1 text-sm text-green-700">{tr("سيتواصل معك فريق المبيعات قريباً، وتُفعَّل الشركة لسنة كاملة فور اعتمادها من الإدارة.")}</p>
+                <div className="mt-5 rounded-2xl bg-emerald-50 p-6 text-center ring-1 ring-emerald-100">
+                  <CheckCircle2 className="mx-auto h-11 w-11 text-emerald-600" />
+                  <p className="mt-2 font-black text-emerald-800">{tr("تم إرسال طلبك")}</p>
+                  <p className="mt-1 text-sm text-emerald-700">{tr("سيتواصل معك فريق المبيعات قريباً، وتُفعَّل الشركة لسنة كاملة فور اعتمادها من الإدارة.")}</p>
                 </div>
               ) : (
                 <>
@@ -257,5 +257,5 @@ function Centered({ children }: { children: React.ReactNode }) {
 }
 
 function BackLink() {
-  return <a href="/management/companies" className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 backdrop-blur transition hover:text-green-700 hover:ring-green-200"><ArrowRight className="h-4 w-4" />{tr("العودة إلى شركاتي")}</a>
+  return <a href="/management/companies" className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 backdrop-blur transition hover:text-emerald-700 hover:ring-emerald-200"><ArrowRight className="h-4 w-4" />{tr("العودة إلى شركاتي")}</a>
 }
