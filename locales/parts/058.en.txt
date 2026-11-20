@@ -241,3 +241,5 @@ Full amount
 Confirm payment F3
 Confirm F3
 Payment failed
+User roles that permissions are built on
+User accounts, roles and branches

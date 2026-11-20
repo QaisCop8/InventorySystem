@@ -1,4 +1,5 @@
 "use client"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect, useRef } from "react"
 import { LicenseUsageStrip, useCompanyLicense, useLicenseRequestDialog } from "@/components/settings/license-limit"
@@ -412,6 +413,12 @@ export function UserSettings() {
 
   return (
     <div className="space-y-6">
+      <VoucherListHero
+        title={tr("المستخدمين")}
+        subtitle={tr("حسابات المستخدمين وأدوارهم وفروعهم")}
+        category={tr("اعدادات المستخدمين")}
+        icon={UserCheck}
+      />
       <Messages innerRef={pageMessages} />
       {licenseRequest.element}
       <LicenseUsageStrip resource="users" license={license} onRequest={() => licenseRequest.open("users")} />
@@ -888,7 +895,7 @@ function UserDialogHero({ title, name, subtitle, meta, badge, isNew, onClose }: 
   onClose: () => void
 }) {
   return (
-    <div className="relative shrink-0 overflow-hidden bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-4 py-4 text-white sm:px-6 sm:py-5">
+    <div className="page-hero relative shrink-0 overflow-hidden px-4 py-4 text-white sm:px-6 sm:py-5">
       <div className="pointer-events-none absolute -end-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
       <div className="relative flex items-start gap-3 sm:items-center sm:gap-4">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-lg font-extrabold ring-1 ring-white/30 sm:h-14 sm:w-14">

@@ -1,5 +1,6 @@
 "use client"
 
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -127,6 +128,12 @@ export default function JobRoles() {
 
   return (
     <div className="w-full min-w-0 space-y-4 overflow-x-hidden p-3 sm:space-y-6 sm:p-6" dir={appDir()}>
+      <VoucherListHero
+        title={tr("الأدوار الوظيفية")}
+        subtitle={tr("أدوار المستخدمين التي تُبنى عليها الصلاحيات")}
+        category={tr("اعدادات المستخدمين")}
+        icon={UserCog}
+      />
       <Card dir={appDir()}>
         <CardHeader className="p-4 sm:p-6">
           <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

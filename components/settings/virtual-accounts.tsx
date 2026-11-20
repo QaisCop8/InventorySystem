@@ -1,5 +1,6 @@
 "use client"
 
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { tr, appDir } from "@/lib/i18n"
 import React, { useEffect, useState, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
@@ -522,26 +523,21 @@ export default function VirtualAccounts() {
 
   return (
     <div dir={appDir()} className="virtual-accounts-page flex min-h-screen w-full flex-col gap-4 bg-slate-50/50 p-3 sm:p-4 dark:bg-slate-950">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-5 text-white shadow-lg">
-        <div className="pointer-events-none absolute -end-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"><Wallet className="h-6 w-6" /></span>
-            <div>
-              <h1 className="text-xl font-extrabold sm:text-2xl">{tr("الحسابات والمستودعات الافتراضية")}</h1>
-              <p className="text-xs text-emerald-50/90 sm:text-sm">{tr("حسابات الصناديق والبنوك لكل عملة، والمستودعات الافتراضية — لمستخدم أو عدة مستخدمين وفروع دفعة واحدة")}</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" className="h-10 gap-2 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white" disabled={!selectedUser || loading || saving} onClick={() => { if (selectedUser) void loadDefaults(selectedUser.user_id) }}>
-              <RefreshCw className="h-4 w-4" />{tr("تحديث")}
-            </Button>
-            <Button className="h-10 gap-2 rounded-xl bg-white font-bold text-emerald-700 hover:bg-emerald-50" onClick={handleSaveAll} disabled={!selectedUser || !selectedBranchIds.length || loading || saving || !rows.length}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{tr("حفظ")}
-            </Button>
-          </div>
-        </div>
-      </div>
+      {/* رأس النظام الموحّد (VoucherListHero) */}
+      <VoucherListHero
+        title={tr("الحسابات والمستودعات الافتراضية")}
+        subtitle={tr("حسابات الصناديق والبنوك لكل عملة، والمستودعات الافتراضية — لمستخدم أو عدة مستخدمين وفروع دفعة واحدة")}
+        category={tr("اعدادات المستخدمين")}
+        icon={Wallet}
+        actions={<>
+          <Button variant="outline" className="h-10 gap-2 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white" disabled={!selectedUser || loading || saving} onClick={() => { if (selectedUser) void loadDefaults(selectedUser.user_id) }}>
+            <RefreshCw className="h-4 w-4" />{tr("تحديث")}
+          </Button>
+          <Button className="h-10 gap-2 rounded-xl bg-white font-bold text-emerald-700 hover:bg-emerald-50" onClick={handleSaveAll} disabled={!selectedUser || !selectedBranchIds.length || loading || saving || !rows.length}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{tr("حفظ")}
+          </Button>
+        </>}
+      />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="mb-3 flex items-center gap-2">

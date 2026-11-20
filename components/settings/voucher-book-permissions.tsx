@@ -1,5 +1,6 @@
 "use client"
 
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -7,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Copy, RefreshCw } from "lucide-react"
+import { BookLock, Copy, RefreshCw } from "lucide-react"
 import DataGridView from "@/components/common/DataGridView"
 import Messages from "@/components/common/Messages"
 
@@ -248,10 +249,12 @@ export default function VoucherBookPermissions() {
 
   return (
     <div className="space-y-4" dir={appDir()}>
-      <div className="flex flex-col gap-2">
-        <div className="text-xl font-semibold">{tr("صلاحيات المستخدمين على دفاتر السندات")}</div>
-        <div className="text-sm text-muted-foreground">{tr("تحديد دفاتر السندات المسموحة لكل مستخدم والدفتر الافتراضي له")}</div>
-      </div>
+      <VoucherListHero
+        title={tr("صلاحيات المستخدمين على دفاتر السندات")}
+        subtitle={tr("تحديد دفاتر السندات المسموحة لكل مستخدم والدفتر الافتراضي له")}
+        category={tr("اعدادات المستخدمين")}
+        icon={BookLock}
+      />
 
       <Card>
         <CardHeader>
