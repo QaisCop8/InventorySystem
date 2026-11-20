@@ -610,6 +610,7 @@ export const menuItems: MenuItem[] = [
       { title: tr("تعديل الأصناف"), section: "bulk-items", icon: ListChecks },
       { title: tr("ترحيل من الشامل"), section: "data-migration", icon: DatabaseZap },
       { title: tr("استيراد مكونات التصنيع من اكسل"), section: "manufacturing-components-import", icon: FileSpreadsheet },
+      { title: tr("استيراد المتغيرات والخصائص من اكسل"), section: "attributes-import", icon: FileSpreadsheet },
       { title: tr("التواصل مع الإدارة"), section: "manager-attachments", icon: SendHorizontal },
       { title: tr("بريد رسائل الموظفين"), section: "manager-inbox", icon: MailOpen },
       { title: tr("بريد الرسائل والتحسينات"), section: "feature-requests", icon: Lightbulb },

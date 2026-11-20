@@ -228,10 +228,99 @@ export function PayScopeDialog(props: {
  * معالج اضافات المطعم (كشاشات الطلب الذاتي): شريحة لكل إضافة — «مع X» أو «بدون X» — ثم مراجعة.
  * الاختيار ينتقل للشريحة التالية تلقائياً؛ السعر الإضافي يظهر على «مع» ويُجمع في سطر «اضافات».
  */
-export function ExtrasWizard(props: {
+type ExtrasDialogProps = {
   open: boolean; title: string; price: number; currency: string; extras: RestaurantExtra[]
   onCancel: () => void; onDone: (chosen: string[]) => void
+}
+
+/** اضافات المطعم حسب «طريقة الاختيار» في تعريف الصنف: «مع/بدون» لكل إضافة، أو اختيار من متعدد بشاشة واحدة */
+export function ExtrasWizard(props: ExtrasDialogProps & { mode?: "toggle" | "multi" }) {
+  const { mode, ...rest } = props
+  return mode === "multi" ? <ExtrasMultiDialog {...rest} /> : <ExtrasToggleWizard {...rest} />
+}
+
+/** اختيار من متعدد: كل الإضافات بطاقات تُحدَّد/يُلغى تحديدها، ثم «إضافة للطلب» (بلا اختيار = الصنف بدون إضافات) */
+function ExtrasMultiDialog({ open, title, price, currency, extras, onCancel, onDone }: ExtrasDialogProps) {
+  const [chosen, setChosen] = useState<string[]>([])
+  useEffect(() => { if (open) setChosen([]) }, [open])
+  const toggle = (name: string) => setChosen((current) => current.includes(name) ? current.filter((row) => row !== name) : [...current, name])
+  const extraTotal = round2(extras.filter((extra) => chosen.includes(extra.name)).reduce((sum, extra) => sum + extra.price, 0))
+  return (
+    <Dialog open={open} onOpenChange={(value) => { if (!value) onCancel() }}>
+      <DialogContent dir={appDir()} className="flex max-h-[calc(100%-1rem)] w-[calc(100vw-1rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0"
+        onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
+        <div className="bg-emerald-800 px-5 pb-4 pt-5 text-white">
+          <DialogHeader className="space-y-1 text-start">
+            <DialogTitle className="text-xl font-black text-white">{title}</DialogTitle>
+            <DialogDescription className="text-emerald-100">
+              {money(price)}{extraTotal > 0 ? ` + ${money(extraTotal)}` : ""} {currency} — {tr("اختر الإضافات ({0} مختارة)", chosen.length)}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[#f6f1e9] p-5 dark:bg-slate-900">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {extras.map((extra) => {
+              const on = chosen.includes(extra.name)
+              return (
+                <button key={extra.name} type="button" onClick={() => toggle(extra.name)} aria-pressed={on}
+                  className={`relative flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border-4 bg-white p-3 text-center text-lg font-black shadow-sm transition hover:-translate-y-0.5 dark:bg-slate-800 ${on ? "border-emerald-600" : "border-transparent hover:border-emerald-300"}`}>
+                  <span className={`absolute end-2 top-2 grid h-6 w-6 place-items-center rounded-full ${on ? "bg-emerald-600 text-white" : "bg-slate-100 text-transparent dark:bg-slate-700"}`}><Check className="h-4 w-4" /></span>
+                  {extra.name}
+                  {extra.price > 0 && <span className="text-sm font-bold text-orange-600">+{money(extra.price)}</span>}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t bg-background p-3">
+          <Button variant="outline" className="h-12 px-5" onClick={onCancel}>{tr("إلغاء")}</Button>
+          <Button className="h-12 bg-orange-500 px-6 text-base font-black hover:bg-orange-600" onClick={() => onDone(extras.filter((extra) => chosen.includes(extra.name)).map((extra) => extra.name))}>
+            <Check className="me-1 h-5 w-5" />{chosen.length ? tr("إضافة للطلب") : tr("إضافة بدون إضافات")}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** «اظهار الاصناف التابعة للمجموعة بعد الاختيار»: صنف واحد من المجموعة المحددة (مثل مشروب بعد الساندويش) أو تخطي */
+export function FollowupPickDialog(props: {
+  open: boolean; title: string; currency: string
+  options: { id: number; name: string; unitName: string; price: number; category: string }[]
+  onSkip: () => void; onPick: (option: any) => void
 }) {
+  const { open, title, currency, options, onSkip, onPick } = props
+  const group = options[0]?.category || ""
+  return (
+    <Dialog open={open} onOpenChange={(value) => { if (!value) onSkip() }}>
+      <DialogContent dir={appDir()} className="flex max-h-[calc(100%-1rem)] w-[calc(100vw-1rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0"
+        onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
+        <div className="bg-emerald-800 px-5 pb-4 pt-5 text-white">
+          <DialogHeader className="space-y-1 text-start">
+            <DialogTitle className="text-xl font-black text-white">{tr("اختر من {0}", group)}</DialogTitle>
+            <DialogDescription className="text-emerald-100">{tr("مع {0}", title)}</DialogDescription>
+          </DialogHeader>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[#f6f1e9] p-5 dark:bg-slate-900">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {options.map((option) => (
+              <button key={option.id} type="button" onClick={() => onPick(option)}
+                className="flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border-4 border-transparent bg-white p-3 text-center font-black shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-500 dark:bg-slate-800">
+                <span className="text-base leading-snug">{option.name}{option.unitName ? <small className="block text-xs font-semibold text-muted-foreground">{option.unitName}</small> : null}</span>
+                <span className="text-sm font-bold text-orange-600">{money(option.price)} {currency}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t bg-background p-3">
+          <Button variant="outline" className="h-12 px-6" onClick={onSkip}>{tr("تخطي")}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ExtrasToggleWizard(props: ExtrasDialogProps) {
   const { open, title, price, currency, extras, onCancel, onDone } = props
   const [step, setStep] = useState(0)
   const [choice, setChoice] = useState<Record<string, boolean>>({})
@@ -318,8 +407,11 @@ export function ExtrasWizard(props: {
 export function AddonsDialog(props: {
   open: boolean; onOpenChange: (open: boolean) => void; title: string; groups: AddonGroup[]; selected: Addon[]; note: string
   busy?: boolean; onSave: (addons: Addon[], note: string) => void
+  /** سعر الصنف بفئة السعر الحالية (قبل الخصائص): يُعرض السعر الفعلي لكل قيمة والإجمالي بدل «+5» */
+  basePrice?: number
 }) {
-  const { open, onOpenChange, title, groups, selected, note, busy, onSave } = props
+  const { open, onOpenChange, title, groups, selected, note, busy, onSave, basePrice } = props
+  const priced = (group: AddonGroup) => Object.keys(group.prices || {}).length > 0
   const [picked, setPicked] = useState<Addon[]>([])
   const [text, setText] = useState("")
   const [error, setError] = useState("")
@@ -347,7 +439,9 @@ export function AddonsDialog(props: {
                   return (
                     <button key={value} type="button" onClick={() => toggle(group.name, value)}
                       className={`min-h-11 rounded-full border-2 px-4 text-sm font-semibold transition ${active ? "border-rose-600 bg-rose-600 text-white" : "border-slate-200 bg-background hover:border-rose-300"}`}>
-                      {active && <Check className="me-1 inline h-4 w-4" />}{value}{group.prices?.[value] ? <span className={`ms-1.5 text-xs font-bold ${active ? "text-white/90" : group.prices[value] > 0 ? "text-orange-600" : "text-emerald-600"}`}>{group.prices[value] > 0 ? "+" : "−"}{money(Math.abs(group.prices[value]))}</span> : null}
+                      {active && <Check className="me-1 inline h-4 w-4" />}{value}{basePrice !== undefined
+                        ? priced(group) && <span className={`ms-1.5 text-xs font-bold ${active ? "text-white/90" : "text-orange-600"}`}>{money(Math.max(0, basePrice + Number(group.prices?.[value] || 0)))}</span>
+                        : group.prices?.[value] ? <span className={`ms-1.5 text-xs font-bold ${active ? "text-white/90" : group.prices[value] > 0 ? "text-orange-600" : "text-emerald-600"}`}>{group.prices[value] > 0 ? "+" : "−"}{money(Math.abs(group.prices[value]))}</span> : null}
                     </button>
                   )
                 })}
@@ -358,7 +452,12 @@ export function AddonsDialog(props: {
           {error && <p className="rounded-md bg-red-50 p-2 text-sm font-semibold text-red-700">{error}</p>}
           <div className="space-y-1"><Label>{tr("ملاحظة للمطبخ")}</Label><Textarea rows={2} value={text} onChange={(event) => setText(event.target.value)} placeholder={tr("بدون بصل، حار...")} /></div>
         </div>
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 sm:items-center">
+          {basePrice !== undefined && groups.some(priced) && (
+            <span className="me-auto rounded-full bg-orange-50 px-3 py-1.5 text-sm font-black text-orange-700 dark:bg-orange-950/40 dark:text-orange-300">
+              {tr("السعر")}: {money(Math.max(0, basePrice + picked.reduce((sum, addon) => sum + Number(groups.find((group) => group.name === addon.group)?.prices?.[addon.value] || 0), 0)))}
+            </span>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
           <Button disabled={busy} onClick={save}>{busy && <Loader2 className="me-1 h-4 w-4 animate-spin" />}<Check className="me-1 h-4 w-4" />{tr("حفظ")}</Button>
         </DialogFooter>
@@ -453,28 +552,28 @@ export function TakeawayInfoDialog(props: {
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 bg-gradient-to-b from-emerald-50/60 to-white px-5 py-5">
-          <div className="space-y-1.5">
+          <div className="space-y-2.5">
             <Label htmlFor="takeaway-name" className="text-sm font-bold text-slate-700">{tr("اسم الزبون")} <span className="text-red-500">*</span></Label>
             <div className="relative">
               <span className={icon}><User className="h-4 w-4" /></span>
-              <Input id="takeaway-name" autoFocus className={field} value={form.name} maxLength={100} placeholder={tr("مثال: أحمد")}
+              <Input id="takeaway-name" autoFocus className={field} value={form.name} maxLength={100}
                 onChange={(event) => set({ name: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") submit() }} />
             </div>
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-2.5">
             <Label htmlFor="takeaway-mobile" className="text-sm font-bold text-slate-700">{tr("رقم الجوال")}</Label>
             <div className="relative">
               <span className={icon}><Phone className="h-4 w-4" /></span>
-              <Input id="takeaway-mobile" type="tel" inputMode="tel" dir="ltr" className={`${field} text-end tabular-nums`} value={form.mobile} maxLength={30} placeholder="05xxxxxxxx"
+              <Input id="takeaway-mobile" type="tel" inputMode="tel" dir="ltr" className={`${field} text-end tabular-nums`} value={form.mobile} maxLength={30}
                 onChange={(event) => set({ mobile: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") submit() }} />
             </div>
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-2.5">
             <Label htmlFor="takeaway-address" className="text-sm font-bold text-slate-700">{tr("العنوان")}</Label>
             <div className="relative">
               <span className={`${icon} top-6`}><MapPin className="h-4 w-4" /></span>
               <Textarea id="takeaway-address" rows={2} className="min-h-[3rem] resize-none rounded-xl border-slate-200 bg-white ps-11 pt-3 text-base font-semibold shadow-sm focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-100"
-                value={form.address} maxLength={300} placeholder={tr("الحي، الشارع، علامة مميزة")} onChange={(event) => set({ address: event.target.value })} />
+                value={form.address} maxLength={300} onChange={(event) => set({ address: event.target.value })} />
             </div>
           </div>
           {error && <p className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p>}

@@ -58,8 +58,8 @@ interface ProductAttributeLine {
   name: string
   values: string[]
   value_images?: Record<string, string | null>
-  /** سعر كل قيمة (افتراضياً سعر الصنف) — الفرق عن سعر الصنف يُضاف عند البيع في الكاشير والمطعم (lib/attribute-prices.ts) */
-  value_prices?: Record<string, number | string>
+  /** سعر كل قيمة لكل فئة سعر { [price_category_id]: السعر الفعلي } (2026-11-20؛ رقم واحد = الصيغة القديمة) — lib/attribute-prices.ts */
+  value_prices?: Record<string, number | string | Record<string, number | string>>
 }
 
 interface AttributeCatalogItem extends ProductAttributeLine {}
@@ -92,7 +92,45 @@ function AttributeNameInput({ value, catalog, onChange, onCreate }: { value: str
   </div>
 }
 
-function AttributeValueInput({ values, valueImages = {}, valuePrices, onPriceChange, suggestions, disabled = false, onChange, onImageChange, onCreate }: { values: string[]; valueImages?: Record<string, string | null>; valuePrices?: Record<string, number | string>; onPriceChange?: (value: string, price: number | string) => void; suggestions: string[]; disabled?: boolean; onChange: (values: string[]) => void; onImageChange: (value: string, image: string | null) => void; onCreate: (value: string) => void }) {
+type AttributePriceCategory = { id: number; name: string; price: number }
+
+/** أسعار قيمة خاصية لكل فئات السعر المعرّفة في الصنف (السعر الفعلي للسطر بتلك الفئة) */
+function AttributeValuePricesDialog({ value, categories, prices, onClose, onSave }: {
+  value: string; categories: AttributePriceCategory[]; prices: number | string | Record<string, number | string> | undefined
+  onClose: () => void; onSave: (prices: Record<string, number | string>) => void
+}) {
+  const initial = () => Object.fromEntries(categories.map((category) => {
+    const current = prices && typeof prices === "object" ? prices[String(category.id)] : prices
+    return [String(category.id), current === undefined || current === "" ? category.price : current]
+  }))
+  const [draft, setDraft] = useState<Record<string, number | string>>(initial)
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-md">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Tag className="h-5 w-5 text-violet-600" />{tr("أسعار «{0}»", value)}</DialogTitle></DialogHeader>
+        {!categories.length
+          ? <p className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">{tr("عرّف أسعار الصنف (فئات السعر) في تبويب الأسعار أولاً")}</p>
+          : <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+              {categories.map((category) => (
+                <div key={category.id} className="grid grid-cols-[minmax(0,1fr)_130px] items-center gap-3 rounded-lg border bg-card px-3 py-2">
+                  <div className="min-w-0"><div className="truncate text-sm font-semibold">{category.name}</div><div className="text-xs text-muted-foreground">{tr("سعر الصنف")}: {category.price.toFixed(2)}</div></div>
+                  <Input type="number" min={0} step="0.01" className="h-10 text-center font-bold" aria-label={tr("سعر {0} — {1}", value, category.name)}
+                    value={draft[String(category.id)] ?? ""} onChange={(event) => setDraft((current) => ({ ...current, [String(category.id)]: event.target.value === "" ? "" : Math.max(0, Number(event.target.value)) }))} />
+                </div>
+              ))}
+            </div>}
+        <p className="text-xs text-muted-foreground">{tr("السعر الفعلي للصنف عند اختيار هذه القيمة في الكاشير والمطعم حسب فئة السعر.")}</p>
+        <DialogFooter className="gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>{tr("إلغاء")}</Button>
+          <Button type="button" disabled={!categories.length} onClick={() => onSave(draft)}>{tr("حفظ الأسعار")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function AttributeValueInput({ values, valueImages = {}, valuePrices, onPriceChange, priceCategories = [], suggestions, disabled = false, onChange, onImageChange, onCreate }: { values: string[]; valueImages?: Record<string, string | null>; valuePrices?: Record<string, number | string | Record<string, number | string>>; onPriceChange?: (value: string, prices: Record<string, number | string>) => void; priceCategories?: AttributePriceCategory[]; suggestions: string[]; disabled?: boolean; onChange: (values: string[]) => void; onImageChange: (value: string, image: string | null) => void; onCreate: (value: string) => void }) {
+  const [pricesFor, setPricesFor] = useState<string | null>(null)
   const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -121,9 +159,10 @@ function AttributeValueInput({ values, valueImages = {}, valuePrices, onPriceCha
       {values.map((value) => <span key={value} className="inline-flex items-center gap-2 rounded-xl bg-violet-100 px-2 py-1 text-xs font-medium text-violet-800">
         <ImageUploadField value={valueImages[value]} onChange={(image) => onImageChange(value, image)} size={36} rounded="2xl" />
         <span>{value}</span>
-        {onPriceChange && <input type="number" min={0} step="0.01" title={tr("سعر القيمة")} aria-label={tr("سعر {0}", value)}
-          className="h-7 w-20 rounded-md border border-violet-200 bg-white px-1.5 text-center text-xs font-bold text-slate-800 outline-none focus:border-violet-500 dark:bg-slate-900 dark:text-slate-100"
-          value={valuePrices?.[value] ?? ""} onChange={(event) => onPriceChange(value, event.target.value === "" ? "" : Math.max(0, Number(event.target.value)))} />}
+        {onPriceChange && <button type="button" title={tr("أسعار القيمة لكل فئات السعر")} aria-label={tr("أسعار {0}", value)} onClick={() => setPricesFor(value)}
+          className="inline-flex h-7 items-center gap-1 rounded-md border border-violet-200 bg-white px-2 text-xs font-bold text-violet-700 hover:bg-violet-50 dark:bg-slate-900 dark:text-violet-300">
+          <Tag className="h-3.5 w-3.5" />{tr("الأسعار")}
+        </button>}
         <button type="button" title={tr("إزالة القيمة")} onClick={() => onChange(values.filter((item) => item !== value))}><X className="h-3 w-3" /></button>
       </span>)}
       <input disabled={disabled} className="h-7 min-w-[120px] flex-1 bg-transparent text-sm outline-none" value={query} placeholder={disabled ? tr("اختر متغيراً أولاً") : tr("ابحث أو اكتب قيمة")} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setOpen(true) }} onKeyDown={(event) => {
@@ -134,6 +173,8 @@ function AttributeValueInput({ values, valueImages = {}, valuePrices, onPriceCha
       {filtered.map((value) => <button type="button" key={value} className="block w-full rounded px-3 py-2 text-start text-sm hover:bg-muted" onMouseDown={(event) => event.preventDefault()} onClick={() => addValue(value)}>{value}</button>)}
       {query.trim() && !exactMatch && <button type="button" className="block w-full rounded px-3 py-2 text-start text-sm font-semibold text-emerald-700 hover:bg-emerald-50" onMouseDown={(event) => event.preventDefault()} onClick={() => { addValue(query); onCreate(query.trim()) }}>{tr("+ إنشاء القيمة “")}{query.trim()}”</button>}
     </div>}
+    {pricesFor !== null && onPriceChange && <AttributeValuePricesDialog value={pricesFor} categories={priceCategories} prices={valuePrices?.[pricesFor]}
+      onClose={() => setPricesFor(null)} onSave={(prices) => { onPriceChange(pricesFor, prices); setPricesFor(null) }} />}
   </div>
 }
 
@@ -272,6 +313,10 @@ interface ProductFormData {
   attributes?: ProductAttributeLine[],
   // اضافات المطعم: «مع/بدون» في شاشة المطعم؛ السعر (0–1000) يُجمع في سطر «اضافات» على خدمة الموقع
   restaurant_extras?: { name: string; price: number | string }[],
+  /** طريقة اختيار اضافات المطعم: toggle = «مع/بدون» لكل إضافة، multi = اختيار من متعدد بشاشة واحدة */
+  restaurant_extras_mode?: "toggle" | "multi",
+  /** «اظهار الاصناف التابعة للمجموعة بعد الاختيار»: مجموعة أصناف يُختار منها صنف بعد هذا الصنف في المطعم */
+  restaurant_followup_group_id?: number | null,
 }
 
 type ProductAccountField =
@@ -372,6 +417,8 @@ export const initialFormData: ProductFormData = {
   branch_ids: [],
   attributes: [],
   restaurant_extras: [],
+  restaurant_extras_mode: "toggle",
+  restaurant_followup_group_id: null,
 };
 
 export interface CompactProductFormProps {
@@ -444,6 +491,21 @@ export function CompactProductForm({
     brand_types: [] as Array<{ id: number; name: string }>,
     brands: [] as Array<{ id: number; name: string; brand_type_id: number }>,
   })
+  // فئات السعر المعرّفة في الصنف (لأسعار قيم «المتغيرات والخصائص»): فئة واحدة لكل price_category_id بسعر الوحدة الأولى
+  const attributePriceCategories = useMemo(() => {
+    const firstUnitId = Number([...(formData.units || [])].sort((a: any, b: any) => Number(a?.ser || 0) - Number(b?.ser || 0))[0]?.unit_id) || null
+    const byCategory = new Map<number, { id: number; name: string; price: number; firstUnit: boolean }>()
+    for (const row of formData.prices || []) {
+      const id = Number(row?.price_category_id)
+      if (!(id > 0)) continue
+      const firstUnit = firstUnitId !== null && Number(row?.unit_id) === firstUnitId
+      const existing = byCategory.get(id)
+      if (existing && (existing.firstUnit || !firstUnit)) continue
+      const name = (definitions.price_category || []).find((category: any) => Number(category.id) === id)?.name || tr("فئة {0}", id)
+      byCategory.set(id, { id, name, price: Number(row?.price) || 0, firstUnit })
+    }
+    return [...byCategory.values()].map(({ id, name, price }) => ({ id, name, price }))
+  }, [formData.prices, formData.units, definitions.price_category])
 
   // تتبع تاريخ الصلاحية/الرقم التشغيلي/الرقم المتسلسل يفترض صنفاً بوحدات عد صحيحة بسيطة — نوع قياس
   // غير "عادي" (1) يحسب الكمية تلقائياً من أبعاد/عدد متغيّرَين لكل حركة (مساحة/حجم/وزن...)، فلا
@@ -1050,6 +1112,8 @@ export function CompactProductForm({
       default_printer: product.default_printer || "",
       is_tobacco: product.is_tobacco === true || product.is_tobacco === "true",
       restaurant_extras: Array.isArray(product.restaurant_extras) ? product.restaurant_extras.map((extra: any) => ({ name: String(extra?.name || ""), price: Number(extra?.price || 0) })) : [],
+      restaurant_extras_mode: product.restaurant_extras_mode === "multi" ? "multi" : "toggle",
+      restaurant_followup_group_id: Number(product.restaurant_followup_group_id) > 0 ? Number(product.restaurant_followup_group_id) : null,
       product_type: Number(product.product_type ?? 1) || 1,
       units: unitsWithNames,
       prices: pricesWithNames,
@@ -3246,13 +3310,13 @@ export function CompactProductForm({
                           return <div key={index} className="grid min-w-0 gap-3 rounded-xl border bg-card p-4 md:grid-cols-[minmax(180px,.7fr)_minmax(260px,1.3fr)_44px]">
                             <div className="min-w-0"><Label>{tr("المتغير *")}</Label><div className="mt-1"><AttributeNameInput value={attribute.name} catalog={attributeCatalog} onChange={(name) => updateAttribute({ name })} onCreate={(name) => { updateAttribute({ name }); void createAttributeCatalogItem(name) }} /></div></div>
                             <div className="min-w-0"><Label>{tr("الخصائص *")}</Label><div className="mt-1"><AttributeValueInput disabled={!catalogEntry} values={attribute.values} valueImages={attribute.value_images}
-                              valuePrices={Object.fromEntries(attribute.values.map((value) => [value, attribute.value_prices?.[value] ?? itemReferencePrice]))}
-                              onPriceChange={(value, price) => updateAttribute({ value_prices: { ...(attribute.value_prices || {}), [value]: price } })}
+                              valuePrices={attribute.value_prices || {}} priceCategories={attributePriceCategories}
+                              onPriceChange={(value, prices) => updateAttribute({ value_prices: { ...(attribute.value_prices || {}), [value]: prices } })}
                               suggestions={catalogEntry?.values || []} onChange={(values) => updateAttribute({
                                 values,
                                 value_images: Object.fromEntries(Object.entries(attribute.value_images || {}).filter(([value]) => values.includes(value))),
-                                // قيمة جديدة: سعرها افتراضياً سعر الصنف نفسه
-                                value_prices: Object.fromEntries(values.map((value) => [value, attribute.value_prices?.[value] ?? itemReferencePrice])),
+                                // قيمة جديدة: سعرها افتراضياً سعر الصنف نفسه في كل فئة سعر
+                                value_prices: Object.fromEntries(values.map((value) => [value, attribute.value_prices?.[value] ?? Object.fromEntries(attributePriceCategories.map((category) => [String(category.id), category.price]))])),
                               })} onImageChange={(value, image) => updateAttribute({ value_images: { ...(attribute.value_images || {}), [value]: image } })} onCreate={(value) => void createAttributeCatalogItem(attribute.name, value)} /></div></div>
                             <Button type="button" size="icon" variant="ghost" className="self-end text-red-600" onClick={() => setFormData((previous) => ({ ...previous, attributes: (previous.attributes || []).filter((_, itemIndex) => itemIndex !== index) }))}><X className="h-4 w-4" /></Button>
                           </div>
@@ -3270,6 +3334,11 @@ export function CompactProductForm({
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-2">
+                        <RestaurantExtrasOptions
+                          mode={formData.restaurant_extras_mode || "toggle"}
+                          followupGroupId={formData.restaurant_followup_group_id ?? null}
+                          onChange={(patch) => setFormData((previous) => ({ ...previous, ...patch }))}
+                        />
                         {!(formData.restaurant_extras || []).length && <button type="button" onClick={() => setFormData((previous) => ({ ...previous, restaurant_extras: [{ name: "", price: 0 }] }))} className="w-full rounded-xl border-2 border-dashed p-8 text-muted-foreground hover:border-orange-400 hover:text-orange-700">{tr("+ إضافة أول إضافة (مثال: بندورة، بطاطا)")}</button>}
                         {(formData.restaurant_extras || []).map((extra, index) => {
                           const updateExtra = (patch: Partial<{ name: string; price: number | string }>) => setFormData((previous) => ({ ...previous, restaurant_extras: (previous.restaurant_extras || []).map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) }))
@@ -3281,7 +3350,9 @@ export function CompactProductForm({
                             </div>
                           )
                         })}
-                        <p className="text-xs text-muted-foreground">{tr("عند إضافة الصنف في شاشة المطعم يظهر معالج لكل إضافة: «مع» أو «بدون». المختار «مع» يُطبع تحت الصنف في قسيمة المطبخ، والإضافات التي لها سعر تُجمع في سطر «اضافات» على «خدمة اضافات المطعم» المحددة في الموقع.")}</p>
+                        <p className="text-xs text-muted-foreground">{formData.restaurant_extras_mode === "multi"
+                          ? tr("عند إضافة الصنف في شاشة المطعم تظهر كل الإضافات في شاشة واحدة ويُختار منها أكثر من إضافة. المختار يُطبع تحت الصنف في قسيمة المطبخ، والإضافات التي لها سعر تُجمع في سطر «اضافات» على «خدمة اضافات المطعم» المحددة في الموقع.")
+                          : tr("عند إضافة الصنف في شاشة المطعم يظهر معالج لكل إضافة: «مع» أو «بدون». المختار «مع» يُطبع تحت الصنف في قسيمة المطبخ، والإضافات التي لها سعر تُجمع في سطر «اضافات» على «خدمة اضافات المطعم» المحددة في الموقع.")}</p>
                       </CardContent>
                     </Card>
                   </TabsContent>
@@ -4026,6 +4097,49 @@ export function CompactProductForm({
           }}
         />
       )}
+    </div>
+  )
+}
+
+/** خيارات اضافات المطعم: طريقة الاختيار + «اظهار الاصناف التابعة للمجموعة بعد الاختيار» ومجموعتها */
+function RestaurantExtrasOptions({ mode, followupGroupId, onChange }: {
+  mode: "toggle" | "multi"
+  followupGroupId: number | null
+  onChange: (patch: { restaurant_extras_mode?: "toggle" | "multi"; restaurant_followup_group_id?: number | null }) => void
+}) {
+  const [groups, setGroups] = useState<{ id: number; name: string }[]>([])
+  const [showFollowup, setShowFollowup] = useState(Boolean(followupGroupId))
+  useEffect(() => { if (followupGroupId) setShowFollowup(true) }, [followupGroupId])
+  useEffect(() => {
+    let alive = true
+    fetch("/api/item-groups", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : []))
+      .then((rows) => { if (alive && Array.isArray(rows)) setGroups(rows.filter((row: any) => row.status !== "غير نشط").map((row: any) => ({ id: Number(row.id), name: String(row.group_name || row.group_code || row.id) }))) })
+      .catch(() => undefined)
+    return () => { alive = false }
+  }, [])
+  const select = "mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+  return (
+    <div className="mb-3 grid gap-3 rounded-xl border border-orange-200 bg-orange-50/50 p-3 sm:grid-cols-2 dark:border-orange-900 dark:bg-orange-950/20">
+      <div>
+        <Label htmlFor="restaurant-extras-mode">{tr("طريقة الاختيار")}</Label>
+        <select id="restaurant-extras-mode" className={select} value={mode} onChange={(event) => onChange({ restaurant_extras_mode: event.target.value === "multi" ? "multi" : "toggle" })}>
+          <option value="toggle">{tr("مع / بدون")}</option>
+          <option value="multi">{tr("اختيار من متعدد")}</option>
+        </select>
+      </div>
+      <div>
+        <label className="flex h-6 items-center gap-2 text-sm font-medium">
+          <Checkbox checked={showFollowup} onCheckedChange={(checked) => { const on = checked === true; setShowFollowup(on); if (!on) onChange({ restaurant_followup_group_id: null }) }} />
+          {tr("اظهار الاصناف التابعة للمجموعة بعد الاختيار")}
+        </label>
+        {showFollowup && (
+          <select aria-label={tr("مجموعة الأصناف")} className={select} value={followupGroupId ?? ""} onChange={(event) => onChange({ restaurant_followup_group_id: Number(event.target.value) > 0 ? Number(event.target.value) : null })}>
+            <option value="">{tr("اختر المجموعة (مثال: المشروبات)")}</option>
+            {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+          </select>
+        )}
+      </div>
     </div>
   )
 }

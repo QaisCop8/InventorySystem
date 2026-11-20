@@ -32,7 +32,7 @@ import {
   PosPaymentDetailsDialog, type CurrencyOption, type LookupOption, type PaymentDetail, type PaymentMethod,
 } from "@/components/pos/pos-payment-details-dialog"
 import {
-  AddonsDialog, addonsText, attributesText, extrasLines, EXTRAS_GROUP, isExtraAddon, ExtrasWizard, ValueDialog, TakeawayInfoDialog, ItemEditDialog, LineQuantities, money, PayScopeDialog, qtyText, round2, round4, TablePickerDialog,
+  AddonsDialog, addonsText, attributesText, extrasLines, EXTRAS_GROUP, isExtraAddon, ExtrasWizard, FollowupPickDialog, ValueDialog, TakeawayInfoDialog, ItemEditDialog, LineQuantities, money, PayScopeDialog, qtyText, round2, round4, TablePickerDialog,
   type Addon, type EditableLine, type FloorLocation, type FloorTable, type OrderItem,
 } from "./restaurant-dialogs"
 import { RestaurantFloor, type FloorStatusFilter, type Takeaway } from "./restaurant-floor"
@@ -111,6 +111,9 @@ function normalizeCatalog(data: any): Catalog {
       relatedIds: (Array.isArray(row.related_ids) ? row.related_ids : []).map(Number),
       relatedItems: (Array.isArray(row.related_items) ? row.related_items : []).map((option: any) => ({ id: Number(option.related_id), addPrice: option.add_price !== false, noKitchenPrint: option.no_kitchen_print === true })),
       extras: (Array.isArray(row.restaurant_extras) ? row.restaurant_extras : []).map((extra: any) => ({ name: String(extra.name || ""), price: Math.max(0, Number(extra.price) || 0) })).filter((extra: any) => extra.name),
+      extrasMode: row.restaurant_extras_mode === "multi" ? "multi" as const : "toggle" as const,
+      groupId: Number(row.group_id) || null,
+      followupGroupId: Number(row.restaurant_followup_group_id) || null,
     })),
     customers: (data.customers || []).map((row: any) => ({ id: Number(row.id), name: String(row.name || ""), code: String(row.code || ""), accountId: Number(row.account_id) || null })),
     currencies: (data.currencies || []).map((row: any) => ({ currency_id: Number(row.currency_id), currency_code: String(row.currency_code || ""), currency_name: String(row.currency_name || ""), rate_to_point: Number(row.rate_to_point || 1) })),
@@ -177,6 +180,8 @@ export default function RestaurantPos() {
   const [valueDialog, setValueDialog] = useState<null | "discount" | "takeaway_name">(null)
   // اختيار يدوي من الأصناف التابعة (related_items_mode = 4): الصنف الأب + التوابع المؤشَّرة
   const [relatedPick, setRelatedPick] = useState<{ product: Product; options: Product[]; selected: number[] } | null>(null)
+  // «اظهار الاصناف التابعة للمجموعة بعد الاختيار»: بعد إضافة الصنف يُختار صنف واحد من مجموعته المحددة (أو تخطي)
+  const [followupPick, setFollowupPick] = useState<{ product: Product; options: Product[] } | null>(null)
   const [extrasWizard, setExtrasWizard] = useState<{ product: Product; related: Product[]; includeParent: boolean; attrs?: { addons: Addon[]; note: string } } | null>(null)
   // kind "new": صنف له «المتغيرات والخصائص» لم يُضف بعد — لا يظهر في الطلب حتى يُختار (الإلغاء لا يضيف شيئاً)
   const [addonsTarget, setAddonsTarget] = useState<
@@ -669,7 +674,8 @@ export default function RestaurantPos() {
     // الأسعار المعروضة يجب أن تكون لنوع هذا الطلب (طاولات/سفري) — وإلا ينتظر حتى تُحمَّل
     if (order && shownCatalogId.current !== catalogIdOf(order)) { setMessage({ type: "error", text: tr("جاري تحميل أسعار هذا الطلب — حاول بعد لحظة") }); return }
     // صنف بلا سعر في فئة السعر (الطاولات/السفري): تنبيه صوتي ومنع الإضافة
-    if (!(Number(product.price) > 0)) {
+    // صنف له «متغيرات وخصائص»: السعر يتحدد بالقيمة المختارة — يُفحص بعد الاختيار (addLines)
+    if (!(Number(product.price) > 0) && !(product.addonGroups || []).length) {
       playPosBeep("noPrice")
       setMessage({ type: "error", text: tr("سعر الصنف المختار غير محدد يجب تحديد السعر للتمكن من الاستمرار") })
       return
@@ -692,6 +698,11 @@ export default function RestaurantPos() {
     const parentAddons: Addon[] = [...(attrs?.addons || []), ...(chosen || []).map((name) => ({ group: EXTRAS_GROUP, value: tr("مع {0}", name) }))]
     // سعر الصنف + فرق أسعار القيم المختارة (lib/attribute-prices.ts)
     const parentPrice = round4(Math.max(0, product.price + addonsPriceDelta(parentGroups, attrs?.addons)))
+    if (includeParent && parentGroups.length && !(parentPrice > 0)) {
+      playPosBeep("noPrice")
+      setMessage({ type: "error", text: tr("سعر الصنف المختار غير محدد يجب تحديد السعر للتمكن من الاستمرار") })
+      return
+    }
     const extrasTotal = round2(extras.filter((extra) => chosen?.includes(extra.name)).reduce((sum, extra) => sum + extra.price, 0))
     const service = catalog?.extrasService || null
     if (extrasTotal > 0 && !service) {
@@ -728,6 +739,10 @@ export default function RestaurantPos() {
       return next
     })
     if (firstWithAddons) setAddonsTarget({ kind: "pending", key: firstWithAddons.key })
+    else if (includeParent && product.followupGroupId) {
+      const options = (catalog?.products || []).filter((row) => row.groupId === product.followupGroupId && row.id !== product.id && Number(row.price) > 0)
+      if (options.length) setFollowupPick({ product, options })
+    }
   }
 
   const confirmRelatedPick = () => {
@@ -1092,14 +1107,17 @@ export default function RestaurantPos() {
   // ---------------- الإضافات ----------------
   const addonsLine = useMemo(() => {
     if (!addonsTarget) return null
-    if (addonsTarget.kind === "new") return { title: addonsTarget.product.name, groups: addonsTarget.product.addonGroups || [], selected: [] as Addon[], note: "" }
+    // base = سعر الصنف قبل الخصائص (يعرض السعر الفعلي لكل قيمة في النافذة)
+    if (addonsTarget.kind === "new") return { title: addonsTarget.product.name, groups: addonsTarget.product.addonGroups || [], selected: [] as Addon[], note: "", base: addonsTarget.product.price }
     if (addonsTarget.kind === "pending") {
       const row = pending.find((line) => line.key === addonsTarget.key)
       if (!row) return null
-      return { title: row.name, groups: productById.get(row.productId)?.addonGroups || [], selected: row.addons.filter((addon) => !isExtraAddon(addon)), note: row.note }
+      const rowGroups = productById.get(row.productId)?.addonGroups || []
+      return { title: row.name, groups: rowGroups, selected: row.addons.filter((addon) => !isExtraAddon(addon)), note: row.note, base: round4(row.price - addonsPriceDelta(rowGroups, row.addons)) }
     }
     const item = addonsTarget.item
-    return { title: item.product_name, groups: productById.get(item.product_id)?.addonGroups || [], selected: (item.addons || []).filter((addon) => !isExtraAddon(addon)), note: item.note || "" }
+    const itemGroups = productById.get(item.product_id)?.addonGroups || []
+    return { title: item.product_name, groups: itemGroups, selected: (item.addons || []).filter((addon) => !isExtraAddon(addon)), note: item.note || "", base: round4(Number(item.price) - addonsPriceDelta(itemGroups, item.addons || [])) }
   }, [addonsTarget, pending, productById])
   const saveAddons = async (addons: Addon[], note: string) => {
     if (!addonsTarget || !order) return
@@ -1167,6 +1185,9 @@ export default function RestaurantPos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <FollowupPickDialog open={followupPick !== null} title={followupPick?.product.name || ""} options={followupPick?.options || []} currency={currency}
+        onSkip={() => setFollowupPick(null)}
+        onPick={(row) => { setFollowupPick(null); void addProduct(row) }} />
       {toast}
       {(offline || offlineQueue.length > 0) && (
         <div className="pointer-events-none fixed left-1/2 top-1.5 z-[61] w-max max-w-[min(32rem,calc(100vw-1rem))] -translate-x-1/2 rounded-full border border-amber-300 bg-amber-50/95 px-3 py-1 text-[11px] font-semibold text-amber-900 shadow print:hidden" role="status">
@@ -1367,11 +1388,11 @@ export default function RestaurantPos() {
         canDiscount canDelete canReduce
         onSave={(value) => void saveEdit(value)} onDelete={() => void deleteEdit()} />
 
-      <ExtrasWizard open={extrasWizard !== null} title={extrasWizard?.product.name || ""} price={extrasWizard?.product.price || 0} currency={currency} extras={extrasWizard?.product.extras || []}
+      <ExtrasWizard open={extrasWizard !== null} mode={extrasWizard?.product.extrasMode || "toggle"} title={extrasWizard?.product.name || ""} price={extrasWizard?.product.price || 0} currency={currency} extras={extrasWizard?.product.extras || []}
         onCancel={() => setExtrasWizard(null)}
         onDone={(chosen) => { const target = extrasWizard; setExtrasWizard(null); if (target) addLines(target.product, target.related, target.includeParent, chosen, target.attrs) }} />
 
-      <AddonsDialog open={addonsLine !== null} onOpenChange={(value) => { if (!value) setAddonsTarget(null) }} title={addonsLine?.title || ""}
+      <AddonsDialog open={addonsLine !== null} onOpenChange={(value) => { if (!value) setAddonsTarget(null) }} title={addonsLine?.title || ""} basePrice={addonsLine?.base}
         groups={addonsLine?.groups || []} selected={addonsLine?.selected || []} note={addonsLine?.note || ""} busy={busy} onSave={(addons, note) => void saveAddons(addons, note)} />
 
       <TablePickerDialog open={picker === "transfer"} onOpenChange={(value) => { if (!value) setPicker(null) }} title={isTakeaway ? tr("تحويل الطلب السفري إلى طاولة") : tr("نقل الطاولة")} description={tr("اختر طاولة فارغة لنقل الطلب إليها")}

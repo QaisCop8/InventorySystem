@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         id: Number(product.id), product_code: product.product_code, product_name: product.product_name, unit_id: product.unit_id, unit_name: product.unit_name,
         first_price: product.first_price, category_name: product.category_name, group_printer: product.group_printer, item_printer: product.item_printer, unit_prices: product.unit_prices,
         image_url: /^(https?:|\/)/i.test(image) ? image : null, has_image: Boolean(image) && !/^(https?:|\/)/i.test(image),
-        addon_groups: product.addon_groups, restaurant_extras: product.restaurant_extras, related_items_mode: product.related_items_mode, related_ids: product.related_ids, related_items: product.related_items,
+        addon_groups: product.addon_groups, restaurant_extras: product.restaurant_extras, restaurant_extras_mode: product.restaurant_extras_mode, restaurant_followup_group_id: product.restaurant_followup_group_id, group_id: product.group_id, related_items_mode: product.related_items_mode, related_ids: product.related_ids, related_items: product.related_items,
       }
     })
     // خدمة اضافات المطعم للموقع: سطر «اضافات» بمجموع أسعار الإضافات المختارة

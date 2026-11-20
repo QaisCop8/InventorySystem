@@ -121,6 +121,10 @@ async function ensureProductSchemaColumns(client: any) {
     ["attributes", "JSONB NOT NULL DEFAULT '[]'::jsonb"],
     // اضافات المطعم (2026-11-19): [{ name ≤50, price 0..1000 }] — معالج «مع/بدون» في شاشة المطعم
     ["restaurant_extras", "JSONB NOT NULL DEFAULT '[]'::jsonb"],
+    // طريقة اختيار اضافات المطعم (2026-11-20): toggle = «مع/بدون» لكل إضافة، multi = اختيار من متعدد بشاشة واحدة
+    ["restaurant_extras_mode", "VARCHAR(10) NOT NULL DEFAULT 'toggle'"],
+    // «اظهار الاصناف التابعة للمجموعة بعد الاختيار»: مجموعة أصناف (item_groups) يُختار منها صنف بعد الصنف (مثل مشروب)
+    ["restaurant_followup_group_id", "INTEGER"],
     ["related_items_mode", "INTEGER NOT NULL DEFAULT 1"],
     ["default_printer", "VARCHAR(150)"],
   ]
@@ -296,17 +300,30 @@ function normalizeProductPayload(productData: any) {
               .filter(([value]) => Boolean(value))
           ),
           // سعر كل قيمة (افتراضياً سعر الصنف) + سعر الصنف المرجعي: الفرق يُضاف عند البيع (lib/attribute-prices.ts)
+          // 2026-11-20: سعر القيمة لكل فئة سعر { [price_category_id]: سعر } (السعر الفعلي للسطر بتلك الفئة)؛ رقم واحد = الصيغة القديمة
           value_prices: Object.fromEntries(
             Object.entries(attribute?.value_prices && typeof attribute.value_prices === "object" ? attribute.value_prices : {})
-              .map(([value, price]) => [safeText(value, "").trim(), Number(price)] as [string, number])
-              .filter(([value, price]) => Boolean(value) && price !== null && Number.isFinite(price) && price >= 0)
-              .map(([value, price]) => [value, Math.round(price * 10000) / 10000])
+              .map(([value, price]): [string, number | Record<string, number> | null] => {
+                const key = safeText(value, "").trim()
+                if (price && typeof price === "object") {
+                  const byCategory = Object.fromEntries(Object.entries(price as Record<string, unknown>)
+                    .map(([category, amount]) => [String(Math.trunc(Number(category))), amount === "" || amount === null ? NaN : Number(amount)] as [string, number])
+                    .filter(([category, amount]) => Number(category) > 0 && Number.isFinite(amount) && amount >= 0)
+                    .map(([category, amount]) => [category, Math.round(amount * 10000) / 10000]))
+                  return [key, Object.keys(byCategory).length ? byCategory : null]
+                }
+                const amount = Number(price)
+                return [key, price !== null && price !== "" && Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 10000) / 10000 : null]
+              })
+              .filter(([value, price]) => Boolean(value) && price !== null)
           ),
           base_price: referencePrice,
         })).filter((attribute: any) => attribute.name && attribute.values.length > 0)
       : [],
     // غائب عن الطلب (استيراد Excel/حفظ جزئي) ⇐ لا يُلمس المحفوظ
     restaurant_extras: Array.isArray(productData?.restaurant_extras) ? cleanRestaurantExtras(productData.restaurant_extras) : undefined,
+    restaurant_extras_mode: productData?.restaurant_extras_mode === undefined ? undefined : productData.restaurant_extras_mode === "multi" ? "multi" : "toggle",
+    restaurant_followup_group_id: productData?.restaurant_followup_group_id === undefined ? undefined : Number(productData.restaurant_followup_group_id) > 0 ? Math.trunc(Number(productData.restaurant_followup_group_id)) : null,
   }
 }
 
@@ -948,6 +965,8 @@ export async function POST(request: NextRequest) {
         await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS minimum_order_quantity NUMERIC(15,4) NOT NULL DEFAULT 0`)
         await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`)
         await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS restaurant_extras JSONB NOT NULL DEFAULT '[]'::jsonb`)
+        await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS restaurant_extras_mode VARCHAR(10) NOT NULL DEFAULT 'toggle'`)
+        await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS restaurant_followup_group_id INTEGER`)
         // تقييد ظهور الصنف بفروع معيّنة (اختياري) — بلا أي صف هنا لهذا الصنف يبقى ظاهراً لكل الفروع
         // (السلوك الحالي دون تغيير)؛ بصف واحد أو أكثر يظهر فقط لمستخدم فرعه أحد هذه الصفوف (انظر تصفية
         // GET أدناه عبر هيدر x-branch-id). نفس نمط product_warehouses تماماً (جدول علاقة بسيط).
@@ -1608,6 +1627,8 @@ export async function POST(request: NextRequest) {
     ])
     await persistProductAttributes(client, productId, productData.attributes)
     if (productData.restaurant_extras !== undefined) await client.query(`UPDATE products SET restaurant_extras=$1::jsonb WHERE id=$2::int`, [JSON.stringify(productData.restaurant_extras || []), productId])
+    if (productData.restaurant_extras_mode !== undefined) await client.query(`UPDATE products SET restaurant_extras_mode=$1 WHERE id=$2::int`, [productData.restaurant_extras_mode, productId])
+    if (productData.restaurant_followup_group_id !== undefined) await client.query(`UPDATE products SET restaurant_followup_group_id=$1 WHERE id=$2::int`, [productData.restaurant_followup_group_id, productId])
     if (productData.id === 0) await persistNewProductChildren(client, productId, productData)
 
     await client.query("COMMIT");

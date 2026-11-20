@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server"
-import { stepCountIs, streamText, tool } from "ai"
+import { stepCountIs, streamText, tool, type ModelMessage } from "ai"
 import { google } from "@ai-sdk/google"
 import { z } from "zod"
 import sql from "@/lib/database"
-import { aiCallOptions, geminiModel } from "@/lib/ai-model"
+import { aiCallOptions, geminiModels, isTemporaryAiError } from "@/lib/ai-model"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { hasNamedPermission } from "@/lib/permissions"
 import { filterAccessibleAccounts } from "@/lib/account-access"
@@ -99,11 +99,7 @@ export async function POST(request: NextRequest) {
     const weekday = new Date().toLocaleDateString("ar", { weekday: "long" })
     const canSeeBalances = () => user ? hasNamedPermission(String(user.user_id), ACCOUNT_BALANCE_VIEW_PERMISSION, CREDIT_LIMIT_PERMISSION_CATEGORY, branchId) : Promise.resolve(false)
 
-    const result = streamText({
-      // تفكير منخفض + مهلة 45 ثانية: الرد يبدأ أسرع ولا يبقى المستخدم معلّقاً عند انشغال الخدمة
-      ...aiCallOptions(geminiModel(), { thinking: "low", timeoutMs: 45_000 }),
-      model: google(geminiModel()),
-      messages,
+    const conversation = {
       system: `أنت "المساعد الذكي" لنظام Noon ERP (محاسبة، مخزون، مبيعات ومشتريات) من شركة الصبّاح للبرمجة.
 اليوم: ${weekday} ${today}.${branchName ? ` الفرع النشط للمستخدم: ${branchName}.` : ""}
 
@@ -325,11 +321,78 @@ export async function POST(request: NextRequest) {
           },
         }),
       },
-    })
+    }
 
-    return result.toTextStreamResponse()
+    return new Response(answerStream(conversation, messages as ModelMessage[]), { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } })
   } catch (error) {
     console.error("[ai] AI Assistant error:", error)
     return new Response("فشل في معالجة الطلب", { status: 500 })
   }
+}
+
+const encoder = new TextEncoder()
+
+/** سبب فشل مفهوم للمستخدم بدل رد فارغ («لم يصل رد من المساعد») */
+function failureText(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "")
+  if (/api key|API_KEY|GOOGLE_GENERATIVE_AI_API_KEY|permission denied|unauthenticated/i.test(message)) return "تعذر الاتصال بخدمة الذكاء الاصطناعي: مفتاح Gemini غير مُعدّ أو غير صالح."
+  if (/quota|resource exhausted|rate limit|429/i.test(message)) return "تم تجاوز حصة استخدام خدمة الذكاء الاصطناعي حالياً. حاول بعد دقيقة."
+  if (/timeout|timed out|aborted/i.test(message)) return "تأخرت خدمة الذكاء الاصطناعي في الرد (قد تكون مشغولة الآن). أعد إرسال السؤال بعد لحظات."
+  if (/high demand|overloaded|unavailable|503/i.test(message)) return "خدمة الذكاء الاصطناعي مشغولة الآن. أعد إرسال السؤال بعد لحظات."
+  return "تعذر الحصول على رد من خدمة الذكاء الاصطناعي. أعد صياغة السؤال أو حاول مرة أخرى."
+}
+
+/**
+ * الرد كنص متدفق. كان toTextStreamResponse() يبتلع أخطاء النموذج (انشغال/حصة/مهلة) فيصل رد فارغ، وأحياناً
+ * يستدعي Gemini الأداة ثم ينتهي دون كتابة نص. هنا: إعادة المحاولة/النموذج الاحتياطي قبل كتابة أي نص عند الأخطاء
+ * المؤقتة، وإن انتهت الخطوات بلا نص تُطلب صياغة الجواب من نتائج الأدوات (بلا أدوات)، وإلا رسالة سبب واضحة.
+ */
+function answerStream(conversation: { system: string; tools: any; stopWhen: any }, messages: ModelMessage[]) {
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let wrote = false
+      const write = (text: string) => { if (text) { wrote = true; controller.enqueue(encoder.encode(text)) } }
+      // يكتب النص المتدفق؛ يرمي الخطأ إن فشل النموذج. يعيد رسائل الخطوات (استدعاءات الأدوات ونتائجها)
+      const pump = async (modelName: string, history: ModelMessage[], withTools: boolean) => {
+        const result = streamText({
+          // تفكير منخفض + مهلة 45 ثانية: الرد يبدأ أسرع ولا يبقى المستخدم معلّقاً عند انشغال الخدمة
+          ...aiCallOptions(modelName, { thinking: "low", timeoutMs: 45_000 }),
+          model: google(modelName),
+          system: conversation.system,
+          messages: history,
+          ...(withTools ? { tools: conversation.tools, stopWhen: conversation.stopWhen } : {}),
+        })
+        for await (const part of result.fullStream) {
+          if (part.type === "text-delta") write(part.text)
+          else if (part.type === "error") throw part.error
+        }
+        return (await result.response).messages as ModelMessage[]
+      }
+      let lastError: unknown = null
+      try {
+        attempts: for (const modelName of geminiModels()) {
+          for (let attempt = 0; attempt < 2; attempt += 1) {
+            try {
+              const steps = await pump(modelName, messages, true)
+              // استدعى الأدوات ولم يكتب جواباً ⇐ صياغة الجواب من نتائجها
+              if (!wrote && steps.length) await pump(modelName, [...messages, ...steps, { role: "user", content: "اكتب الآن الجواب للمستخدم بالعربية بناءً على نتائج الأدوات أعلاه." }], false)
+              lastError = null
+              break attempts
+            } catch (error) {
+              lastError = error
+              console.error(`[ai] chat stream failed (${modelName}, attempt ${attempt + 1}):`, error)
+              // بعد كتابة جزء من الرد لا يُعاد (يتكرر النص)؛ والخطأ غير المؤقت لا تفيد إعادته
+              if (wrote || !isTemporaryAiError(error)) break attempts
+            }
+          }
+        }
+        if (!wrote) write(lastError ? failureText(lastError) : "لم أجد ما أجيب به. أعد صياغة السؤال بذكر اسم الحساب أو الصنف.")
+      } catch (error) {
+        console.error("[ai] chat stream crashed:", error)
+        if (!wrote) write(failureText(error))
+      } finally {
+        controller.close()
+      }
+    },
+  })
 }

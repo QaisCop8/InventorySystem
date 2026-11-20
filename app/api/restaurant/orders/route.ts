@@ -1,4 +1,4 @@
-import { addonsPriceDelta, attributeDeltas } from "@/lib/attribute-prices"
+import { addonsPriceDelta, categoryAttributeDeltas } from "@/lib/attribute-prices"
 import { APPROVAL_HEADER, discountWithinApproval, hasPermissionApproval, permissionRequiredBody } from "@/lib/permission-approvals"
 import { NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
@@ -245,7 +245,10 @@ async function handleUpdateItem(ctx: Ctx, order: any) {
   let price = num(item.price)
   if (ctx.data.addons !== undefined) {
     const [product] = await sql`SELECT attributes FROM products WHERE id = ${Number(item.product_id)}` as any[]
-    const groups = (Array.isArray(product?.attributes) ? product.attributes : []).map((group: any) => ({ name: String(group?.name || "").trim(), prices: attributeDeltas(group) }))
+    // فئة سعر الطلب (الطاولات/السفري): أسعار القيم لكل فئة — سعر الصنف يُلغى بطرح القديم وإضافة الجديد (base = 0)
+    const [location] = await sql`SELECT price_category_id, takeaway_price_category_id FROM restaurant_locations_tbl WHERE id = ${Number(order.location_id)}` as any[]
+    const categoryId = order.order_type === "takeaway" && Number(location?.takeaway_price_category_id) > 0 ? Number(location.takeaway_price_category_id) : Number(location?.price_category_id) || null
+    const groups = (Array.isArray(product?.attributes) ? product.attributes : []).map((group: any) => ({ name: String(group?.name || "").trim(), prices: categoryAttributeDeltas(group, 0, categoryId) }))
     const next = Math.round((price - addonsPriceDelta(groups, cleanAddons(item.addons)) + addonsPriceDelta(groups, addons)) * 10000) / 10000
     if (next !== price) {
       if (qty(item.paid_quantity) > 0) throw fail("لا يمكن تغيير خصائص لها سعر مختلف لصنف دُفع جزء منه")

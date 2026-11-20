@@ -1,4 +1,4 @@
-import { attributeDeltas } from "@/lib/attribute-prices"
+import { categoryAttributeDeltas } from "@/lib/attribute-prices"
 import sql from "@/lib/database"
 import { deniedAccountIdsFor } from "@/lib/account-access"
 import { getPosCurrencies } from "@/lib/pos-currencies"
@@ -15,6 +15,8 @@ function ensureProductExtrasSchema() {
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS related_items_mode INTEGER NOT NULL DEFAULT 1`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS restaurant_extras JSONB NOT NULL DEFAULT '[]'::jsonb`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS restaurant_extras_mode VARCHAR(10) NOT NULL DEFAULT 'toggle'`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS restaurant_followup_group_id INTEGER`
     await sql`CREATE TABLE IF NOT EXISTS product_related_items (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, related_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, UNIQUE(product_id, related_id), CHECK (product_id <> related_id))`
     await sql`ALTER TABLE product_related_items ADD COLUMN IF NOT EXISTS add_price BOOLEAN NOT NULL DEFAULT TRUE`
     await sql`ALTER TABLE product_related_items ADD COLUMN IF NOT EXISTS no_kitchen_print BOOLEAN NOT NULL DEFAULT FALSE`
@@ -27,12 +29,12 @@ export type RelatedItemOption = { related_id: number; add_price: boolean; no_kit
  * لكل صنف: addon_groups = "المتغيرات والخصائص" (المجموعات وقيمها تصاعدياً)، و related_items_mode / related_ids =
  * التوابع (1 الصنف فقط، 2 التوابع فقط، 3 الصنف والتوابع، 4 اختيار يدوي من التوابع) و related_items = خيارات كل تابع — مشتركة بين كاشير نقطة البيع وشاشة المطعم.
  */
-export async function attachProductExtras<T extends { id: number | string }>(products: T[]) {
+export async function attachProductExtras<T extends { id: number | string }>(products: T[], pricing?: { priceCategoryId?: number | null; factorById?: Map<number, number> }) {
   const ids = products.map((product) => Number(product.id)).filter((id) => id > 0)
-  if (!ids.length) return products.map((product) => ({ ...product, addon_groups: [], related_items_mode: 1, related_ids: [] as number[], related_items: [] as RelatedItemOption[], restaurant_extras: [] as { name: string; price: number }[] }))
+  if (!ids.length) return products.map((product) => ({ ...product, addon_groups: [], related_items_mode: 1, related_ids: [] as number[], related_items: [] as RelatedItemOption[], restaurant_extras: [] as { name: string; price: number }[], restaurant_extras_mode: "toggle", restaurant_followup_group_id: null as number | null }))
   await ensureProductExtrasSchema()
   const [extras, relations] = await Promise.all([
-    sql`SELECT id, attributes, related_items_mode, restaurant_extras FROM products WHERE id = ANY(${ids}::int[]) AND (CASE WHEN jsonb_typeof(attributes) = 'array' THEN jsonb_array_length(attributes) ELSE 0 END > 0 OR COALESCE(related_items_mode, 1) > 1 OR CASE WHEN jsonb_typeof(restaurant_extras) = 'array' THEN jsonb_array_length(restaurant_extras) ELSE 0 END > 0)`,
+    sql`SELECT id, attributes, related_items_mode, restaurant_extras, restaurant_extras_mode, restaurant_followup_group_id FROM products WHERE id = ANY(${ids}::int[]) AND (restaurant_followup_group_id IS NOT NULL OR CASE WHEN jsonb_typeof(attributes) = 'array' THEN jsonb_array_length(attributes) ELSE 0 END > 0 OR COALESCE(related_items_mode, 1) > 1 OR CASE WHEN jsonb_typeof(restaurant_extras) = 'array' THEN jsonb_array_length(restaurant_extras) ELSE 0 END > 0)`,
     sql`SELECT product_id, related_id, add_price, no_kitchen_print FROM product_related_items WHERE product_id = ANY(${ids}::int[]) ORDER BY id`,
   ])
   const extraById = new Map<number, any>((extras as any[]).map((row) => [Number(row.id), row]))
@@ -45,7 +47,7 @@ export async function attachProductExtras<T extends { id: number | string }>(pro
         name: String(group?.name || "").trim(),
         values: (Array.isArray(group?.values) ? group.values : []).map((value: unknown) => String(value || "").trim()).filter(Boolean).sort(byText),
         // سعر كل قيمة − سعر الصنف المرجعي (lib/attribute-prices.ts) — يُضاف لسعر السطر عند اختيارها
-        prices: attributeDeltas(group),
+        prices: categoryAttributeDeltas(group, Number((product as any).first_price) || 0, Number(pricing?.priceCategoryId) || null, pricing?.factorById?.get(Number(product.id)) ?? 1),
       }))
       .filter((group: any) => group.name && group.values.length)
       .sort((a: any, b: any) => byText(a.name, b.name))
@@ -58,6 +60,9 @@ export async function attachProductExtras<T extends { id: number | string }>(pro
       // اضافات المطعم: معالج «مع/بدون» (السعر يُجمع في سطر «اضافات» على خدمة الموقع)
       restaurant_extras: (Array.isArray(extra?.restaurant_extras) ? extra.restaurant_extras : [])
         .map((row: any) => ({ name: String(row?.name || "").trim(), price: Math.max(0, Number(row?.price) || 0) })).filter((row: any) => row.name) as { name: string; price: number }[],
+      // طريقة اختيار الإضافات، ومجموعة الأصناف التي يُختار منها صنف بعد هذا الصنف (مثل مشروب)
+      restaurant_extras_mode: extra?.restaurant_extras_mode === "multi" ? "multi" : "toggle",
+      restaurant_followup_group_id: Number(extra?.restaurant_followup_group_id) > 0 ? Number(extra.restaurant_followup_group_id) : null,
     }
   })
 }
@@ -157,12 +162,15 @@ export async function buildPosCatalog(point: any, pointId: number, userId: strin
     const rateByCurrency=new Map<number,number>(rates.map((row:any)=>[Number(row.currency_id),Number(row.exchange_rate)] as [number,number]))
     const pointRate=rateByCurrency.get(pointCurrencyId)
     if(!pointRate||pointRate<=0)throw new Error(`لا يوجد سعر صرف صالح لعملة نقطة البيع ${point.currency_code||""} حتى اليوم`)
+    // معامل تحويل سعر الصنف (عملة فئة السعر ⇐ عملة النقطة) — لأسعار «المتغيرات والخصائص» بنفس العملة
+    const factorById=new Map<number,number>()
     const pricedProducts=products.map((product:any)=>{
       const sourcePrice=Number(product.source_price||0)
       const sourceCurrencyId=Number(product.price_currency_id||pointCurrencyId)
       const sourceRate=sourceCurrencyId===pointCurrencyId?pointRate:rateByCurrency.get(sourceCurrencyId)
       if(!sourceRate||sourceRate<=0)throw new Error(`لا يوجد سعر صرف صالح لعملة بيع الصنف ${product.product_code||product.product_name} حتى اليوم`)
       const firstPrice=sourceCurrencyId===pointCurrencyId?sourcePrice:Math.round(sourcePrice*sourceRate/pointRate*10000)/10000
+      factorById.set(Number(product.id),sourceCurrencyId===pointCurrencyId?1:sourceRate/pointRate)
       const {source_price,price_currency_id,...rest}=product
       const barcodeOptions=(Array.isArray(product.barcode_options)?product.barcode_options:[]).map((option:any)=>{
         const optionSourcePrice=Number(option.source_price||0)
@@ -181,7 +189,7 @@ export async function buildPosCatalog(point: any, pointId: number, userId: strin
       for(const option of barcodeOptions)if(!(option.price>0))option.price=derivedByUnit.get(Number(option.unit_id))||0
       return {...rest,first_price:firstPrice>0?firstPrice:(derivedByUnit.get(Number(product.unit_id))||0),barcode_options:barcodeOptions,unit_prices:filledUnits.map(({to_main_qnty,...unit}:any)=>unit)}
     })
-    const [campaigns,campaignUsage,productsWithExtras]=await Promise.all([getPosCampaigns(),getPosCampaignUsage(),attachProductExtras(pricedProducts)])
+    const [campaigns,campaignUsage,productsWithExtras]=await Promise.all([getPosCampaigns(),getPosCampaignUsage(),attachProductExtras(pricedProducts,{priceCategoryId,factorById})])
     // صلاحيات المستخدمين على الحسابات: العملاء الممنوعون عن المستخدم (بفرع النقطة) لا يظهرون بالكاشير/المطعم
     const deniedCustomers=await deniedAccountIdsFor(userId,Number(point.branch_id)||0)
     const visibleCustomers=deniedCustomers.size?(customers as any[]).filter((row:any)=>!deniedCustomers.has(Number(row.id))):customers

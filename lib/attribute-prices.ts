@@ -33,3 +33,24 @@ export function addonsPriceDelta(groups: { name: string; prices?: Record<string,
   }
   return round4(total)
 }
+
+/**
+ * فرق سعر كل قيمة عن سعر الصنف بفئة سعر معيّنة (2026-11-20): value_prices[قيمة] = { [فئة السعر]: سعر } —
+ * السعر الفعلي للسطر بتلك الفئة (بعملة سعر الصنف ⇐ factor يحوّله لعملة النقطة)؛ أو رقم واحد (الصيغة القديمة: الفرق
+ * عن base_price المرجعي). basePrice = سعر الصنف بنفس الفئة (بعملة النقطة).
+ */
+export function categoryAttributeDeltas(group: { value_prices?: Record<string, unknown> | null; base_price?: unknown }, basePrice: number, priceCategoryId: number | null, factor = 1): Record<string, number> {
+  const legacy = attributeDeltas(group as any)
+  const prices = group?.value_prices && typeof group.value_prices === "object" ? group.value_prices : {}
+  const deltas: Record<string, number> = {}
+  for (const [value, raw] of Object.entries(prices)) {
+    if (raw && typeof raw === "object") {
+      if (!priceCategoryId) continue
+      const amount = Number((raw as Record<string, unknown>)[String(priceCategoryId)])
+      if (!Number.isFinite(amount)) continue
+      const delta = round4(amount * factor - basePrice)
+      if (delta !== 0) deltas[value] = delta
+    } else if (legacy[value] !== undefined) deltas[value] = legacy[value]
+  }
+  return deltas
+}

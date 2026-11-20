@@ -25,6 +25,12 @@ export type Product = {
   relatedItems: { id: number; addPrice: boolean; noKitchenPrint: boolean }[]
   /** اضافات المطعم (تعريف الصنف): معالج «مع/بدون» عند الإضافة */
   extras?: { name: string; price: number }[]
+  /** طريقة اختيار الإضافات: toggle = «مع/بدون» لكل إضافة، multi = اختيار من متعدد بشاشة واحدة */
+  extrasMode?: "toggle" | "multi"
+  /** مجموعة الصنف (item_groups) */
+  groupId?: number | null
+  /** «اظهار الاصناف التابعة للمجموعة بعد الاختيار»: يُختار صنف من هذه المجموعة بعد الصنف (مثل مشروب) */
+  followupGroupId?: number | null
 }
 export type Pending = {
   key: string; productId: number; name: string; unitId: number | null; unitName: string; price: number; quantity: number; discount: number
@@ -144,7 +150,8 @@ const ProductTile = memo(function ProductTile({ product, count, canAdd, onAdd }:
       <DishPlate product={product} />
       <span className="ro-dish-body">
         <h4>{product.name}</h4>
-        <span className="ro-dish-foot"><b>{money(product.price)}</b><span className="ro-add"><Plus className="h-5 w-5" /></span></span>
+        {/* صنف له «متغيرات وخصائص»: السعر يُعرض في نافذة الاختيار (السعر الفعلي لكل قيمة) لا على البطاقة */}
+        <span className="ro-dish-foot">{product.addonGroups?.length ? <small className="text-xs font-semibold opacity-70">{tr("حسب الاختيار")}</small> : <b>{money(product.price)}</b>}<span className="ro-add"><Plus className="h-5 w-5" /></span></span>
       </span>
     </button>
   )
