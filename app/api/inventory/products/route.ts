@@ -121,7 +121,7 @@ async function ensureProductSchemaColumns(client: any) {
     ["attributes", "JSONB NOT NULL DEFAULT '[]'::jsonb"],
     // اضافات المطعم (2026-11-19): [{ name ≤50, price 0..1000 }] — معالج «مع/بدون» في شاشة المطعم
     ["restaurant_extras", "JSONB NOT NULL DEFAULT '[]'::jsonb"],
-    // طريقة اختيار اضافات المطعم (2026-11-20): toggle = «مع/بدون» لكل إضافة، multi = اختيار من متعدد بشاشة واحدة
+    // طريقة اختيار اضافات المطعم (2026-11-20): toggle = «مع/بدون» لكل إضافة، multi = اختيار واحد من متعدد بشاشة واحدة
     ["restaurant_extras_mode", "VARCHAR(10) NOT NULL DEFAULT 'toggle'"],
     // «اظهار الاصناف التابعة للمجموعة بعد الاختيار»: مجموعة أصناف (item_groups) يُختار منها صنف بعد الصنف (مثل مشروب)
     ["restaurant_followup_group_id", "INTEGER"],
@@ -329,7 +329,7 @@ function normalizeProductPayload(productData: any) {
 
 /**
  * اضافات المطعم: اسم ≤ 50 حرفاً (بلا تكرار) وسعر بين 0 و1000، و«طريقة الاختيار» لكل إضافة (2026-11-20):
- * toggle = «مع / بدون» بسعر الإضافة، multi = «اختيار من متعدد» من خياراتها (≤ 30 خياراً، لكل خيار اسم وسعر).
+ * toggle = «مع / بدون» بسعر الإضافة، multi = «اختيار واحد من متعدد» من خياراتها (≤ 30 خياراً، لكل خيار اسم وسعر).
  */
 function cleanRestaurantExtras(input: any) {
   if (!Array.isArray(input)) return []

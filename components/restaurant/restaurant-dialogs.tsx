@@ -28,7 +28,7 @@ export type Addon = { group: string; value: string }
 /** prices: فرق سعر كل قيمة عن سعر الصنف («المتغيرات والخصائص» — lib/attribute-prices.ts) */
 export type AddonGroup = { name: string; values: string[]; prices?: Record<string, number> }
 /** اضافات المطعم (تبويب «اضافات المطعم» في تعريف الصنف): تُختار «مع/بدون» بمعالج، وتُحفظ على السطر كـ addons بهذه المجموعة */
-/** اضافة مطعم: «مع / بدون» بسعرها، أو «اختيار من متعدد» من خياراتها (لكل خيار سعره) */
+/** اضافة مطعم: «مع / بدون» بسعرها، أو «اختيار واحد من متعدد» من خياراتها (لكل خيار سعره) */
 export type RestaurantExtra = { name: string; price: number; mode?: "toggle" | "multi"; options?: { name: string; price: number }[] }
 export const EXTRAS_GROUP = "اضافات المطعم"
 export const isExtraAddon = (addon: Addon) => addon.group === EXTRAS_GROUP
@@ -239,7 +239,7 @@ type ExtrasDialogProps = {
 
 /**
  * معالج «اضافات المطعم»: خطوة لكل إضافة حسب «طريقة الاختيار» في تعريفها —
- * «مع / بدون» (نعم/لا بسعر الإضافة)، أو «اختيار من متعدد» (أكثر من خيار من خيارات الإضافة، لكل خيار سعره).
+ * «مع / بدون» (نعم/لا بسعر الإضافة)، أو «اختيار واحد من متعدد» (أكثر من خيار من خيارات الإضافة، لكل خيار سعره).
  */
 export function ExtrasWizard({ open, title, price, currency, extras, onCancel, onDone }: ExtrasDialogProps) {
   const [step, setStep] = useState(0)
@@ -261,14 +261,13 @@ export function ExtrasWizard({ open, title, price, currency, extras, onCancel, o
     setChoice((current) => ({ ...current, [extra.name]: value }))
     setStep((current) => current + 1)
   }
+  // خيار واحد فقط من خيارات الإضافة: اختياره ينتقل للخطوة التالية (كمع/بدون)؛ «التالي» بلا اختيار = تخطي
   const toggleOption = (name: string) => {
     if (!extra) return
-    setChoice((current) => {
-      const list = Array.isArray(current[extra.name]) ? (current[extra.name] as string[]) : []
-      return { ...current, [extra.name]: list.includes(name) ? list.filter((row) => row !== name) : [...list, name] }
-    })
+    setChoice((current) => ({ ...current, [extra.name]: [name] }))
+    setStep((current) => current + 1)
   }
-  // «اختيار من متعدد» يمكن تخطيه بلا اختيار؛ «مع / بدون» يحتاج جواباً
+  // «اختيار واحد من متعدد» يمكن تخطيه بلا اختيار؛ «مع / بدون» يحتاج جواباً
   const answered = (row: RestaurantExtra) => isMulti(row) || choice[row.name] !== undefined
   const card = "flex min-h-40 flex-col items-center justify-center gap-3 rounded-3xl border-4 bg-white p-4 text-xl font-black shadow-sm transition hover:-translate-y-0.5 dark:bg-slate-800"
   return (
@@ -312,7 +311,7 @@ export function ExtrasWizard({ open, title, price, currency, extras, onCancel, o
             <div className="space-y-4">
               <div className="text-center">
                 <div className="text-3xl font-black text-slate-800 dark:text-slate-100">{extra.name}</div>
-                <div className="mt-1 text-sm font-semibold text-muted-foreground">{tr("اختر خياراً أو أكثر — أو «التالي» للتخطي")}</div>
+                <div className="mt-1 text-sm font-semibold text-muted-foreground">{tr("اختر خياراً واحداً — أو «التالي» للتخطي")}</div>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {(extra.options || []).map((option) => {

@@ -112,7 +112,7 @@ function normalizeCatalog(data: any): Catalog {
       relatedItems: (Array.isArray(row.related_items) ? row.related_items : []).map((option: any) => ({ id: Number(option.related_id), addPrice: option.add_price !== false, noKitchenPrint: option.no_kitchen_print === true })),
       extras: (Array.isArray(row.restaurant_extras) ? row.restaurant_extras : []).map((extra: any) => ({
         name: String(extra.name || ""), price: Math.max(0, Number(extra.price) || 0),
-        // «طريقة الاختيار» لكل إضافة: مع/بدون، أو اختيار من متعدد من خياراتها
+        // «طريقة الاختيار» لكل إضافة: مع/بدون، أو اختيار واحد من متعدد من خياراتها
         mode: extra.mode === "multi" ? "multi" as const : "toggle" as const,
         options: (Array.isArray(extra.options) ? extra.options : []).map((option: any) => ({ name: String(option?.name || ""), price: Math.max(0, Number(option?.price) || 0) })).filter((option: any) => option.name),
       })).filter((extra: any) => extra.name),
@@ -1234,7 +1234,7 @@ export default function RestaurantPos() {
       </Dialog>
       <Dialog open={relatedChooser !== null} onOpenChange={(value) => { if (!value) setRelatedChooser(null) }}>
         <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-md">
-          <DialogHeader><DialogTitle>{tr("الاضافات — اختر الصنف")}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{tr("الاصناف التابعة — اختر الصنف")}</DialogTitle></DialogHeader>
           <div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
             {relatedChooser?.map((row) => (
               <button key={row.id} type="button" onClick={() => openRelatedFor(row)}
@@ -1400,13 +1400,13 @@ export default function RestaurantPos() {
   // أسطر غير مدفوعة بقيمة (أسطر بقيمة صفر كخدمة طاولة بسعر 0 لا تمنع «إغلاق» — الخادم يسوّيها)
   const hasRemainingValue = remainingLines.some(({ item, quantity }) => Math.abs(item.price * quantity * (1 - Number(item.discount || 0) / 100)) >= 0.005)
   const actions: OrderAction[] = [
+    { key: "extras", label: tr("الاصناف التابعة"), icon: ListPlus, show: Boolean(catalog?.point?.related_on_demand), onClick: gated("addItems", () => openExtrasPicker(), order.location_id) },
     { key: "transfer", label: isTakeaway ? tr("إلى طاولة") : tr("نقل"), icon: ArrowRightLeft, show: true, onClick: gated("transfer", () => { setTransferFrom(order.tables[0]?.table_id ?? null); setPicker("transfer") }, order.location_id) },
     { key: "merge", label: tr("دمج"), icon: Combine, show: !isTakeaway, onClick: gated("merge", () => setPicker("merge"), order.location_id) },
     { key: "split", label: tr("فصل"), icon: Split, show: true, disabled: !hasRemaining, onClick: gated("split", () => { setSplitQty({}); setSplitOpen(true) }, order.location_id) },
     { key: "print", label: tr("طباعة الحساب"), icon: Printer, show: true, disabled: !hasRemaining, onClick: gated("printBill", () => void printBill(), order.location_id) },
     { key: "cancel", label: order.payments.length ? tr("إغلاق") : tr("إلغاء"), icon: Ban, show: order.payments.length ? !hasRemainingValue : true, tone: "text-red-600",
       onClick: gated(order.payments.length ? "pay" : "cancelOrder", () => { if (order.payments.length) void act("close", { order_id: order.id }, tr("تم إغلاق الطاولة")); else { setCancelReason(""); setCancelOpen(true) } }, order.location_id) },
-    { key: "extras", label: tr("الاضافات"), icon: ListPlus, show: Boolean(catalog?.point?.related_on_demand), onClick: gated("addItems", () => openExtrasPicker(), order.location_id) },
     { key: "custody", label: tr("العهدة"), icon: Wallet, show: canCustody, onClick: () => void openCustody(order.location_id) },
     { key: "waiter", label: tr("النادل"), icon: UserCog, show: can("assignWaiter"), onClick: () => void openAssign() },
   ]

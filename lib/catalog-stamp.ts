@@ -7,10 +7,11 @@ import { runSchemaOnce } from "@/lib/schema-once"
  * الكاشير والمطعم يقرآنه كل بضع ثوانٍ (api/pos/catalog-stamp، استعلام صف واحد) ويعيدان تحميل الكتالوج فقط عند تغيّره —
  * كان الكاشير لا يحدّث الأصناف إلا بإعادة فتح الصفحة، والمطعم كل 5 دقائق.
  */
-const WATCHED_TABLES = ["products", "product_prices", "product_units", "product_unit_barcodes", "product_related_items", "item_groups", "units"]
-
 export function ensureCatalogStamp() {
   return runSchemaOnce("lib/catalog-stamp.ts#ensureCatalogStamp", async () => {
+    // القائمة داخل الدالة عمداً: runSchemaOnce يعيد التشغيل عند تغيّر نصها فتُنشأ مشغّلات الجداول المضافة.
+    // restaurant_locations_tbl: إعدادات الموقع (مثل «اظهار الاصناف التابعة بعد اختيار الصنف») تصل شاشة المطعم فوراً
+    const WATCHED_TABLES = ["products", "product_prices", "product_units", "product_unit_barcodes", "product_related_items", "item_groups", "units", "restaurant_locations_tbl"]
     await sql`CREATE TABLE IF NOT EXISTS catalog_stamp_tbl (id SMALLINT PRIMARY KEY DEFAULT 1, stamp TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp())`
     await sql`INSERT INTO catalog_stamp_tbl (id) VALUES (1) ON CONFLICT (id) DO NOTHING`
     await sql.unsafe(`

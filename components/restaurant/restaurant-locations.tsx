@@ -415,7 +415,7 @@ export default function RestaurantLocations() {
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <SwitchRow checked={form.print_by_item_group} disabled={readOnly} onChange={(value) => set({ print_by_item_group: value })} title={tr("طباعة قسائم المطبخ حسب طابعة مجموعة الصنف")} hint={tr("كل مجموعة أصناف تُطبع على طابعتها")} />
                 <SwitchRow checked={form.kitchen_print_confirm} disabled={readOnly} onChange={(value) => set({ kitchen_print_confirm: value })} title={tr("اظهار رسالة طباعة عند ارسال الطلب الى المطبخ")} hint={tr("سؤال قبل الطباعة عند ارسال الى المطبخ")} />
-                <SwitchRow checked={form.related_on_demand} disabled={readOnly} onChange={(value) => set({ related_on_demand: value })} title={tr("اظهار الاصناف التابعة بعد اختيار الصنف")} hint={tr("الصنف يُضاف وحده بلا توابعه، وتُختار التوابع بزر «الاضافات» في الطلب")} />
+                <SwitchRow checked={form.related_on_demand} disabled={readOnly} onChange={(value) => set({ related_on_demand: value })} title={tr("اظهار الاصناف التابعة بعد اختيار الصنف")} hint={tr("الصنف يُضاف وحده بلا توابعه، وتُختار التوابع بزر «الاصناف التابعة» في الطلب")} />
                 <SwitchRow checked={form.active} disabled={readOnly} onChange={(value) => set({ active: value })} title={tr("نشط")} hint={tr("الموقع الموقوف لا يظهر في شاشة المطعم")} />
               </div>
             </FormSection>

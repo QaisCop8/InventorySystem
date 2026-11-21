@@ -64,7 +64,7 @@ interface ProductAttributeLine {
 
 interface AttributeCatalogItem extends ProductAttributeLine {}
 
-/** اضافة مطعم: «مع / بدون» بسعرها، أو «اختيار من متعدد» من خياراتها (لكل خيار سعره) */
+/** اضافة مطعم: «مع / بدون» بسعرها، أو «اختيار واحد من متعدد» من خياراتها (لكل خيار سعره) */
 type RestaurantExtraLine = { name: string; price: number | string; mode?: "toggle" | "multi"; options?: { name: string; price: number | string }[] }
 
 function AttributeNameInput({ value, catalog, onChange, onCreate }: { value: string; catalog: AttributeCatalogItem[]; onChange: (value: string) => void; onCreate: (name: string) => void }) {
@@ -316,7 +316,7 @@ interface ProductFormData {
   attributes?: ProductAttributeLine[],
   // اضافات المطعم: «مع/بدون» في شاشة المطعم؛ السعر (0–1000) يُجمع في سطر «اضافات» على خدمة الموقع
   restaurant_extras?: RestaurantExtraLine[],
-  /** طريقة اختيار اضافات المطعم: toggle = «مع/بدون» لكل إضافة، multi = اختيار من متعدد بشاشة واحدة */
+  /** طريقة اختيار اضافات المطعم: toggle = «مع/بدون» لكل إضافة، multi = اختيار واحد من متعدد بشاشة واحدة */
   restaurant_extras_mode?: "toggle" | "multi",
   /** «اظهار الاصناف التابعة للمجموعة بعد الاختيار»: مجموعة أصناف يُختار منها صنف بعد هذا الصنف في المطعم */
   restaurant_followup_group_id?: number | null,
@@ -835,7 +835,7 @@ export function CompactProductForm({
       extraNames.add(name)
       if (extra.mode === "multi") {
         const options = extra.options || []
-        if (!options.length) return fail(tr("أضف خيارات للإضافة {0} (اختيار من متعدد)", name))
+        if (!options.length) return fail(tr("أضف خيارات للإضافة {0} (اختيار واحد من متعدد)", name))
         const optionNames = new Set<string>()
         for (const option of options) {
           const optionName = String(option.name || "").trim()
@@ -3369,7 +3369,7 @@ export function CompactProductForm({
                                   <select className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" value={multi ? "multi" : "toggle"}
                                     onChange={(event) => updateExtra(event.target.value === "multi" ? { mode: "multi", options: options.length ? options : [{ name: "", price: 0 }] } : { mode: "toggle" })}>
                                     <option value="toggle">{tr("مع / بدون")}</option>
-                                    <option value="multi">{tr("اختيار من متعدد")}</option>
+                                    <option value="multi">{tr("اختيار واحد من متعدد")}</option>
                                   </select>
                                 </div>
                                 {!multi && <div><Label>{tr("السعر")}</Label><Input className="mt-1" type="number" min={0} max={1000} step="0.01" value={extra.price} onChange={(event) => updateExtra({ price: event.target.value === "" ? "" : Math.min(1000, Math.max(0, Number(event.target.value))) })} /></div>}
@@ -3391,7 +3391,7 @@ export function CompactProductForm({
                             </div>
                           )
                         })}
-                        <p className="text-xs text-muted-foreground">{tr("عند إضافة الصنف في شاشة المطعم يظهر معالج بخطوة لكل إضافة حسب «طريقة الاختيار»: «مع / بدون»، أو «اختيار من متعدد» من خيارات الإضافة. المختار يُطبع تحت الصنف في قسيمة المطبخ، والأسعار تُجمع في سطر «اضافات» على «خدمة اضافات المطعم» المحددة في الموقع.")}</p>
+                        <p className="text-xs text-muted-foreground">{tr("عند إضافة الصنف في شاشة المطعم يظهر معالج بخطوة لكل إضافة حسب «طريقة الاختيار»: «مع / بدون»، أو «اختيار واحد من متعدد» من خيارات الإضافة. المختار يُطبع تحت الصنف في قسيمة المطبخ، والأسعار تُجمع في سطر «اضافات» على «خدمة اضافات المطعم» المحددة في الموقع.")}</p>
                         <RestaurantExtrasOptions
                           followupGroupId={formData.restaurant_followup_group_id ?? null}
                           onChange={(patch) => setFormData((previous) => ({ ...previous, ...patch }))}

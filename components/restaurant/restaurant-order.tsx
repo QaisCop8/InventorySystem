@@ -25,7 +25,7 @@ export type Product = {
   relatedItems: { id: number; addPrice: boolean; noKitchenPrint: boolean }[]
   /** اضافات المطعم (تعريف الصنف): معالج «مع/بدون» عند الإضافة */
   extras?: { name: string; price: number; mode?: "toggle" | "multi"; options?: { name: string; price: number }[] }[]
-  /** طريقة اختيار الإضافات: toggle = «مع/بدون» لكل إضافة، multi = اختيار من متعدد بشاشة واحدة */
+  /** طريقة اختيار الإضافات: toggle = «مع/بدون» لكل إضافة، multi = اختيار واحد من متعدد بشاشة واحدة */
   extrasMode?: "toggle" | "multi"
   /** مجموعة الصنف (item_groups) */
   groupId?: number | null
@@ -359,7 +359,7 @@ export function RestaurantOrder(p: Props) {
             )}
             <div className="ro-actions">
               {p.actions.filter((action) => action.show).map((action) => (
-                <button key={action.key} type="button" className={`ro-action ${action.tone?.includes("red") ? "is-danger" : ""}`} disabled={p.busy || action.disabled || (pending.length > 0 && action.key !== "custody")} onClick={action.onClick}>
+                <button key={action.key} type="button" className={`ro-action ${action.tone?.includes("red") ? "is-danger" : ""}`} disabled={p.busy || action.disabled || (pending.length > 0 && action.key !== "custody" && action.key !== "extras")} onClick={action.onClick}>
                   <action.icon />{action.label}
                 </button>
               ))}
