@@ -35,7 +35,8 @@ import {
   Loader2,
 } from "lucide-react"
 import { formatDateToBritish } from "@/lib/utils"
-import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
+import { SalesVoucherBoard, BoardSelectFilter } from "@/components/sales/sales-voucher-board"
 import Util from "../common/Util"
 interface OrdersProps {
   isPurchase?: boolean;
@@ -232,9 +233,9 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
   const [filterDraft, setFilterDraft] = useState(state.filters)
   const [searching, setSearching] = useState(false)
   useEffect(() => { setFilterDraft(state.filters) }, [state.filters])
-  const runSearch = async () => {
+  const runSearch = async (override?: typeof filterDraft) => {
     if (searching) return
-    const applied = filterDraft
+    const applied = override ?? filterDraft
     setSearching(true)
     try {
       await fetchSalesOrders()
@@ -559,105 +560,35 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
         onNew={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))}
       />
 
-      <VoucherStats stats={[
-        { label: tr("إجمالي الطلبيات"), value: analytics.totalOrders },
-        { label: tr("قيد التنفيذ"), value: analytics.pendingOrders },
-        { label: tr("مكتملة"), value: analytics.completedOrders },
-        { label: tr("إجمالي القيمة"), value: analytics.totalValue.toLocaleString("en-US") },
-      ]} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            {tr("البحث")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]" onKeyDown={searchOnEnter(() => void runSearch())}>
-            <div>
-              <Label htmlFor="orders-search">{tr("البحث الذكي")}</Label>
-              <Input
-                id="orders-search"
-                placeholder={tr("رقم الطلبية، اسم العميل، السند اليدوي , استلمت بواسطة...")}
-                value={filterDraft.search}
-                onChange={(e) => setDraftFilter({ search: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>{tr("حالة الطلبية")}</Label>
-              <Select value={filterDraft.status} onValueChange={(value) => setDraftFilter({ status: value })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">{tr("جميع الحالات")}</SelectItem>
-                  <SelectItem value="1">{tr("غير جاهزة")}</SelectItem>
-                  <SelectItem value="2">{tr("جاهزة")}</SelectItem>
-                  <SelectItem value="3">{tr("مرسلة جزئيا")}</SelectItem>
-                  <SelectItem value="4">{tr("مرسلة كليا")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>{tr("قرار الإدارة")}</Label>
-              <Select value={filterDraft.order_source} onValueChange={(value) => setDraftFilter({ order_source: value })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">{tr("جميع الحالات")}</SelectItem>
-                  <SelectItem value="1">{tr("مقبول")}</SelectItem>
-                  <SelectItem value="2">{tr("مرفوض")}</SelectItem>
-                  <SelectItem value="3">{tr("مؤجل")}</SelectItem>
-                  <SelectItem value="4">{tr("معتمدة")}</SelectItem>
-                  <SelectItem value="5">{tr("مدققة")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="orders-date-from">{tr("من تاريخ")}</Label>
-              <Input id="orders-date-from" type="date" value={filterDraft.dateFrom} onChange={(e) => setDraftFilter({ dateFrom: e.target.value })} />
-            </div>
-            <div>
-              <Label htmlFor="orders-date-to">{tr("إلى تاريخ")}</Label>
-              <Input id="orders-date-to" type="date" value={filterDraft.dateTo} onChange={(e) => setDraftFilter({ dateTo: e.target.value })} />
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" className="h-10" onClick={resetFilters}>{tr("إعادة تعيين")}</Button>
-              <VoucherSearchButton onClick={() => void runSearch()} loading={searching} />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{`${isPurchase ? tr("طلبيات المشتريات") : tr("طلبيات المبيعات")} (${filteredOrders.length})`}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* نفس جدول قوائم السندات: نقر مزدوج أو Enter أو «عرض» يفتح الطلبية */}
-          <VoucherListTable
-            loading={state.loading || searching}
-            rows={filteredOrders}
-            statusColumn={false}
-            emptyText={tr("لم يتم العثور على أي طلبات تطابق معايير البحث")}
-            onOpen={(order: any) => handleSearchOrder(order)}
-            columns={[
-              { header: tr("رقم الطلبية"), name: "order_number", width: 150, render: (order) => <span className="font-mono font-bold text-emerald-700">{order.order_number}</span> },
-              { header: tr("التاريخ"), name: "order_date", width: 120, render: (order) => formatDateToBritish(order.order_date) },
-              { header: tr("العميل"), name: "customer_name", width: "*" },
-              { header: tr("الحالة"), name: "order_status", width: 130, render: (order) => getStatusBadge(String(order.order_status)) },
-              { header: tr("السند اليدوي"), name: "reference_number", width: 130 },
-              { header: tr("رقم طلبية العميل"), name: "customer_order_no", width: 130 },
-              { header: tr("المبلغ"), name: "total_amount", width: 140, render: (order) => <span className="font-semibold tabular-nums" dir="ltr">{Number(order.total_amount || 0).toLocaleString("en-US")} {order.currency_code || ""}</span> },
-              { header: tr("استلمت بواسطة"), name: "received_by", width: 140 },
-              { header: tr("المسودة"), name: "source_draft_id", width: 130, render: (order) => order.source_draft_id ? (
-                <Button type="button" variant="outline" size="sm" className="h-8 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" disabled={draftLoading}
-                  onClick={(event) => { event.stopPropagation(); void openSourceDraft(order) }}>
-                  <FileText className="me-1 h-4 w-4" />{tr("فتح المسودة")}
-                </Button>
-              ) : "—" },
-            ]}
-          />
-        </CardContent>
-      </Card>
+      {/* تصميم 2026-11-21: نفس لوحة فواتير المبيعات (components/sales/sales-voucher-board) — البحث الذكي في خانة البحث */}
+      <SalesVoucherBoard
+        title={isPurchase ? tr("طلبيات المشتريات") : tr("طلبيات المبيعات")}
+        rows={filteredOrders.map((order: any) => {
+          const status = Number(order.order_status)
+          return {
+            id: Number(order.id), vch_code: order.order_number, vch_date: String(order.order_date || "").slice(0, 10), amount: Number(order.total_amount || 0),
+            party: order.customer_name, currency: order.currency_code || "",
+            note: [order.customer_order_no && tr("طلبية العميل {0}", order.customer_order_no), order.reference_number && tr("السند اليدوي {0}", order.reference_number), order.received_by && tr("استلمها {0}", order.received_by)].filter(Boolean).join(" · ") || undefined,
+            voucher_status: ({ 1: tr("غير جاهزة"), 2: tr("جاهزة"), 3: tr("مرسلة جزئيا"), 4: tr("مرسلة كليا"), 5: tr("ملغاة") } as Record<number, string>)[status] || "",
+            tone: status === 5 ? "cancelled" as const : status === 4 ? "approved" as const : status === 3 ? "linked" as const : "draft" as const,
+            extra: order.source_draft_id ? <button type="button" disabled={draftLoading} onClick={() => void openSourceDraft(order)}><FileText size={13} />{tr("فتح المسودة")}</button> : undefined,
+          }
+        })}
+        totalCount={state.salesOrders.length}
+        partyLabel={isPurchase ? tr("المورد") : tr("العميل")}
+        loading={state.loading || searching}
+        searchPlaceholder={tr("رقم الطلبية، اسم العميل، السند اليدوي...")}
+        draft={{ code: filterDraft.search, dateFrom: filterDraft.dateFrom, dateTo: filterDraft.dateTo }}
+        setDraft={(update) => setFilterDraft((prev) => { const next = update({ code: prev.search, dateFrom: prev.dateFrom, dateTo: prev.dateTo }); return { ...prev, search: next.code, dateFrom: next.dateFrom, dateTo: next.dateTo } })}
+        onSearch={(next) => void runSearch(next ? { ...filterDraft, search: next.code, dateFrom: next.dateFrom, dateTo: next.dateTo } : undefined)}
+        onOpen={(row) => { const order = filteredOrders.find((item: any) => Number(item.id) === Number(row.id)); if (order) handleSearchOrder(order) }}
+        extraFilters={<>
+          <BoardSelectFilter label={tr("حالة الطلبية")} value={filterDraft.status} onChange={(value) => setDraftFilter({ status: value })}
+            options={[{ value: "0", label: tr("كل الحالات") }, { value: "1", label: tr("غير جاهزة") }, { value: "2", label: tr("جاهزة") }, { value: "3", label: tr("مرسلة جزئيا") }, { value: "4", label: tr("مرسلة كليا") }]} />
+          <BoardSelectFilter label={tr("قرار الإدارة")} value={filterDraft.order_source} onChange={(value) => setDraftFilter({ order_source: value })}
+            options={[{ value: "0", label: tr("كل قرارات الإدارة") }, { value: "1", label: tr("مقبول") }, { value: "2", label: tr("مرفوض") }, { value: "3", label: tr("مؤجل") }, { value: "4", label: tr("معتمدة") }, { value: "5", label: tr("مدققة") }]} />
+        </>}
+      />
 
       {/* New Order Dialog */}
       {state.showNewOrderDialog && (

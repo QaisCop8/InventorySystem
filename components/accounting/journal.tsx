@@ -2,7 +2,8 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
-import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
+import { SalesVoucherBoard, BoardSelectFilter, BoardTextFilter } from "@/components/sales/sales-voucher-board"
 import { BookOpen } from "lucide-react"
 
 import { useEffect, useMemo, useState } from "react"
@@ -598,129 +599,19 @@ export default function Journal() {
     <div className="voucher-list-page w-full max-w-full space-y-5" dir={appDir()}>
       <VoucherListHero icon={BookOpen} title={<>{tr("سندات القيد")}</>} addLabel={<>{tr("إضافة سند قيد")}</>} onNew={openNewDialog} />
 
-      <VoucherStats stats={[{ label: <>{tr("إجمالي سندات القيد")}</>, value: <>{totalVouchers}</> }, { label: <>{tr("سندات هذا الشهر")}</>, value: <>{thisMonthCount}</> }, { label: <>{tr("إجمالي المبالغ")}</>, value: <>{totalAmount.toLocaleString("en-US")}</> }, { label: <>{tr("متوسط قيمة السند")}</>, value: <>{averageAmount.toLocaleString("en-US", { maximumFractionDigits: 2 })}</> }]} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            {tr("البحث المتقدم")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" onKeyDown={searchOnEnter(runSearch)}>
-            <div>
-              <Label htmlFor="search-code">{tr("رقم السند")}</Label>
-              <Input
-                id="search-code"
-                value={searchDraft.code}
-                onChange={(e) => setSearchDraft((prev) => ({ ...prev, code: e.target.value }))}
-                className="text-start"
-                placeholder={tr("ابحث برقم السند...")}
-              />
-            </div>
-            <div>
-              <Label htmlFor="search-currency">{tr("العملة")}</Label>
-              <Select
-                value={searchDraft.currencyId}
-                onValueChange={(value) => setSearchDraft((prev) => ({ ...prev, currencyId: value }))}
-              >
-                <SelectTrigger className="text-start">
-                  <SelectValue placeholder={tr("اختر العملة")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">{tr("جميع العملات")}</SelectItem>
-                  {currencies.map((c) => (
-                    <SelectItem key={c.currency_id ?? c.id} value={String(c.currency_id ?? c.id)}>
-                      {c.currency_name || c.currency_code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="search-date-from">{tr("من تاريخ")}</Label>
-                <Input
-                  id="search-date-from"
-                  type="date"
-                  value={searchDraft.dateFrom}
-                  onChange={(e) => setSearchDraft((prev) => ({ ...prev, dateFrom: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="search-date-to">{tr("إلى تاريخ")}</Label>
-                <Input
-                  id="search-date-to"
-                  type="date"
-                  value={searchDraft.dateTo}
-                  onChange={(e) => setSearchDraft((prev) => ({ ...prev, dateTo: e.target.value }))}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="mt-4 flex justify-end">
-            <VoucherSearchButton onClick={runSearch} loading={listSearch.loading} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{tr("سندات القيد ({0})", filteredVouchers.length)}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="min-h-0">
-            <VoucherListTable
-              loading={listSearch.loading}
-              rows={pagedVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_currency: currencyName(voucher.currency_id), display_amount: Number(voucher.amount || 0).toLocaleString("en-US") }))}
-              columns={[
-                { header: tr("رقم السند"), name: "vch_code", width: 150, isReadOnly: true },
-                { header: tr("التاريخ"), name: "display_date", width: 130, isReadOnly: true },
-                { header: tr("العملة"), name: "display_currency", width: 120, isReadOnly: true },
-                { header: tr("المبلغ"), name: "display_amount", width: 130, isReadOnly: true },
-                { header: tr("الملاحظة"), name: "note", width: "*", isReadOnly: true },
-              ]}
-              onOpen={(row: any) => openRow(row.item || row)}
-            />
-          </div>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-sm text-muted-foreground">
-                {tr("عرض ")}{pageStart}{tr(" إلى ")}{pageEnd}{tr(" من ")}{filteredVouchers.length}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                >
-                  {tr("السابق")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                >
-                  {tr("التالي")}
-                </Button>
-                <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
-                  <SelectTrigger className="h-10 w-24">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[10, 20, 50, 100].map((size) => (
-                      <SelectItem key={size} value={String(size)}>
-                        {size}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-        </CardContent>
-      </Card>
+      {/* تصميم 2026-11-21: نفس لوحة فواتير المبيعات (components/sales/sales-voucher-board) */}
+      <SalesVoucherBoard
+        title={tr("سندات القيد")}
+        rows={filteredVouchers.map((voucher: any) => ({ ...voucher, party: voucher.note || tr("قيد يومية"), currency: currencyName(voucher.currency_id) }))}
+        totalCount={vouchers.length}
+        partyLabel={tr("قيد يومية")}
+        loading={listSearch.loading}
+        draft={searchDraft}
+        setDraft={setSearchDraft}
+        onSearch={(draft) => void listSearch.load(fetchVouchers, draft ?? searchDraft)}
+        onOpen={(voucher) => { const row = filteredVouchers.find((item: any) => item.id === voucher.id); if (row) openRow(row) }}
+        extraFilters={<><BoardSelectFilter value={searchDraft.currencyId} onChange={(value) => setSearchDraft((prev) => ({ ...prev, currencyId: value }))} options={[{ value: "__all__", label: tr("جميع العملات") }, ...currencies.map((c: any) => ({ value: String(c.currency_id ?? c.id), label: c.currency_name || c.currency_code || "" }))]} label={tr("العملة")} /></>}
+      />
 
       <UnifiedJournal
         dialogOpen={dialogOpen}

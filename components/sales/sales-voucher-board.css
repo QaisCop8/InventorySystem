@@ -182,3 +182,13 @@
   .svb-tags { grid-area: t; justify-content: flex-end; }
   .svb-open { display: none; }
 }
+
+/* فلاتر إضافية (اسم العميل، العملة) — سندات القبض/القيد/الإشعارات/الطلبيات */
+.svb-filter { flex: 0 1 190px; }
+.svb-filter input { flex: 1; }
+.svb-select-wrap select { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--svb-ink); font-size: 13.5px; font-weight: 700; outline: none; cursor: pointer; }
+.svb-currency { margin-inline-start: 5px; font-size: 11px; font-weight: 800; color: var(--svb-muted); }
+@media (max-width: 760px) { .svb-filter { flex: 1 1 100%; } }
+.svb-row { cursor: pointer; }
+.svb-tags button { display: inline-flex; height: 26px; align-items: center; gap: 4px; padding: 0 10px; border-radius: 999px; background: #e0f2fe; color: #0369a1; font-size: 11.5px; font-weight: 800; }
+.svb-tags button:hover { background: #bae6fd; }

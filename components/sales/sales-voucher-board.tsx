@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, type KeyboardEvent } from "react"
+import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react"
 import { ArrowUpLeft, CalendarRange, ChevronLeft, FileCheck2, Hash, Loader2, Search, Sigma, Sparkles, TrendingUp, X } from "lucide-react"
 import { tr, appDir } from "@/lib/i18n"
 import "./sales-voucher-board.css"
@@ -14,8 +14,25 @@ import "./sales-voucher-board.css"
 export type BoardVoucher = {
   id: number; vch_code: string; vch_date?: string; amount?: number | string; voucher_status?: string
   customer_name?: string; party?: string; has_linked_invoice?: boolean
+  /** عملة السند (تظهر بجانب المبلغ) */
+  currency?: string
+  /** سطر ثانوي تحت الاسم (الملاحظة مثلاً) — بدل وصف الطرف */
+  note?: string
+  /** لون الحالة صراحة (غير ذلك يُستنتج من نصها) */
+  tone?: "approved" | "cancelled" | "draft" | "linked"
+  /** عناصر إضافية بجانب الحالة (زر «فتح المسودة»...) — النقر عليها لا يفتح السند */
+  extra?: ReactNode
 }
 type Draft = { code: string; dateFrom: string; dateTo: string }
+
+/** فلتر نصي إضافي بنفس شكل شريط البحث (اسم العميل...) */
+export function BoardTextFilter({ value, onChange, placeholder, label }: { value: string; onChange: (value: string) => void; placeholder: string; label: string }) {
+  return <label className="svb-search svb-filter"><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} aria-label={label} /></label>
+}
+/** قائمة اختيار إضافية بنفس الشكل (العملة...) */
+export function BoardSelectFilter({ value, onChange, options, label }: { value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; label: string }) {
+  return <label className="svb-search svb-filter svb-select-wrap"><select value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+}
 
 const PAGE = 80
 const locale = () => (appDir() === "rtl" ? "ar-u-nu-latn" : "en-GB")
@@ -32,8 +49,8 @@ const dayLabel = (day: string) => {
 const statusTone = (status = "") => /ملغ|cancel/i.test(status) ? "is-cancelled" : /معتمد|approved|مرحل/i.test(status) ? "is-approved" : "is-draft"
 const initial = (name = "") => name.replace(/^(ال|شركة|مؤسسة)\s*/, "").trim().charAt(0) || "؟"
 
-export function SalesVoucherBoard({
-  title, rows, totalCount, partyLabel, loading, draft, setDraft, onSearch, onOpen,
+export function SalesVoucherBoard<D extends Draft>({
+  title, rows, totalCount, partyLabel, loading, draft, setDraft, onSearch, onOpen, extraFilters, amountLabel, searchPlaceholder,
 }: {
   title: string
   rows: BoardVoucher[]
@@ -41,10 +58,16 @@ export function SalesVoucherBoard({
   totalCount: number
   partyLabel: string
   loading: boolean
-  draft: Draft
-  setDraft: (update: (prev: Draft) => Draft) => void
-  onSearch: (draft?: Draft) => void
+  draft: D
+  setDraft: (update: (prev: D) => D) => void
+  onSearch: (draft?: D) => void
   onOpen: (voucher: BoardVoucher) => void
+  /** نص مربع البحث (افتراضي: رقم السند) */
+  searchPlaceholder?: string
+  /** فلاتر إضافية في شريط البحث (BoardTextFilter / BoardSelectFilter) */
+  extraFilters?: ReactNode
+  /** عنوان بطاقة المجموع (افتراضي: صافي المبالغ للفترة) */
+  amountLabel?: string
 }) {
   const [limit, setLimit] = useState(PAGE)
 
@@ -97,7 +120,7 @@ export function SalesVoucherBoard({
       <section className="svb-insight">
         <div className="svb-kpis">
           <div className="svb-kpi svb-kpi-hero">
-            <span className="svb-kpi-label"><Sigma size={14} />{tr("صافي المبالغ للفترة")}</span>
+            <span className="svb-kpi-label"><Sigma size={14} />{amountLabel || tr("صافي المبالغ للفترة")}</span>
             <strong className="svb-kpi-value" dir="ltr">{money(stats.total)}</strong>
             <span className="svb-kpi-sub">{tr("{0} سند من أصل {1}", stats.count.toLocaleString("en-US"), totalCount.toLocaleString("en-US"))}</span>
           </div>
@@ -120,9 +143,10 @@ export function SalesVoucherBoard({
       <section className="svb-command" onKeyDown={submitOnEnter}>
         <label className="svb-search">
           <Search size={17} />
-          <input value={draft.code} onChange={(event) => setDraft((prev) => ({ ...prev, code: event.target.value }))} placeholder={tr("ابحث برقم السند...")} aria-label={tr("رقم السند")} />
+          <input value={draft.code} onChange={(event) => setDraft((prev) => ({ ...prev, code: event.target.value }))} placeholder={searchPlaceholder || tr("ابحث برقم السند...")} aria-label={searchPlaceholder || tr("رقم السند")} />
           {draft.code && <button type="button" aria-label={tr("مسح")} onClick={() => { const next = { ...draft, code: "" }; setDraft(() => next); onSearch(next) }}><X size={14} /></button>}
         </label>
+        {extraFilters}
         <div className="svb-range">
           <CalendarRange size={16} />
           <input type="date" value={draft.dateFrom} onChange={(event) => setDraft((prev) => ({ ...prev, dateFrom: event.target.value }))} aria-label={tr("من تاريخ")} />
@@ -163,17 +187,20 @@ export function SalesVoucherBoard({
                   {group.rows.map((row) => {
                     const party = row.party || row.customer_name || "—"
                     return (
-                      <button key={row.id} type="button" className="svb-row" onClick={() => onOpen(row)} title={tr("عرض السند")}>
+                      // div بدور زر (لا <button>): الصف قد يحوي زراً (فتح المسودة) ولا يجوز زر داخل زر
+                      <div key={row.id} role="button" tabIndex={0} className="svb-row" onClick={() => onOpen(row)} title={tr("عرض السند")}
+                        onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onOpen(row) } }}>
                         <span className="svb-avatar" aria-hidden>{initial(party)}</span>
-                        <span className="svb-party"><b>{party}</b><small>{partyLabel}</small></span>
+                        <span className="svb-party"><b>{party}</b><small>{row.note || partyLabel}</small></span>
                         <span className="svb-code" dir="ltr">{row.vch_code}</span>
                         <span className="svb-tags">
-                          {row.voucher_status && <span className={`svb-status ${statusTone(row.voucher_status)}`}>{row.voucher_status}</span>}
+                          {row.voucher_status && <span className={`svb-status ${row.tone ? `is-${row.tone}` : statusTone(row.voucher_status)}`}>{row.voucher_status}</span>}
                           {row.has_linked_invoice && <span className="svb-status is-linked">{tr("تم إصدار فاتورة")}</span>}
+                          {row.extra && <span onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>{row.extra}</span>}
                         </span>
-                        <span className="svb-amount" dir="ltr">{money(Number(row.amount || 0))}</span>
+                        <span className="svb-amount" dir="ltr">{money(Number(row.amount || 0))}{row.currency && <small className="svb-currency">{row.currency}</small>}</span>
                         <span className="svb-open" aria-hidden><ArrowUpLeft size={16} /></span>
-                      </button>
+                      </div>
                     )
                   })}
                 </div>
