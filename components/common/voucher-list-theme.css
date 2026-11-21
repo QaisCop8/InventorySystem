@@ -56,3 +56,54 @@
 }
 .hero-actions button:not([data-hotkey-new]):hover:not(:disabled), .hero-actions a:hover { background: rgb(255 255 255 / 26%); }
 .hero-actions button:not([data-hotkey-new]):disabled { opacity: .6; }
+
+/* ===== ترويسة شاشات الدفتر اليومي (VoucherListHero variant="board") — 2026-11-21 =====
+   داكنة (حبر زمردي) بشبكة خفيفة وتوهج، بدل الترويسة الخضراء الفاتحة العامة */
+.board-hero {
+  border-radius: 28px;
+  padding: 26px 28px 24px;
+  color: #ecfdf5;
+  background:
+    radial-gradient(90% 140% at 0% 100%, rgba(16, 185, 129, .22) 0%, transparent 55%),
+    linear-gradient(160deg, #0b2a20 0%, #0f3a2c 55%, #0d2f2a 100%);
+  box-shadow: 0 24px 48px -34px rgba(4, 47, 34, .9), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+.board-hero-grid {
+  position: absolute; inset: 0; pointer-events: none; opacity: .35;
+  background-image: linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(to left, #000 10%, transparent 75%);
+}
+[dir="ltr"] .board-hero-grid { mask-image: linear-gradient(to right, #000 10%, transparent 75%); }
+.board-hero-orb {
+  position: absolute; inset-inline-end: -70px; top: -90px; width: 260px; height: 260px; border-radius: 999px; pointer-events: none;
+  background: radial-gradient(circle, rgba(52, 211, 153, .45) 0%, rgba(20, 184, 166, .12) 45%, transparent 70%);
+  filter: blur(6px);
+}
+.board-hero-icon {
+  display: grid; width: 60px; height: 60px; flex-shrink: 0; place-items: center; border-radius: 20px; color: #052e22;
+  background: linear-gradient(145deg, #6ee7b7, #2dd4bf);
+  box-shadow: 0 12px 26px -12px rgba(45, 212, 191, .9), inset 0 -3px 0 rgba(0,0,0,.12);
+  transform: rotate(-6deg);
+}
+[dir="ltr"] .board-hero-icon { transform: rotate(6deg); }
+.board-hero-chip { padding: 3px 11px; border-radius: 999px; background: rgba(110, 231, 183, .14); color: #a7f3d0; font-size: 11.5px; font-weight: 800; letter-spacing: .02em; border: 1px solid rgba(110, 231, 183, .25); }
+.board-hero-date { display: inline-flex; align-items: center; gap: 5px; color: rgba(236, 253, 245, .65); font-size: 11.5px; font-weight: 700; }
+.board-hero-title { margin-top: 6px; font-size: clamp(24px, 3vw, 34px); font-weight: 900; line-height: 1.15; letter-spacing: -.01em; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-hero-sub { margin-top: 4px; font-size: 13px; color: rgba(236, 253, 245, .7); }
+.board-hero-add {
+  display: inline-flex; height: 48px; align-items: center; gap: 10px; padding: 0 8px 0 18px; border-radius: 999px;
+  background: #ecfdf5; color: #064e3b; font-size: 14px; font-weight: 900;
+  box-shadow: 0 14px 28px -16px rgba(52, 211, 153, .9); transition: transform .15s, background .15s;
+}
+[dir="rtl"] .board-hero-add { padding: 0 18px 0 8px; }
+.board-hero-add:hover:not(:disabled) { background: #fff; transform: translateY(-1px); }
+.board-hero-add:disabled { opacity: .6; cursor: not-allowed; }
+.board-hero-plus { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 999px; background: #059669; color: #fff; }
+.board-hero-add kbd { padding: 2px 7px; border-radius: 8px; background: #d1fae5; color: #047857; font-size: 10px; font-weight: 900; font-family: inherit; }
+.board-hero-actions > button:not(.board-hero-add) { border-color: rgba(255,255,255,.2) !important; background: rgba(255,255,255,.08) !important; color: #ecfdf5 !important; }
+@media (max-width: 640px) {
+  .board-hero { padding: 20px 18px; border-radius: 22px; }
+  .board-hero-icon { width: 50px; height: 50px; border-radius: 16px; }
+  .board-hero-actions, .board-hero-add { width: 100%; justify-content: center; }
+}

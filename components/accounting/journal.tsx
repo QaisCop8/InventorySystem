@@ -597,7 +597,7 @@ export default function Journal() {
 
   return (
     <div className="voucher-list-page w-full max-w-full space-y-5" dir={appDir()}>
-      <VoucherListHero icon={BookOpen} title={<>{tr("سندات القيد")}</>} addLabel={<>{tr("إضافة سند قيد")}</>} onNew={openNewDialog} />
+      <VoucherListHero variant="board" icon={BookOpen} title={<>{tr("سندات القيد")}</>} addLabel={<>{tr("إضافة سند قيد")}</>} onNew={openNewDialog} />
 
       {/* تصميم 2026-11-21: نفس لوحة فواتير المبيعات (components/sales/sales-voucher-board) */}
       <SalesVoucherBoard

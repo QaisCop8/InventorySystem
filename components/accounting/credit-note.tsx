@@ -700,7 +700,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
 
   return (
     <div className="voucher-list-page w-full max-w-full space-y-5" dir={appDir()}>
-      <VoucherListHero icon={FileMinus} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={openNewDialog} />
+      <VoucherListHero variant="board" icon={FileMinus} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={openNewDialog} />
 
       {/* تصميم 2026-11-21: نفس لوحة فواتير المبيعات (components/sales/sales-voucher-board) */}
       <SalesVoucherBoard

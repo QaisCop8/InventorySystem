@@ -944,7 +944,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   return (
     <div className="voucher-list-page w-full max-w-full space-y-5" dir={appDir()}>
       {/* Header */}
-      <VoucherListHero icon={Wallet} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={() => void openNewDialog()} />
+      <VoucherListHero variant="board" icon={Wallet} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={() => void openNewDialog()} />
 
       {/* تصميم 2026-11-21: نفس لوحة فواتير المبيعات (components/sales/sales-voucher-board) */}
       <SalesVoucherBoard

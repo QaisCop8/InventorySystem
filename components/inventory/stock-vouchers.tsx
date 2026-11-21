@@ -2,7 +2,8 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
-import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
+import { SalesVoucherBoard } from "@/components/sales/sales-voucher-board"
 import { PackageOpen } from "lucide-react"
 
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -757,72 +758,20 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
 
   return (
     <div className="voucher-list-page w-full max-w-full space-y-5" dir={appDir()}>
-      <VoucherListHero icon={PackageOpen} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={openNewDialog} />
+      <VoucherListHero variant="board" icon={PackageOpen} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={openNewDialog} />
 
-      <VoucherStats stats={[{ label: <>{tr("إجمالي {0}", labels.listTitle)}</>, value: <>{totalVouchers}</> }, { label: <>{tr("إجمالي المبالغ")}</>, value: <>{totalAmount.toLocaleString("en-US")}</> }]} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            {tr("البحث")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-[1fr_1fr_1fr_auto]" onKeyDown={searchOnEnter(runSearch)}>
-            <div>
-              <Label htmlFor="search-code">{tr("رقم السند")}</Label>
-              <Input
-                id="search-code"
-                value={searchDraft.code}
-                onChange={(e) => setSearchDraft((prev) => ({ ...prev, code: e.target.value }))}
-                className="text-start"
-                placeholder={tr("ابحث برقم السند...")}
-              />
-            </div>
-            <div>
-              <Label htmlFor="search-date-from">{tr("من تاريخ")}</Label>
-              <Input
-                id="search-date-from"
-                type="date"
-                value={searchDraft.dateFrom}
-                onChange={(e) => setSearchDraft((prev) => ({ ...prev, dateFrom: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="search-date-to">{tr("إلى تاريخ")}</Label>
-              <Input
-                id="search-date-to"
-                type="date"
-                value={searchDraft.dateTo}
-                onChange={(e) => setSearchDraft((prev) => ({ ...prev, dateTo: e.target.value }))}
-              />
-            </div>
-            <VoucherSearchButton onClick={runSearch} loading={listSearch.loading} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{`${labels.listTitle} (${filteredVouchers.length})`}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="min-h-0">
-            <VoucherListTable
-              loading={listSearch.loading}
-              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString("en-US") }))}
-              columns={[
-                { header: tr("رقم السند"), name: "vch_code", width: "*", minWidth: 150, isReadOnly: true },
-                { header: tr("التاريخ"), name: "display_date", width: 130, isReadOnly: true },
-                { header: tr("المبلغ"), name: "display_amount", width: 140, isReadOnly: true },
-                { header: tr("حالة السند"), name: "voucher_status", width: 140, isReadOnly: true },
-              ]}
-              onOpen={(row: any) => { const voucher = row.item || row; openRow(voucher, filteredVouchers.findIndex((item) => item.id === voucher.id)) }}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* تصميم 2026-11-21: نفس لوحة فواتير المبيعات (components/sales/sales-voucher-board) — لا طرف للسند فتظهر الملاحظة */}
+      <SalesVoucherBoard
+        title={labels.listTitle}
+        rows={filteredVouchers.map((voucher: any) => ({ ...voucher, party: String(voucher.note || "").trim() || labels.title }))}
+        totalCount={vouchers.length}
+        partyLabel={labels.title}
+        loading={listSearch.loading}
+        draft={searchDraft}
+        setDraft={setSearchDraft}
+        onSearch={(draft) => void listSearch.load(fetchVouchers, draft ?? searchDraft)}
+        onOpen={(row) => { const index = filteredVouchers.findIndex((item) => item.id === row.id); if (index >= 0) openRow(filteredVouchers[index], index) }}
+      />
 
       <UnifiedStockVoucher
         onOpenVoucherById={(voucherId) => void openVoucherById(voucherId)}

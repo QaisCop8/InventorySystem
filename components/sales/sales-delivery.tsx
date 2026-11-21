@@ -998,7 +998,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   return (
     <div className={`voucher-list-page w-full max-w-full ${useFullPageMode && dialogOpen ? "h-full" : "space-y-6"}`} dir={appDir()}>
       {!(useFullPageMode && dialogOpen) && <>
-      <VoucherListHero icon={ReceiptText} title={<>{LIST_TITLE}</>} addLabel={<>{tr("إضافة {0}", TITLE)}</>} onNew={openNewDialog} />
+      <VoucherListHero variant="board" icon={ReceiptText} title={<>{LIST_TITLE}</>} addLabel={<>{tr("إضافة {0}", TITLE)}</>} onNew={openNewDialog} />
 
       {/* تصميم 2026-11-21: لوحة مؤشرات + شريط بحث بفترات جاهزة + دفتر يومي مجمّع حسب اليوم (sales-voucher-board) */}
       <SalesVoucherBoard

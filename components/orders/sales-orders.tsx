@@ -551,7 +551,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     <div className="voucher-list-page w-full max-w-full space-y-6" dir={appDir()}>
       {state.error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>}
       {/* Header Section — نفس ترويسة شاشات الحركات (VoucherListHero) */}
-      <VoucherListHero
+      <VoucherListHero variant="board"
         title={isPurchase ? tr("طلبيات المشتريات") : tr("طلبيات المبيعات")}
         subtitle={isPurchase ? tr("إدارة وتتبع جميع طلبيات المشتريات بكفاءة عالية") : tr("إدارة وتتبع جميع طلبيات المبيعات بكفاءة عالية")}
         category={tr("الطلبيات")}

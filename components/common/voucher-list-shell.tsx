@@ -8,7 +8,7 @@ import "./voucher-list-theme.css"
 // رأس بنفس تصميم رأس الرئيسية (.page-hero) مع زر الإضافة (F5)، وبطاقات مؤشرات حديثة بألوان النظام.
 // بطاقات البحث والجدول تُنسَّق عبر .voucher-list-page في voucher-list-theme.css.
 
-export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon = FileText, category = "الحركات", actions, addDisabled = false }: {
+export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon = FileText, category = "الحركات", actions, addDisabled = false, variant = "default" }: {
   title: ReactNode
   subtitle?: ReactNode
   /** زر الإضافة (F5) — يُحذف لشاشة بلا إضافة (مثل تخطيط المشتريات) وتكفي `actions` */
@@ -20,7 +20,39 @@ export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon =
   /** أزرار إضافية بجانب زر الإضافة (مثل الاستيراد) */
   actions?: ReactNode
   addDisabled?: boolean
+  /** board: ترويسة شاشات «الدفتر اليومي» (sales-voucher-board) — داكنة بلمسة زمردية، تختلف عن الترويسة الخضراء العامة */
+  variant?: "default" | "board"
 }) {
+  if (variant === "board") {
+    const today = new Date().toLocaleDateString(typeof document !== "undefined" && document.documentElement.dir === "ltr" ? "en-GB" : "ar-u-nu-latn", { weekday: "long", day: "numeric", month: "long" })
+    return (
+      <header className="board-hero relative shrink-0 overflow-hidden">
+        <div className="board-hero-grid" aria-hidden />
+        <div className="board-hero-orb" aria-hidden />
+        <div className="relative flex flex-wrap items-end justify-between gap-5">
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="board-hero-icon"><Icon className="h-7 w-7" /></span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="board-hero-chip">{category}</span>
+                <span className="board-hero-date"><CalendarDays className="h-3.5 w-3.5" />{today}</span>
+              </div>
+              <h1 className="board-hero-title">{title}</h1>
+              {subtitle && <p className="board-hero-sub">{subtitle}</p>}
+            </div>
+          </div>
+          <div className="hero-actions board-hero-actions flex flex-wrap items-center gap-2">
+            {actions}
+            {onNew && <button type="button" data-hotkey-new onClick={onNew} disabled={addDisabled} className="board-hero-add">
+              <span className="board-hero-plus"><Plus className="h-4 w-4" /></span>
+              {addLabel}
+              <kbd dir="ltr">F5</kbd>
+            </button>}
+          </div>
+        </div>
+      </header>
+    )
+  }
   return (
     // shrink-0: داخل صفحة flex-col بارتفاع ثابت (h-full) كانت الترويسة تنكمش لشريط عند كثرة المحتوى (طاولات المطعم)
     <header className="page-hero relative shrink-0 overflow-hidden rounded-2xl px-5 py-5 sm:px-7">
