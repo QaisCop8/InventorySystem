@@ -3,6 +3,7 @@
 import { tr, appDir } from "@/lib/i18n"
 import {useEffect,useRef,useState,type ReactNode} from "react"
 import {useNoAutoKeyboard} from "./camera-barcode-scanner"
+import {WorkspaceDialogProvider,useWorkspaceDialog} from "@/contexts/workspace-dialog-context"
 import {Banknote,Check,CreditCard,HeartHandshake,Loader2,WalletCards,X} from "lucide-react"
 import {Dialog,DialogContent,DialogDescription,DialogHeader,DialogTitle} from "@/components/ui/dialog"
 import {Button} from "@/components/ui/button"
@@ -50,6 +51,9 @@ export function PosPaymentDetailsDialog(props:Props){
  const [aidCode,setAidCode]=useState(""),[aidPin,setAidPin]=useState(""),[aidBusy,setAidBusy]=useState(false),[aidError,setAidError]=useState("")
  const [aidInfo,setAidInfo]=useState<{participant_name:string;activity_name:string;balance:number;available:number}|null>(null)
  const amountInputRef=useRef<HTMLInputElement>(null)
+ // الجوال: النافذة على الشاشة كلها (fixed) لا داخل مساحة التبويب — كانت بعرض الشاشة داخل تبويب أضيق فيُقصّ طرفاها
+ const workspaceDialog=useWorkspaceDialog(),[phone,setPhone]=useState(false)
+ useEffect(()=>{const query=window.matchMedia("(max-width: 767px)");const sync=()=>setPhone(query.matches);sync();query.addEventListener("change",sync);return()=>query.removeEventListener("change",sync)},[])
  // الجوال: التركيز على المبلغ دون فتح لوحة المفاتيح (لوحة الأرقام في الشاشة) — تفتح فقط عند لمس الحقل
  const amountKeyboard=useNoAutoKeyboard("decimal")
  const confirmButtonRef=useRef<HTMLButtonElement>(null)
@@ -115,7 +119,7 @@ export function PosPaymentDetailsDialog(props:Props){
  }
  const methodTone=(key:PaymentMethod)=>payments.some(row=>row.method===key&&Number(row.amount)>0)
  const isSale=mode==="sale"
- return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent dir={appDir()} onKeyDown={onKeyDown} onPointerDownOutside={event=>event.preventDefault()} onInteractOutside={event=>event.preventDefault()} onOpenAutoFocus={event=>{event.preventDefault();requestAnimationFrame(()=>{amountInputRef.current?.focus();amountInputRef.current?.select()})}} onCloseAutoFocus={event=>{if(onSavedClose?.())event.preventDefault()}} hideCloseButton className="pos-payment-dialog flex h-[min(calc(100%-1rem),calc(100dvh-1rem))] max-h-[min(calc(100%-1rem),calc(100dvh-1rem))] w-[min(calc(100%-1rem),calc(100vw-1rem))] max-w-none flex-col gap-0 overflow-hidden rounded-[26px] border-0 p-0 text-slate-900 sm:h-[min(640px,calc(100dvh-1.5rem))] sm:w-[min(calc(100%-1.5rem),96vw,980px)]">
+ return <WorkspaceDialogProvider container={phone?null:workspaceDialog.container} confined={phone?false:workspaceDialog.confined}><Dialog open={open} onOpenChange={onOpenChange}><DialogContent dir={appDir()} onKeyDown={onKeyDown} onPointerDownOutside={event=>event.preventDefault()} onInteractOutside={event=>event.preventDefault()} onOpenAutoFocus={event=>{event.preventDefault();requestAnimationFrame(()=>{amountInputRef.current?.focus();amountInputRef.current?.select()})}} onCloseAutoFocus={event=>{if(onSavedClose?.())event.preventDefault()}} hideCloseButton className="pos-payment-dialog flex h-[min(calc(100%-1rem),calc(100dvh-1rem))] max-h-[min(calc(100%-1rem),calc(100dvh-1rem))] w-[min(calc(100%-1rem),calc(100vw-1rem))] max-w-none flex-col gap-0 overflow-hidden rounded-[26px] border-0 p-0 text-slate-900 sm:h-[min(640px,calc(100dvh-1.5rem))] sm:w-[min(calc(100%-1.5rem),96vw,980px)]">
   <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[320px_minmax(0,1fr)] md:grid-rows-1">
    {/* ── اللوحة الجانبية: المبالغ وطرق الدفع ── */}
    <aside className="flex min-h-0 flex-col gap-3 bg-[#24453a] p-4 text-white md:p-5">
@@ -197,5 +201,5 @@ export function PosPaymentDetailsDialog(props:Props){
     </div>
    </section>
   </div>
- </DialogContent></Dialog>
+ </DialogContent></Dialog></WorkspaceDialogProvider>
 }
