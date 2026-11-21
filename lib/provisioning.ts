@@ -481,6 +481,10 @@ async function ensureDefaultVoucherBooks(tenantClient: ReturnType<typeof getPool
 // فرع وقسم افتراضيان لكل شركة جديدة — بلا أي فرع/قسم، شاشات كثيرة (تسجيل الدخول نفسه عبر
 // user_settings.branch_id، شاشات المخزون والسندات) تفترض وجود فرع واحد على الأقل.
 async function seedDefaultBranchAndSection(tenantClient: ReturnType<typeof getPoolForDb>) {
+  // ON CONFLICT أدناه يحتاج عمود is_bank_branch والفهرس الجزئي لرقم فرع الشركة (lib/branch-codes.ts). قاعدة شركة جديدة
+  // (bootstrap SQL) لا تحتويهما بعد — كانت «اعتماد» الشركة تفشل بـ column "is_bank_branch" does not exist
+  await tenantClient.query(`ALTER TABLE branches ADD COLUMN IF NOT EXISTS is_bank_branch BOOLEAN DEFAULT false`, [])
+  await tenantClient.query(`CREATE UNIQUE INDEX IF NOT EXISTS branches_company_code_uq ON branches (branch_code) WHERE NOT COALESCE(is_bank_branch, false)`, [])
   const branchResult = await tenantClient.query(
     `INSERT INTO branches (branch_code, branch_name, branch_symbol, is_active, status)
      VALUES ($1, $2, $3, true, 1)

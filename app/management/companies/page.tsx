@@ -25,6 +25,12 @@ import {
   RefreshCw,
   CalendarClock,
   Send,
+  Minus,
+  Phone,
+  Users,
+  GitBranch,
+  Monitor,
+  UtensilsCrossed,
 } from "lucide-react"
 import { ONLINE_COMPANY_PAYMENT_VISIBLE, priceFor, type Pricing } from "@/lib/company-pricing"
 import { SubscriptionDialog } from "@/components/management/subscription-dialog"
@@ -661,75 +667,108 @@ export default function ManagementCompaniesPage() {
       )}
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent dir={appDir()} className="cp-dialog max-w-md">
+        {/* تصميم 2026-11-21: أقسام واضحة — بيانات الشركة، حجم الترخيص (عدّادات بأزرار − / + وسعر كل إضافة)، ملخص الاشتراك */}
+        <DialogContent dir={appDir()} className="cp-dialog max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-2xl gap-0 overflow-y-auto p-0">
           <style dangerouslySetInnerHTML={{ __html: css }} />
-          <DialogHeader className="text-start">
-            <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Building2 className="h-5 w-5 text-emerald-700" />{tr("اضافة شركة جديدة")}</DialogTitle>
-            <DialogDescription className="text-stone-500">{paymentEnabled ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("ادفع الاشتراك إلكترونياً وتُفعَّل الشركة فوراً.") : tr("أرسل طلبك لفريق المبيعات وتُفعَّل الشركة لسنة كاملة فور اعتمادها.")) : tr("تُرسل للموافقة من إدارة النظام قبل تفعيلها.")}</DialogDescription>
+          <DialogHeader className="border-b border-[#ece3d3] px-6 pb-4 pt-6 text-start">
+            <DialogTitle className="flex items-center gap-3 text-xl font-black text-slate-900">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/30"><Building2 className="h-5 w-5" /></span>
+              <span className="flex flex-col gap-0.5">
+                {tr("اضافة شركة جديدة")}
+                <DialogDescription className="text-xs font-medium leading-5 text-stone-500">{paymentEnabled ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("ادفع الاشتراك إلكترونياً وتُفعَّل الشركة فوراً.") : tr("أرسل طلبك لفريق المبيعات وتُفعَّل الشركة لسنة كاملة فور اعتمادها.")) : tr("تُرسل للموافقة من إدارة النظام قبل تفعيلها.")}</DialogDescription>
+              </span>
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2">
-            <label htmlFor="new-company-name" className="text-sm font-bold text-slate-700">{tr("اسم الشركة")}</label>
-            <input id="new-company-name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="cp-field text-start" autoFocus />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="new-company-mobile" className="text-sm font-bold text-slate-700">{tr("رقم الجوال")} <span className="text-rose-600">*</span></label>
-            <input id="new-company-mobile" type="tel" inputMode="tel" dir="ltr" placeholder="05XXXXXXXX" value={newCompanyMobile} onChange={(e) => setNewCompanyMobile(e.target.value)} className="cp-field text-start" aria-invalid={Boolean(newCompanyMobile.trim()) && !newCompanyMobileValid} />
-            {newCompanyMobile.trim() && !newCompanyMobileValid && <p className="text-xs font-semibold text-rose-600">{tr("رقم الجوال غير صحيح")}</p>}
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              { label: tr("عدد المستخدمين"), value: newCompanyUsers, set: setNewCompanyUsers, min: 1 },
-              { label: tr("عدد الفروع"), value: newCompanyBranches, set: setNewCompanyBranches, min: 1 },
-              { label: tr("عدد نقاط البيع"), value: newCompanyPosPoints, set: setNewCompanyPosPoints, min: 0 },
-              { label: tr("مواقع المطاعم"), value: newCompanyRestaurants, set: setNewCompanyRestaurants, min: 0 },
-            ].map((field) => (
-              <div key={field.label} className="space-y-2">
-                <label className="text-xs font-bold text-slate-600">{field.label}</label>
-                <input type="number" min={field.min} value={field.value} onChange={(e) => field.set(e.target.value)} className="cp-field text-start tabular-nums" />
-              </div>
-            ))}
-          </div>
-          {paymentEnabled && pricing ? (() => {
-            const quote = priceFor(pricing, { users: Number(newCompanyUsers) || 1, branches: Number(newCompanyBranches) || 1, posPoints: Number(newCompanyPosPoints) || 0, restaurantLocations: Number(newCompanyRestaurants) || 0 })
-            return (
-              <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                <p className="flex items-center gap-2 text-sm font-black text-emerald-700"><CreditCard className="h-4 w-4" />{tr("تكلفة الاشتراك السنوي")}</p>
-                {/* أسعار الإضافات: كم يزيد الاشتراك عند زيادة كل عدد */}
-                <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-emerald-100 bg-white/70 p-2">
-                  {[
-                    { label: tr("كل مستخدم إضافي"), amount: pricing.per_user },
-                    { label: tr("كل فرع إضافي"), amount: pricing.per_branch },
-                    { label: tr("كل نقطة بيع"), amount: pricing.per_pos_point },
-                    { label: tr("كل موقع مطعم"), amount: Number(pricing.per_restaurant_location) || 0 },
-                  ].map((price) => (
-                    <div key={price.label} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1 text-[11px] text-slate-600">
-                      <span>{price.label}</span>
-                      <span className="font-bold tabular-nums text-emerald-700" dir="ltr">+{Number(price.amount || 0).toFixed(2)} {quote.currency}</span>
-                    </div>
-                  ))}
+
+          <div className="space-y-5 px-6 py-5">
+            {/* بيانات الشركة */}
+            <section className="space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-wide text-emerald-700">{tr("بيانات الشركة")}</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="new-company-name" className="block text-sm font-bold leading-6 text-slate-700">{tr("اسم الشركة")}</label>
+                  <input id="new-company-name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="cp-field text-start" autoFocus />
                 </div>
-                {quote.lines.filter((line) => line.amount > 0).map((line) => (
-                  <div key={line.label} className="flex justify-between text-xs text-slate-600"><span>{line.label}</span><span className="tabular-nums" dir="ltr">{line.amount.toFixed(2)}</span></div>
-                ))}
-                <div className="flex justify-between border-t border-[#ece3d3] pt-2 text-base font-black"><span>{tr("الإجمالي")}</span><span className="tabular-nums text-emerald-700" dir="ltr">{quote.total.toFixed(2)} {quote.currency}</span></div>
-                <p className="text-[11px] leading-5 text-stone-500">{ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("الدفع ببطاقة عبر بوابة لحظة الآمنة، وتُنشأ الشركة فوراً بعد نجاح الدفع.") : tr("بعد الإنشاء أرسل بطاقة لفريق المبيعات، وتُفعَّل الشركة لسنة كاملة فور اعتمادها.")}</p>
-                {ONLINE_COMPANY_PAYMENT_VISIBLE && paymentTestMode && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-5 text-amber-700" dir={appDir()}>{tr("وضع تجريبي: استخدم البطاقة ")}<span dir="ltr" className="font-mono">4111 1111 1111 1111</span>{tr(" — تاريخ ")}<span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
+                <div className="space-y-1.5">
+                  <label htmlFor="new-company-mobile" className="block text-sm font-bold leading-6 text-slate-700">{tr("رقم الجوال")} <span className="text-rose-600">*</span></label>
+                  <div className="relative">
+                    <Phone className="pointer-events-none absolute end-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                    <input id="new-company-mobile" type="tel" inputMode="tel" dir="ltr" placeholder="05XXXXXXXX" value={newCompanyMobile} onChange={(e) => setNewCompanyMobile(e.target.value)} className="cp-field pe-10 text-start tabular-nums" aria-invalid={Boolean(newCompanyMobile.trim()) && !newCompanyMobileValid} />
+                  </div>
+                  {newCompanyMobile.trim() && !newCompanyMobileValid && <p className="text-xs font-semibold text-rose-600">{tr("رقم الجوال غير صحيح")}</p>}
+                </div>
               </div>
-            )
-          })() : (
-            <p className="text-xs leading-6 text-stone-500">{tr("العدد المطلوب للترخيص — يُعتمد مع طلب الشركة من إدارة النظام ويمكن زيادته لاحقاً.")}</p>
-          )}
-          <DialogFooter className="gap-2 sm:gap-2">
-            <button type="button" onClick={() => setShowAddDialog(false)} className="h-11 rounded-xl border border-[#ece3d3] px-5 text-sm font-bold text-slate-700 transition hover:bg-stone-100">
-              {tr("إلغاء")}
-            </button>
+            </section>
+
+            {/* حجم الترخيص: عدّاد لكل عنصر */}
+            <section className="space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-wide text-emerald-700">{tr("حجم الترخيص")}</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {[
+                  { key: "users", label: tr("عدد المستخدمين"), icon: Users, value: newCompanyUsers, set: setNewCompanyUsers, min: 1, price: pricing?.per_user },
+                  { key: "branches", label: tr("عدد الفروع"), icon: GitBranch, value: newCompanyBranches, set: setNewCompanyBranches, min: 1, price: pricing?.per_branch },
+                  { key: "pos", label: tr("عدد نقاط البيع"), icon: Monitor, value: newCompanyPosPoints, set: setNewCompanyPosPoints, min: 0, price: pricing?.per_pos_point },
+                  { key: "restaurants", label: tr("مواقع المطاعم"), icon: UtensilsCrossed, value: newCompanyRestaurants, set: setNewCompanyRestaurants, min: 0, price: Number(pricing?.per_restaurant_location) || 0 },
+                ].map((field) => {
+                  const current = Number(field.value) || 0
+                  const Icon = field.icon
+                  return (
+                    <div key={field.key} className="flex items-center gap-3 rounded-2xl border border-[#ece3d3] bg-white p-3 shadow-sm">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><Icon className="h-5 w-5" /></span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-bold leading-6 text-slate-800">{field.label}</div>
+                        {paymentEnabled && pricing && Number(field.price) > 0 && (
+                          <div className="text-[11px] font-semibold text-stone-500" dir={appDir()}>+<span dir="ltr" className="tabular-nums">{Number(field.price).toFixed(2)}</span> {tr("لكل إضافي")}</div>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center overflow-hidden rounded-xl border border-[#e7dccb] bg-stone-50">
+                        <button type="button" aria-label={tr("إنقاص {0}", field.label)} disabled={current <= field.min} onClick={() => field.set(String(Math.max(field.min, current - 1)))}
+                          className="grid h-10 w-9 place-items-center text-slate-600 transition hover:bg-stone-100 disabled:opacity-35"><Minus className="h-4 w-4" /></button>
+                        <input type="number" min={field.min} value={field.value} onChange={(e) => field.set(e.target.value)} aria-label={field.label}
+                          className="h-10 w-12 border-x border-[#e7dccb] bg-white text-center text-base font-black tabular-nums text-slate-900 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                        <button type="button" aria-label={tr("زيادة {0}", field.label)} onClick={() => field.set(String(current + 1))}
+                          className="grid h-10 w-9 place-items-center text-emerald-700 transition hover:bg-emerald-50"><Plus className="h-4 w-4" /></button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {!(paymentEnabled && pricing) && <p className="text-xs leading-6 text-stone-500">{tr("العدد المطلوب للترخيص — يُعتمد مع طلب الشركة من إدارة النظام ويمكن زيادته لاحقاً.")}</p>}
+            </section>
+
+            {/* ملخص الاشتراك السنوي */}
+            {paymentEnabled && pricing ? (() => {
+              const quote = priceFor(pricing, { users: Number(newCompanyUsers) || 1, branches: Number(newCompanyBranches) || 1, posPoints: Number(newCompanyPosPoints) || 0, restaurantLocations: Number(newCompanyRestaurants) || 0 })
+              return (
+                <section className="overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-white">
+                  <div className="flex items-center gap-2 border-b border-emerald-100 px-4 py-3 text-sm font-black text-emerald-800"><CreditCard className="h-4 w-4" />{tr("تكلفة الاشتراك السنوي")}</div>
+                  <div className="space-y-1.5 px-4 py-3">
+                    {quote.lines.filter((line) => line.amount > 0).map((line) => (
+                      <div key={line.label} className="flex items-center justify-between gap-3 text-sm text-slate-600"><span>{line.label}</span><span className="font-bold tabular-nums text-slate-800" dir="ltr">{line.amount.toFixed(2)}</span></div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between gap-3 bg-emerald-600 px-4 py-3 text-white">
+                    <span className="text-sm font-bold">{tr("الإجمالي السنوي")}</span>
+                    <span className="text-2xl font-black tabular-nums" dir="ltr">{quote.total.toFixed(2)} <span className="text-sm font-bold opacity-90">{quote.currency}</span></span>
+                  </div>
+                  <p className="px-4 py-2.5 text-[11px] leading-5 text-stone-500">{ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("الدفع ببطاقة عبر بوابة لحظة الآمنة، وتُنشأ الشركة فوراً بعد نجاح الدفع.") : tr("بعد الإنشاء أرسل بطاقة لفريق المبيعات، وتُفعَّل الشركة لسنة كاملة فور اعتمادها.")}</p>
+                  {ONLINE_COMPANY_PAYMENT_VISIBLE && paymentTestMode && <p className="mx-4 mb-3 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-5 text-amber-700" dir={appDir()}>{tr("وضع تجريبي: استخدم البطاقة ")}<span dir="ltr" className="font-mono">4111 1111 1111 1111</span>{tr(" — تاريخ ")}<span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
+                </section>
+              )
+            })() : null}
+          </div>
+
+          <DialogFooter className="sticky bottom-0 flex-row gap-2 border-t border-[#ece3d3] bg-[#fffdf9] px-6 py-4 sm:justify-start sm:gap-2">
             <button
               type="button"
               onClick={handleAddCompany}
               disabled={saving || !newCompanyName.trim() || !newCompanyMobileValid || !(Number(newCompanyUsers) >= 1) || !(Number(newCompanyBranches) >= 1) || !(Number(newCompanyPosPoints || 0) >= 0) || !(Number(newCompanyRestaurants || 0) >= 0)}
-              className="cp-btn inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white"
+              className="cp-btn inline-flex h-12 flex-1 items-center justify-center gap-2 px-6 text-sm font-black text-white"
             >
               {saving ? <><Loader2 className="h-4 w-4 animate-spin" />{paymentEnabled && ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("جاري التحويل للدفع...") : tr("جاري الإنشاء...")}</> : paymentEnabled && ONLINE_COMPANY_PAYMENT_VISIBLE ? <><CreditCard className="h-4 w-4" />{tr("الدفع وإنشاء الشركة")}</> : paymentEnabled ? <><Send className="h-4 w-4" />{tr("إنشاء وإرسال للمبيعات")}</> : tr("إنشاء")}
+            </button>
+            <button type="button" onClick={() => setShowAddDialog(false)} className="h-12 rounded-xl border border-[#ece3d3] bg-white px-6 text-sm font-bold text-slate-700 transition hover:bg-stone-100">
+              {tr("إلغاء")}
             </button>
           </DialogFooter>
         </DialogContent>
