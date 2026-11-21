@@ -3,6 +3,7 @@ import * as defs from "@/lib/shamel-migration/definitions"
 import { processAccountBalances, processStockBalances } from "@/lib/shamel-migration/balances"
 import { ordersSql, processOrders, runOrderPrefixes } from "@/lib/shamel-migration/orders"
 import { previousChequesSql, processPreviousCheques } from "@/lib/shamel-migration/cheques"
+import { campaignItemsSql, campaignsSql, processCampaignItems, processCampaigns } from "@/lib/shamel-migration/campaigns"
 import { SHAMEL_VOUCHER_TYPES, processVoucherItems, processVoucherLines, voucherItemsSql, voucherLinesSql } from "@/lib/shamel-migration/vouchers"
 
 // خطوات الترحيل بالترتيب: لكل خطوة استعلام Pervasive SQL ينفّذه معالج الترحيل على جهاز العميل (الأسماء المستعارة
@@ -168,6 +169,17 @@ const STEPS: MigrationStep[] = [
     key: "item_barcodes", title: "باركودات الوحدات", group: "definitions", batchSize: 1000,
     sql: () => `select "Code" as code, "Barcode" as barcode, "ShamelUnit" as unit_pos, "num" as seq from "units" where ltrim("Barcode")<>'' order by "Code", "ShamelUnit", "num"`,
     process: (rows, ctx) => defs.processItemBarcodes(rows, ctx),
+  },
+  {
+    // حملات نقطة البيع (lib/shamel-migration/campaigns.ts): بعد الأصناف والمستودعات وفئات الأسعار التي تُربط بها
+    key: "campaigns", title: "حملات نقطة البيع", group: "definitions", batchSize: 300,
+    sql: () => campaignsSql(),
+    process: (rows, ctx) => processCampaigns(rows, ctx),
+  },
+  {
+    key: "campaign_items", title: "أصناف حملات نقطة البيع", group: "definitions", batchSize: 1000,
+    sql: () => campaignItemsSql(),
+    process: (rows, ctx) => processCampaignItems(rows, ctx),
   },
   {
     key: "account_balances", title: "الأرصدة الافتتاحية للحسابات (سند قيد)", group: "balances", batchSize: 2000,

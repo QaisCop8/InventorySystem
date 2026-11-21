@@ -5,6 +5,7 @@ import { amountFractionOptions } from "@/lib/decimals"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { BadgePercent, CalendarRange, CreditCard, Loader2, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -140,28 +141,28 @@ export default function DiscountCards() {
 
   return (
     <div dir={appDir()} className="flex min-h-full flex-col gap-3 bg-slate-50 p-3 sm:p-4 dark:bg-slate-950">
-      <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-slate-900 via-slate-800 to-teal-900 px-4 py-3 text-white shadow-sm">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20"><BadgePercent className="h-5 w-5" /></span>
-          <div>
-            <h1 className="text-lg font-bold">{tr("بطاقات الخصم")}</h1>
-            <p className="text-xs text-white/70">{tr("ربط العملاء ببطاقات خصم بمدة صلاحية وشروط تُطبَّق تلقائياً في كاشير نقطة البيع")}</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
-          <Button size="sm" className="bg-teal-500 hover:bg-teal-600" onClick={openNew}><Plus className="me-1 h-4 w-4" />{tr("بطاقة جديدة")}</Button>
-        </div>
-      </header>
+      {/* رأس الصفحات الموحّد (VoucherListHero + VoucherStats) كبقية شاشات النظام */}
+      <VoucherListHero
+        title={tr("بطاقات الخصم")}
+        subtitle={tr("ربط العملاء ببطاقات خصم بمدة صلاحية وشروط تُطبَّق تلقائياً في كاشير نقطة البيع")}
+        category={tr("نقطة البيع")}
+        icon={BadgePercent}
+        addLabel={tr("بطاقة جديدة")}
+        onNew={openNew}
+        actions={
+          <button type="button" onClick={() => void load()} disabled={loading}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold text-white ring-1 ring-white/25 backdrop-blur transition hover:bg-white/25 disabled:opacity-60">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}
+          </button>
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        {[["عدد البطاقات", stats.total, "text-slate-800"], ["فعّالة اليوم", stats.active, "text-emerald-700"], ["مرات الاستخدام", stats.used, "text-sky-700"], ["موقوفة", stats.stopped, "text-slate-500"]].map(([label, value, tone]) => (
-          <div key={String(label)} className="rounded-xl border bg-white px-3 py-2 shadow-sm dark:bg-slate-900">
-            <p className="text-xs text-slate-500">{label}</p>
-            <p className={`text-xl font-bold tabular-nums ${tone}`}>{value}</p>
-          </div>
-        ))}
-      </div>
+      <VoucherStats stats={[
+        { label: tr("عدد البطاقات"), value: stats.total },
+        { label: tr("فعّالة اليوم"), value: stats.active },
+        { label: tr("مرات الاستخدام"), value: stats.used },
+        { label: tr("موقوفة"), value: stats.stopped },
+      ]} />
 
       <section className="rounded-xl border bg-white p-3 shadow-sm dark:bg-slate-900">
         <div className="mb-3 flex flex-wrap items-center gap-2">
