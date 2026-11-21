@@ -128,8 +128,11 @@ const normalizeItems = (items: CampaignItem[]) => items.map(item => ({
 
 const snapshotOf = (form: CampaignRecord, buy: CampaignItem[], added: CampaignItem[]) => {
   const { items: _items, ...header } = form
-  const pick = (rows: CampaignItem[]) => rows.map(row => [row.item_id, row.unit_id || 0, Number(row.price) || 0, Number(row.quantity) || 0, Number(row.discount) || 0, row.notes || ""])
-  return JSON.stringify({ header, buy: pick(buy), added: pick(added) })
+  const round = (value: unknown) => Math.round((Number(value) || 0) * 100) / 100
+  const pick = (rows: CampaignItem[]) => rows.map(row => [row.item_id, row.unit_id || 0, round(row.price), round(row.quantity), round(row.discount), row.notes || ""])
+  // ترتيب المستودعات/الفروع المختارة لا يُعد تعديلاً
+  const sorted = (ids: unknown) => (Array.isArray(ids) ? ids.map(Number) : []).sort((a, b) => a - b)
+  return JSON.stringify({ header: { ...header, warehouse_ids: sorted(header.warehouse_ids), branch_ids: sorted(header.branch_ids) }, buy: pick(buy), added: pick(added) })
 }
 
 function nextCampaignCode(campaigns: CampaignRecord[]) {
@@ -200,8 +203,8 @@ export default function UnifiedCampaigns({
     addedGrid.current?.control?.finishEditing()
   }
 
-  const showCampaign = (record: CampaignRecord | null) => {
-    const next = normalizeCampaign(record, nextCampaignCode(campaigns))
+  const showCampaign = (record: CampaignRecord | null, known: CampaignRecord[] = campaigns) => {
+    const next = normalizeCampaign(record, nextCampaignCode(known))
     const buy = normalizeItems(record?.items?.filter(item => Number(item.type) !== 2) || [])
     const added = normalizeItems(record?.items?.filter(item => Number(item.type) === 2) || [])
     setForm(next)
@@ -348,9 +351,8 @@ export default function UnifiedCampaigns({
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || tr("تعذر حفظ الحملة"))
       const saved = { ...current, id: Number(data.id) }
-      setForm(saved)
-      formRef.current = saved
-      baselineRef.current = snapshotOf(saved, buyItemsRef.current, addedItemsRef.current)
+      // بعد الحفظ: سجل جديد فارغ على التبويب الأول (الرمز التالي يحسب الحملة المحفوظة للتو قبل تحديث القائمة)
+      showCampaign(null, [...campaigns.filter(row => Number(row.id) !== saved.id), saved])
       onSaved(Number(data.id))
       showMessage("success", tr("تم حفظ الحملة بنجاح"))
       return true

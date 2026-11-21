@@ -179,9 +179,23 @@ export async function processRates(rows: Row[], ctx: StepContext) {
     const day = date(r.rate_date)
     const rate = num(r.rate)
     if (!id || id === baseId || !day || !(rate > 0)) return "skipped"
+    // الشامل يترك سعر البيع/الشراء 1 (أو 0) حين لا يُستخدم ⇐ نأخذ سعر الصرف بدلاً منه (2026-11-21)
+    const side = (value: unknown) => { const n = num(value); return n > 0 && !(n === 1 && rate !== 1) ? n : rate }
+    const buyRate = side(r.purchase_rate)
+    const sellRate = side(r.sale_rate)
     const existing = await sql`SELECT 1 FROM exchange_rates WHERE currency_id = ${id} AND rate_date = ${day} LIMIT 1`
-    if (existing.length) return "skipped"
-    await insertRow("exchange_rates", { currency_id: id, buy_rate: num(r.purchase_rate) || rate, sell_rate: num(r.sale_rate) || rate, exchange_rate: rate, rate_date: day, is_active: true })
+    if (existing.length) {
+      // إصلاح ما رُحّل سابقاً بسعر 1
+      const fixed = await sql`
+        UPDATE exchange_rates SET
+          sell_rate = CASE WHEN COALESCE(sell_rate, 0) IN (0, 1) AND exchange_rate <> 1 THEN ${sellRate} ELSE sell_rate END,
+          buy_rate = CASE WHEN COALESCE(buy_rate, 0) IN (0, 1) AND exchange_rate <> 1 THEN ${buyRate} ELSE buy_rate END
+        WHERE currency_id = ${id} AND rate_date = ${day} AND exchange_rate <> 1
+          AND (COALESCE(sell_rate, 0) IN (0, 1) OR COALESCE(buy_rate, 0) IN (0, 1))
+        RETURNING 1`
+      return fixed.length ? "updated" : "skipped"
+    }
+    await insertRow("exchange_rates", { currency_id: id, buy_rate: buyRate, sell_rate: sellRate, exchange_rate: rate, rate_date: day, is_active: true })
     return "created"
   })
 }

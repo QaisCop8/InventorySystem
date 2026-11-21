@@ -163,6 +163,17 @@ export function CampaignItemsGrid({ title, items, setItems, products, gridRef, o
     const index = Number(row._index)
     const original = itemsRef.current[index]
     if (!field || !original) return
+    // خلية دخلها المستخدم وخرج منها دون تغيير القيمة: لا نعيد الاحتساب (تقريب نسبة الخصم كان يغيّر
+    // مبلغ الخصم قليلاً فتظهر رسالة "تم تعديل الحملة" دون أي تعديل فعلي)
+    const before: any = { ...original, ...campaignAmounts(original) }
+    const unchanged = field === "notes"
+      ? String(row.notes ?? "") === String(original.notes ?? "")
+      : Math.abs(Number(row[field] ?? 0) - Number(before[field] ?? 0)) < 0.005
+    if (unchanged) {
+      Object.assign(row, original, campaignAmounts(original))
+      grid.invalidate()
+      return
+    }
     try {
       const next = field === "notes"
         ? { ...original, notes: String(row.notes ?? "") }

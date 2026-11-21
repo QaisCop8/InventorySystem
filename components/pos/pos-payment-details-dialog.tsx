@@ -147,12 +147,12 @@ export function PosPaymentDetailsDialog(props:Props){
         </button>})}
        </div>}
        <label className="flex items-center justify-between gap-3 rounded-2xl border-2 border-[#3b7a66] bg-white px-4 py-2">
-        <span className="text-sm font-bold text-slate-500">{tr("المبلغ المستلم")} <b className="text-slate-700">{activeCash?.currency_code}</b>{activeRate!==1&&<small className="ms-2 font-semibold tabular-nums" dir="ltr">= {money(activeAmount*activeRate)} {currencyCode}</small>}</span>
+        <span className="shrink-0 text-sm font-bold text-slate-500">{tr("المبلغ المستلم")} <b className="text-slate-700">{activeCash?.currency_code}</b>{activeRate!==1&&<small className="ms-2 font-semibold tabular-nums" dir="ltr">= {money(activeAmount*activeRate)} {currencyCode}</small>}</span>
         <input ref={amountInputRef} aria-label={tr("مبلغ {0}", activeCash?.currency_code||"")} inputMode="decimal" autoComplete="off" dir="ltr"
          value={cashEntry??(activeAmount?String(activeAmount):"0")} onFocus={selectAllOnFocus}
          onChange={event=>{const text=event.target.value.replace(/[^\d.]/g,"");setCash(text)}}
          onKeyDown={event=>{if(event.key==="Enter"){event.preventDefault();event.stopPropagation();setCashEntry(null);confirmButtonRef.current?.focus()}}}
-         className="w-40 min-w-0 bg-transparent text-end text-4xl font-black tabular-nums outline-none"/>
+         className="min-w-0 flex-1 bg-transparent text-right text-4xl font-black tabular-nums outline-none"/>
        </label>
        <div className="grid grid-cols-5 gap-2">
         <button type="button" onClick={fillRemaining} className="rounded-xl bg-[#dcefe6] px-1 py-3 text-xs font-black text-[#24453a] sm:text-sm">{tr("المبلغ كاملاً")}</button>

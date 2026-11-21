@@ -1,6 +1,7 @@
 "use client"
 
 import { addonsPriceDelta } from "@/lib/attribute-prices"
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { playPosBeep } from "@/lib/pos-beeps"
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
@@ -81,7 +82,8 @@ const deviceKey = () => {
 }
 
 // بحث عربي متسامح: بلا تشكيل، وتوحيد الألف/الياء/التاء المربوطة
-const searchKey = (value: string) => value.toLocaleLowerCase("ar").replace(/[ً-ٟـ]/g, "").replace(/[إأآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه")
+// نفس توحيد البحث في النظام (أ/ا، ة/ه، ى/ي، ؤ، ئ، التشكيل، الأرقام العربية)
+const searchKey = (value: string) => normalizeArabicSearch(value)
 const CATALOG_REFRESH_MS = 5 * 60_000
 const errorOf = async (response: Response, fallback: string) => String((await response.json().catch(() => ({})))?.error || fallback)
 const pad = (value: number) => String(value).padStart(2, "0")
