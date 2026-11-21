@@ -185,8 +185,6 @@ export default function RestaurantPos() {
   const [valueDialog, setValueDialog] = useState<null | "discount" | "takeaway_name">(null)
   // اختيار يدوي من الأصناف التابعة (related_items_mode = 4): الصنف الأب + التوابع المؤشَّرة
   const [relatedPick, setRelatedPick] = useState<{ product: Product; options: Product[]; selected: number[]; includeParent?: boolean } | null>(null)
-  // «الاضافات» (إعداد الموقع «اظهار الاصناف التابعة بعد اختيار الصنف»): أصناف الطلب التي لها توابع — يُختار أحدها ثم توابعه
-  const [relatedChooser, setRelatedChooser] = useState<Product[] | null>(null)
   // «اظهار الاصناف التابعة للمجموعة بعد الاختيار»: بعد إضافة الصنف يُختار صنف واحد من مجموعته المحددة (أو تخطي)
   const [followupPick, setFollowupPick] = useState<{ product: Product; options: Product[] } | null>(null)
   const [extrasWizard, setExtrasWizard] = useState<{ product: Product; related: Product[]; includeParent: boolean; attrs?: { addons: Addon[]; note: string } } | null>(null)
@@ -811,16 +809,9 @@ export default function RestaurantPos() {
   // «الاضافات»: توابع صنف موجود في الطلب (الأحدث أولاً) — تُضاف بلا الصنف نفسه
   const relatedOptionsOf = (product: Product) => (product.relatedIds || []).map((id) => productById.get(id)).filter((row): row is Product => Boolean(row))
   const openRelatedFor = (product: Product) => {
-    setRelatedChooser(null)
     setRelatedPick({ product, options: relatedOptionsOf(product), selected: [], includeParent: false })
   }
-  const openExtrasPicker = () => {
-    const ids = [...pending.map((line) => line.productId).reverse(), ...(order?.items || []).map((item) => item.product_id).reverse()]
-    const candidates = [...new Set(ids)].map((id) => productById.get(id)).filter((row): row is Product => Boolean(row) && relatedOptionsOf(row as Product).length > 0)
-    if (!candidates.length) { setMessage({ type: "error", text: tr("لا توجد أصناف تابعة لأصناف هذا الطلب") }); return }
-    if (candidates.length === 1) openRelatedFor(candidates[0])
-    else setRelatedChooser(candidates)
-  }
+
 
   // مرجع ثابت لشبكة الأصناف (memo) — الضغط على صنف لا يعيد رسم الشبكة
   const addProductRef = useRef(addProduct)
@@ -1256,21 +1247,6 @@ export default function RestaurantPos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={relatedChooser !== null} onOpenChange={(value) => { if (!value) setRelatedChooser(null) }}>
-        <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-md">
-          <DialogHeader><DialogTitle>{tr("الاصناف التابعة — اختر الصنف")}</DialogTitle></DialogHeader>
-          <div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
-            {relatedChooser?.map((row) => (
-              <button key={row.id} type="button" onClick={() => openRelatedFor(row)}
-                className="flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-start text-sm font-semibold transition-colors hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/40">
-                <span>{row.name}{row.unitName ? ` (${row.unitName})` : ""}</span>
-                <span className="text-xs text-muted-foreground">{tr("{0} صنف تابع", relatedOptionsOf(row).length)}</span>
-              </button>
-            ))}
-          </div>
-          <DialogFooter><Button variant="outline" onClick={() => setRelatedChooser(null)}>{tr("إلغاء")}</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
       <FollowupPickDialog open={followupPick !== null} title={followupPick?.product.name || ""} options={followupPick?.options || []} currency={currency}
         onSkip={() => setFollowupPick(null)}
         onPick={(row) => { setFollowupPick(null); void addProduct(row) }} />
@@ -1424,7 +1400,6 @@ export default function RestaurantPos() {
   // أسطر غير مدفوعة بقيمة (أسطر بقيمة صفر كخدمة طاولة بسعر 0 لا تمنع «إغلاق» — الخادم يسوّيها)
   const hasRemainingValue = remainingLines.some(({ item, quantity }) => Math.abs(item.price * quantity * (1 - Number(item.discount || 0) / 100)) >= 0.005)
   const actions: OrderAction[] = [
-    { key: "extras", label: tr("الاصناف التابعة"), icon: ListPlus, show: Boolean(catalog?.point?.related_on_demand), onClick: gated("addItems", () => openExtrasPicker(), order.location_id) },
     { key: "transfer", label: isTakeaway ? tr("إلى طاولة") : tr("نقل"), icon: ArrowRightLeft, show: true, onClick: gated("transfer", () => { setTransferFrom(order.tables[0]?.table_id ?? null); setPicker("transfer") }, order.location_id) },
     { key: "merge", label: tr("دمج"), icon: Combine, show: !isTakeaway, onClick: gated("merge", () => setPicker("merge"), order.location_id) },
     { key: "split", label: tr("فصل"), icon: Split, show: true, disabled: !hasRemaining, onClick: gated("split", () => { setSplitQty({}); setSplitOpen(true) }, order.location_id) },
