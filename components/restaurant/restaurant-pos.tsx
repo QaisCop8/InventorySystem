@@ -9,7 +9,7 @@ import {
   applyOffline, cacheCustody, cachedCustody, cacheFloor, cacheOrder, discardFailedOps, hasOfflineChanges, hasQueuedOps, isNetworkError, OFFLINE_ACTIONS,
   offlineFloor, offlineOps, offlineOrder, setRestaurantOfflineScope, syncRestaurantOffline, type OfflineOp,
 } from "@/lib/restaurant-offline"
-import { ArrowRightLeft, Ban, Combine, ListPlus, Loader2, Lock, Minus, Plus, Printer, Split, UserCog, Wallet } from "lucide-react"
+import { ArrowRightLeft, Ban, Combine, ListPlus, Loader2, Lock, Minus, Plus, Printer, RefreshCw, Split, UserCog, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -784,6 +784,30 @@ export default function RestaurantPos() {
     setRelatedPick(null)
   }
 
+  // «تحديث»: إعادة تحميل الأصناف والأسعار من الخادم الآن (بدل انتظار التحديث التلقائي) ثم بيانات الطلب نفسه —
+  // الأسطر غير المرسلة للمطبخ (pending) تبقى كما هي
+  const [refreshing, setRefreshing] = useState(false)
+  const refreshNow = async () => {
+    if (!order || refreshing) return
+    setRefreshing(true)
+    try {
+      await fetchCatalog(catalogIdOf(order))
+      if (order.id > 0 && !hasOfflineChanges(order.id)) {
+        const response = await fetch(`/api/restaurant/orders?id=${order.id}`, { cache: "no-store" })
+        if (response.ok) {
+          const data: Order = await response.json()
+          cacheOrder(data)
+          if (data.status === "open") setOrder(data)
+        }
+      }
+      setMessage({ type: "success", text: tr("تم تحديث الأصناف والأسعار") })
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : tr("تعذر تحديث الأصناف") })
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   // «الاضافات»: توابع صنف موجود في الطلب (الأحدث أولاً) — تُضاف بلا الصنف نفسه
   const relatedOptionsOf = (product: Product) => (product.relatedIds || []).map((id) => productById.get(id)).filter((row): row is Product => Boolean(row))
   const openRelatedFor = (product: Product) => {
@@ -1407,6 +1431,7 @@ export default function RestaurantPos() {
     { key: "print", label: tr("طباعة الحساب"), icon: Printer, show: true, disabled: !hasRemaining, onClick: gated("printBill", () => void printBill(), order.location_id) },
     { key: "cancel", label: order.payments.length ? tr("إغلاق") : tr("إلغاء"), icon: Ban, show: order.payments.length ? !hasRemainingValue : true, tone: "text-red-600",
       onClick: gated(order.payments.length ? "pay" : "cancelOrder", () => { if (order.payments.length) void act("close", { order_id: order.id }, tr("تم إغلاق الطاولة")); else { setCancelReason(""); setCancelOpen(true) } }, order.location_id) },
+    { key: "refresh", label: refreshing ? tr("جاري التحديث...") : tr("تحديث"), icon: RefreshCw, show: true, disabled: refreshing, onClick: () => void refreshNow() },
     { key: "custody", label: tr("العهدة"), icon: Wallet, show: canCustody, onClick: () => void openCustody(order.location_id) },
     { key: "waiter", label: tr("النادل"), icon: UserCog, show: can("assignWaiter"), onClick: () => void openAssign() },
   ]
@@ -1422,6 +1447,8 @@ export default function RestaurantPos() {
         onPendingQty={(key, delta) => setPending((rows) => syncExtras(rows.flatMap((row) => row.key !== key ? [row] : row.quantity + delta > 0 ? [{ ...row, quantity: round4(row.quantity + delta) }] : [])))}
         onPendingRemove={(key) => setPending((rows) => syncExtras(rows.filter((row) => row.key !== key)))}
         onEditPending={(key) => setEditing({ kind: "pending", key })} onEditItem={(item) => gated("editItems", () => setEditing({ kind: "item", item }), order.location_id)()} onRemoveService={(item) => void removeService(item)}
+        relatedCountOf={(productId) => { const row = productById.get(productId); return row ? relatedOptionsOf(row).length : 0 }}
+        onRelated={(productId) => { const row = productById.get(productId); if (row) gated("addItems", () => openRelatedFor(row), order.location_id)() }}
         onPendingAddons={(key) => setAddonsTarget({ kind: "pending", key })} onItemAddons={(item) => gated("editItems", () => setAddonsTarget({ kind: "item", item }), order.location_id)()}
         onSend={() => void sendPending()} onPay={gated("pay", () => {
           // ولا دفع قبل اكتمال إضافات الأصناف غير المدفوعة

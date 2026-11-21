@@ -2,7 +2,7 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { memo, useEffect, useMemo, useRef, useState } from "react"
-import { ArrowRight, ChefHat, TextSearch as ListSearchIcon, Clock, CreditCard, Link2, Link2Off, Loader2, Minus, Pencil, Plus, ReceiptText, Search, Send, ShoppingBag, Sparkles, UserRound, Users, X } from "lucide-react"
+import { ArrowRight, ChefHat, TextSearch as ListSearchIcon, Clock, CreditCard, Link2, Link2Off, ListPlus, Loader2, Minus, Pencil, Plus, ReceiptText, Search, Send, ShoppingBag, Sparkles, UserRound, Users, X } from "lucide-react"
 import type { RestaurantPermission } from "@/lib/transaction-permission-definitions"
 import { elapsed } from "./restaurant-floor"
 import { EXTRAS_GROUP, money, qtyText, type Addon, type AddonGroup, type OrderItem } from "./restaurant-dialogs"
@@ -52,6 +52,8 @@ type Props = {
   onPendingQty: (key: string, delta: number) => void; onPendingRemove: (key: string) => void
   onEditPending: (key: string) => void; onEditItem: (item: OrderItem) => void; onRemoveService: (item: OrderItem) => void
   onPendingAddons: (key: string) => void; onItemAddons: (item: OrderItem) => void
+  /** «الاصناف التابعة» على سطر الصنف: عدد توابعه المتاحة في قائمة الموقع، وفتح نافذة اختيارها */
+  relatedCountOf?: (productId: number) => number; onRelated?: (productId: number) => void
   onSend: () => void; onPay: () => void; onDiscount: () => void; onGuests: (delta: number) => void
   onUnmerge: (tableId: number, name: string) => void; onRenameTakeaway: () => void
   /** النادل (بلا صلاحية الدفع): الزر الرئيسي «طلب الحساب» بدل «دفع الحساب» */
@@ -294,6 +296,7 @@ export function RestaurantOrder(p: Props) {
                   {canEdit && (
                     <div className="ro-line-tools">
                       {can("editItems") && (product?.addonGroups.length || item.addons?.length) ? <button type="button" className="ro-tool" disabled={p.busy} onClick={() => p.onItemAddons(item)}><Sparkles className="h-3.5 w-3.5" />{tr("إضافات")}</button> : null}
+                      {p.onRelated && (p.relatedCountOf?.(item.product_id) || 0) > 0 ? <button type="button" className="ro-tool" disabled={p.busy} onClick={() => p.onRelated?.(item.product_id)}><ListPlus className="h-3.5 w-3.5" />{tr("الاصناف التابعة")}</button> : null}
                       <button type="button" className="ro-tool" disabled={p.busy} onClick={() => p.onEditItem(item)}><Pencil className="h-3.5 w-3.5" />{tr("تعديل")}</button>
                     </div>
                   )}
@@ -323,7 +326,9 @@ export function RestaurantOrder(p: Props) {
                       <span>{qtyText(line.quantity)}</span>
                       <button type="button" onClick={() => p.onPendingQty(line.key, 1)} aria-label={tr("زيادة")}><Plus className="h-4 w-4" /></button>
                     </span>
-                    {product?.addonGroups.length ? <button type="button" className="ro-tool" onClick={() => p.onPendingAddons(line.key)}><Sparkles className="h-3.5 w-3.5" />{tr("إضافات")}</button> : <span className="flex-1" />}
+                    {product?.addonGroups.length ? <button type="button" className="ro-tool" onClick={() => p.onPendingAddons(line.key)}><Sparkles className="h-3.5 w-3.5" />{tr("إضافات")}</button> : null}
+                    {p.onRelated && (p.relatedCountOf?.(line.productId) || 0) > 0 ? <button type="button" className="ro-tool" onClick={() => p.onRelated?.(line.productId)}><ListPlus className="h-3.5 w-3.5" />{tr("الاصناف التابعة")}</button> : null}
+                    {!product?.addonGroups.length && !(p.onRelated && (p.relatedCountOf?.(line.productId) || 0) > 0) ? <span className="flex-1" /> : null}
                   </div>
                 </div>
               )
@@ -359,7 +364,7 @@ export function RestaurantOrder(p: Props) {
             )}
             <div className="ro-actions">
               {p.actions.filter((action) => action.show).map((action) => (
-                <button key={action.key} type="button" className={`ro-action ${action.tone?.includes("red") ? "is-danger" : ""}`} disabled={p.busy || action.disabled || (pending.length > 0 && action.key !== "custody" && action.key !== "extras")} onClick={action.onClick}>
+                <button key={action.key} type="button" className={`ro-action ${action.tone?.includes("red") ? "is-danger" : ""}`} disabled={p.busy || action.disabled || (pending.length > 0 && !["custody", "extras", "refresh"].includes(action.key))} onClick={action.onClick}>
                   <action.icon />{action.label}
                 </button>
               ))}
