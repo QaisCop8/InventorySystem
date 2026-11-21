@@ -1,5 +1,7 @@
 // v5 (2026-11-18): نسخة قديمة محفوظة من صفحة الدخول (قبل الدخول دون اتصال) كانت تُعرض دون اتصال فتظهر "Failed to fetch"
-const CACHE_NAME = "shamel-app-v5"
+// v6 (2026-11-21): الصور وملفات public (غير المرقّمة) كانت تُخدم من الحفظ أولاً مع تجاهل ?v= فيبقى الشعار القديم بعد تغييره
+//   (يظهر الجديد فقط مع Ctrl+F5) ⇐ الشبكة أولاً لها، والحفظ للعمل دون اتصال فقط. تغيير الاسم يمسح الحفظ القديم.
+const CACHE_NAME = "shamel-app-v6"
 const APP_SHELL = ["/", "/management/login", "/mobile", "/manifest.json", "/icon-192.jpg"]
 // صفحات يجب أن تُفتح دون اتصال بأحدث نسخة (تطبيق الكاشير/المطعم بعد تسجيل الخروج أو إعادة التشغيل) — تُحدَّث مع كل حفظ للملفات
 const OFFLINE_PAGES = ["/", "/management/login"]
@@ -96,7 +98,22 @@ self.addEventListener("fetch", (event) => {
 
   // Persist lazy-loaded cashier chunks as well as the initial application assets.
   if (!["script", "style", "font", "image", "audio"].includes(request.destination)) return
+  // ملفات /_next/static مرقّمة بالمحتوى (لا تتغير أبداً) ⇐ الحفظ أولاً. غيرها (الشعار، الأيقونات، /brand...) قد يتغير
+  // بنفس الاسم ⇐ الشبكة أولاً ثم المحفوظ دون اتصال
+  const immutable = url.pathname.startsWith("/_next/static/")
   event.respondWith((async () => {
+    if (!immutable) {
+      try {
+        const response = await fetch(request)
+        if (response.ok) {
+          const cache = await caches.open(CACHE_NAME)
+          await cache.put(request, response.clone())
+        }
+        return response
+      } catch {
+        return (await caches.match(request)) || (await caches.match(request, { ignoreSearch: true })) || new Response("", { status: 504, statusText: "Offline" })
+      }
+    }
     const cached = (await caches.match(request)) || (await caches.match(request, { ignoreSearch: true }))
     if (cached) return cached
     try {
