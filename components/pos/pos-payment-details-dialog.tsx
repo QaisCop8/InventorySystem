@@ -2,6 +2,7 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import {useEffect,useRef,useState,type ReactNode} from "react"
+import {useNoAutoKeyboard} from "./camera-barcode-scanner"
 import {Banknote,Check,CreditCard,HeartHandshake,Loader2,WalletCards,X} from "lucide-react"
 import {Dialog,DialogContent,DialogDescription,DialogHeader,DialogTitle} from "@/components/ui/dialog"
 import {Button} from "@/components/ui/button"
@@ -49,6 +50,8 @@ export function PosPaymentDetailsDialog(props:Props){
  const [aidCode,setAidCode]=useState(""),[aidPin,setAidPin]=useState(""),[aidBusy,setAidBusy]=useState(false),[aidError,setAidError]=useState("")
  const [aidInfo,setAidInfo]=useState<{participant_name:string;activity_name:string;balance:number;available:number}|null>(null)
  const amountInputRef=useRef<HTMLInputElement>(null)
+ // الجوال: التركيز على المبلغ دون فتح لوحة المفاتيح (لوحة الأرقام في الشاشة) — تفتح فقط عند لمس الحقل
+ const amountKeyboard=useNoAutoKeyboard("decimal")
  const confirmButtonRef=useRef<HTMLButtonElement>(null)
  useEffect(()=>{if(!open)return;setTab("cash");setAidCode("");setAidPin("");setAidInfo(null);setAidError("");requestAnimationFrame(()=>{amountInputRef.current?.focus();amountInputRef.current?.select()})},[open])
  const entries:ReadonlyArray<{key:PaymentMethod;label:string;shortcut:string;icon:typeof Banknote}>=[
@@ -99,6 +102,9 @@ export function PosPaymentDetailsDialog(props:Props){
  // «المبلغ كاملاً»: المتبقي (بعد بقية الدفعات) بعملة الخانة المختارة
  const fillRemaining=()=>{const others=round(paid-activeAmount*activeRate);const value=round(Math.max(0,total-others)/activeRate);setCashEntry(null);onCashChange(activeCashId,value)}
  const addNote=(note:number)=>{setCashEntry(null);onCashChange(activeCashId,round(activeAmount+note))}
+ // المؤشر دائماً بعد آخر رقم (يمين المبلغ) بعد أي كتابة/لوحة أرقام — كان يبقى قبل المبلغ
+ const amountText=cashEntry??(activeAmount?String(activeAmount):"0")
+ useEffect(()=>{const el=amountInputRef.current;if(!el||document.activeElement!==el||el.selectionStart!==el.selectionEnd)return;const end=el.value.length;if(el.selectionStart!==end)el.setSelectionRange(end,end)},[amountText])
  const pressKey=(key:string)=>{
   const base=cashEntry??""
   if(key==="back"){setCash((cashEntry??(activeAmount?String(activeAmount):"")).slice(0,-1));return}
@@ -148,11 +154,11 @@ export function PosPaymentDetailsDialog(props:Props){
        </div>}
        <label className="flex items-center justify-between gap-3 rounded-2xl border-2 border-[#3b7a66] bg-white px-4 py-2">
         <span className="shrink-0 text-sm font-bold text-slate-500">{tr("المبلغ المستلم")} <b className="text-slate-700">{activeCash?.currency_code}</b>{activeRate!==1&&<small className="ms-2 font-semibold tabular-nums" dir="ltr">= {money(activeAmount*activeRate)} {currencyCode}</small>}</span>
-        <input ref={amountInputRef} aria-label={tr("مبلغ {0}", activeCash?.currency_code||"")} inputMode="decimal" autoComplete="off" dir="ltr"
+        <input ref={amountInputRef} aria-label={tr("مبلغ {0}", activeCash?.currency_code||"")} {...amountKeyboard.props} autoComplete="off" dir="ltr"
          value={cashEntry??(activeAmount?String(activeAmount):"0")} onFocus={selectAllOnFocus}
          onChange={event=>{const text=event.target.value.replace(/[^\d.]/g,"");setCash(text)}}
          onKeyDown={event=>{if(event.key==="Enter"){event.preventDefault();event.stopPropagation();setCashEntry(null);confirmButtonRef.current?.focus()}}}
-         className="min-w-0 flex-1 bg-transparent text-right text-4xl font-black tabular-nums outline-none"/>
+         className="min-w-0 flex-1 bg-transparent text-left text-4xl font-black tabular-nums outline-none"/>
        </label>
        <div className="grid grid-cols-5 gap-2">
         <button type="button" onClick={fillRemaining} className="rounded-xl bg-[#dcefe6] px-1 py-3 text-xs font-black text-[#24453a] sm:text-sm">{tr("المبلغ كاملاً")}</button>
