@@ -10,8 +10,8 @@
 .report-body { display:flex; flex-direction:column; gap:12px; width:100%; min-height:0; height:100%; overflow-x:hidden; overflow-y:auto; scrollbar-width:thin; }
 .report-body>* { flex-shrink:0; min-width:0; }
 /* رأس موحّد لكل صفحات النظام: تدرّج النظام الأخضر (page-hero) بنص أبيض */
-.report-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:14px 18px; border:0; border-radius:16px; background:linear-gradient(to left,#047857 0%,#059669 50%,#0d9488 100%); color:#fff; box-shadow:0 8px 24px -12px rgba(5,150,105,.45); }
-.dark .report-header { background:linear-gradient(to left,#064e3b 0%,#065f46 50%,#115e59 100%); box-shadow:none; }
+.report-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:14px 18px; border:0; border-radius:16px; background:radial-gradient(90% 140% at 0% 100%, rgba(167, 243, 208, .28) 0%, transparent 55%), linear-gradient(150deg, #137a68 0%, #16917a 50%, #1fae8e 100%); color:#fff; box-shadow:0 24px 48px -34px rgba(4,80,60,.75), inset 0 1px 0 rgba(255,255,255,.12); }
+.dark .report-header { background:radial-gradient(90% 140% at 0% 100%, rgba(52, 211, 153, .16) 0%, transparent 55%), linear-gradient(150deg, #0b4a3f 0%, #0e5c4d 50%, #117060 100%); box-shadow:none; }
 .report-heading { display:flex; align-items:center; gap:12px; min-width:0; }
 .report-heading-icon { display:grid; place-items:center; flex-shrink:0; width:44px; height:44px; border:1px solid #ffffff40; border-radius:14px; background:#ffffff26; color:#fff; backdrop-filter:blur(4px); }
 .report-category { display:block; color:#ecfdf5e6; font-size:11px; font-weight:650; margin-bottom:2px; }

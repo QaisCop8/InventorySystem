@@ -1056,16 +1056,17 @@ td {
   /* رأس الصفحات الموحّد (الرئيسية، الملخص الصباحي، الأصول الثابتة...): تدرّج زمردي/فيروزي بلون النظام
      الأساسي (أزرار وحدود emerald-600) بدل ألوان مختلفة لكل صفحة (أسود/أزرق/برتقالي) */
   .page-hero {
-    background: linear-gradient(to left, #047857 0%, #059669 50%, #0d9488 100%);
+    /* 2026-11-21: نفس ألوان ترويسة النظام الجديدة (VoucherListHero variant="board") */
+    background: radial-gradient(90% 140% at 0% 100%, rgba(167, 243, 208, .28) 0%, transparent 55%), linear-gradient(150deg, #137a68 0%, #16917a 50%, #1fae8e 100%);
     color: #ffffff;
-    box-shadow: 0 8px 24px -12px rgba(5, 150, 105, 0.45);
+    box-shadow: 0 24px 48px -34px rgba(4, 80, 60, .75), inset 0 1px 0 rgba(255, 255, 255, .12);
   }
   /* عناوين الرأس بيضاء كبقية رؤوس النظام (قاعدة h1 في @layer base تعطيها text-foreground الداكن) */
   .page-hero :is(h1, h2, h3) {
     color: #ffffff;
   }
   .dark .page-hero {
-    background: linear-gradient(to left, #064e3b 0%, #065f46 50%, #115e59 100%);
+    background: radial-gradient(90% 140% at 0% 100%, rgba(52, 211, 153, .16) 0%, transparent 55%), linear-gradient(150deg, #0b4a3f 0%, #0e5c4d 50%, #117060 100%);
     box-shadow: none;
   }
 

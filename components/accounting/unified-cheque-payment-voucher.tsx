@@ -3,7 +3,8 @@ import { tr, appDir } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import "@/components/accounting/cheque-theme.css"
-import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
+import { SalesVoucherBoard } from "@/components/sales/sales-voucher-board"
 import { voucherStatusLabel } from "@/components/common/voucher-list-table"
 import { useEffect, useRef, useState } from "react"
 import { BookOpen, CheckCheck, FileCheck2, Plus, Search, Wallet, X } from "lucide-react"
@@ -201,28 +202,33 @@ export default function UnifiedChequePaymentVoucher() {
         }] : [])],
     }
 
+    // بحث القائمة (رقم السند + الفترة) — محلي على السندات المحمّلة
+    const [listDraft, setListDraft] = useState({ code: "", dateFrom: "", dateTo: "" })
+    const [listFilter, setListFilter] = useState(listDraft)
+    const listRows = rows.filter((row: any) => {
+        const day = String(row.vch_date || "").slice(0, 10)
+        if (listFilter.code.trim() && !String(row.vch_code || "").toLowerCase().includes(listFilter.code.trim().toLowerCase())) return false
+        if (listFilter.dateFrom && day < listFilter.dateFrom) return false
+        if (listFilter.dateTo && day > listFilter.dateTo) return false
+        return true
+    })
     return (
         <main dir={appDir()} className="voucher-list-page min-h-full space-y-5 bg-slate-50 p-3 sm:p-5">
             {/* نفس رأس صفحات الحركات: زر الإضافة يحمل data-hotkey-new ⇐ F5 يفتح سنداً جديداً */}
             <VoucherListHero icon={FileCheck2} title={tr("سندات صرف الشيكات")} subtitle={tr("صرف الشيكات الواردة للمستفيدين بسند مستقل")} addLabel={tr("إضافة سند صرف شيكات")} onNew={() => void newRecord()} addDisabled={loading || saving} />
-            <VoucherStats stats={[
-                { label: tr("إجمالي سندات صرف الشيكات"), value: rows.length },
-                { label: tr("سندات هذا الشهر"), value: rows.filter(row => String(row.vch_date || "").slice(0, 7) === new Date().toISOString().slice(0, 7)).length },
-                { label: tr("إجمالي المبالغ"), value: money(rows.reduce((sum, row) => sum + Number(row.amount || 0), 0)) },
-                { label: tr("متوسط قيمة السند"), value: money(rows.length ? rows.reduce((sum, row) => sum + Number(row.amount || 0), 0) / rows.length : 0) },
-            ]} />
             {!dialogOpen && error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
-            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between gap-3 border-b border-emerald-100 bg-gradient-to-l from-emerald-50 to-white px-5 py-4"><h2 className="font-bold text-emerald-900">{tr("سندات صرف الشيكات")}</h2><span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{loading ? tr("جاري التحميل...") : tr("{0} سند", rows.length)}</span></div>
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[700px] text-sm">
-                        <thead className="bg-slate-50 text-slate-500"><tr>{["رقم السند", "التاريخ", "حساب المستفيد", "الإجمالي", "حالة السند", ""].map((label, index) => <th key={index} className="px-5 py-3 text-start text-xs font-semibold">{label}</th>)}</tr></thead>
-                        <tbody>{rows.map(row => <tr key={row.id} title={tr("انقر نقراً مزدوجاً لفتح السند")} onDoubleClick={() => { if (!loading && !saving) void openRecord(Number(row.id)) }} className="cursor-pointer border-t border-slate-100 transition-colors hover:bg-emerald-50/40">
-                            <td className="px-5 py-4 font-mono font-bold text-emerald-800">{row.vch_code}</td><td className="px-5 py-4">{String(row.vch_date).slice(0, 10)}</td><td className="px-5 py-4">{row.account_name || "—"}</td><td className="px-5 py-4 font-semibold tabular-nums">{money(row.amount)}</td><td className="px-5 py-4"><span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${Number(row.status) === 2 ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : Number(row.status) === 3 ? "bg-red-600 text-white ring-red-700" : "bg-amber-50 text-amber-700 ring-amber-200"}`}>{voucherStatusLabel(row.status) || "—"}</span></td><td className="px-5 py-4 text-end"><Button size="sm" variant="outline" className="rounded-lg" disabled={loading || saving} onClick={() => void openRecord(Number(row.id))}>{tr("عرض السند")}</Button></td>
-                        </tr>)}{!loading && !rows.length && <tr><td colSpan={6} className="px-5 py-14 text-center text-slate-500">{tr("لا توجد سندات صرف شيكات لعرضها")}</td></tr>}</tbody>
-                    </table>
-                </div>
-            </section>
+            {/* تصميم 2026-11-21: نفس لوحة فواتير المبيعات (components/sales/sales-voucher-board) — البحث محلي على القائمة المحمّلة */}
+            <SalesVoucherBoard
+                title={tr("سندات صرف الشيكات")}
+                rows={listRows.map((row: any) => ({ id: Number(row.id), vch_code: row.vch_code, vch_date: String(row.vch_date || "").slice(0, 10), amount: Number(row.amount || 0), party: row.account_name || "—", currency: row.currency_name || row.currency_code || "", voucher_status: voucherStatusLabel(row.status) || "", tone: Number(row.status) === 2 ? "approved" as const : Number(row.status) === 3 ? "cancelled" as const : "draft" as const }))}
+                totalCount={rows.length}
+                partyLabel={tr("حساب المستفيد")}
+                loading={loading}
+                draft={listDraft}
+                setDraft={setListDraft}
+                onSearch={(draft) => setListFilter(draft ?? listDraft)}
+                onOpen={(row) => { if (!loading && !saving) void openRecord(Number(row.id)) }}
+            />
 
             <Dialog open={dialogOpen} onOpenChange={open => { if (open) { if (!saving) setDialogOpen(true) } else requestClose() }}>
                 <DialogContent

@@ -107,3 +107,4 @@
   .board-hero-icon { width: 50px; height: 50px; border-radius: 16px; }
   .board-hero-actions, .board-hero-add { width: 100%; justify-content: center; }
 }
+.dark .board-hero { background: radial-gradient(90% 140% at 0% 100%, rgba(52, 211, 153, .16) 0%, transparent 55%), linear-gradient(150deg, #0b4a3f 0%, #0e5c4d 50%, #117060 100%); }

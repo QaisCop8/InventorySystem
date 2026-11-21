@@ -8,7 +8,7 @@ import "./voucher-list-theme.css"
 // رأس بنفس تصميم رأس الرئيسية (.page-hero) مع زر الإضافة (F5)، وبطاقات مؤشرات حديثة بألوان النظام.
 // بطاقات البحث والجدول تُنسَّق عبر .voucher-list-page في voucher-list-theme.css.
 
-export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon = FileText, category = "الحركات", actions, addDisabled = false, variant = "default" }: {
+export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon = FileText, category = "الحركات", actions, addDisabled = false, variant = "board" }: {
   title: ReactNode
   subtitle?: ReactNode
   /** زر الإضافة (F5) — يُحذف لشاشة بلا إضافة (مثل تخطيط المشتريات) وتكفي `actions` */
@@ -20,7 +20,7 @@ export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon =
   /** أزرار إضافية بجانب زر الإضافة (مثل الاستيراد) */
   actions?: ReactNode
   addDisabled?: boolean
-  /** board: ترويسة شاشات «الدفتر اليومي» (sales-voucher-board) — داكنة بلمسة زمردية، تختلف عن الترويسة الخضراء العامة */
+  /** board (الافتراضي منذ 2026-11-21): ترويسة النظام الموحدة — زمردي/فيروزي بشبكة وتوهج. default: الترويسة الخضراء القديمة */
   variant?: "default" | "board"
 }) {
   if (variant === "board") {
