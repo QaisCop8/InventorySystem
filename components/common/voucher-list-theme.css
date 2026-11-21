@@ -64,9 +64,9 @@
   padding: 26px 28px 24px;
   color: #ecfdf5;
   background:
-    radial-gradient(90% 140% at 0% 100%, rgba(16, 185, 129, .22) 0%, transparent 55%),
-    linear-gradient(160deg, #0b2a20 0%, #0f3a2c 55%, #0d2f2a 100%);
-  box-shadow: 0 24px 48px -34px rgba(4, 47, 34, .9), inset 0 1px 0 rgba(255, 255, 255, .06);
+    radial-gradient(90% 140% at 0% 100%, rgba(167, 243, 208, .28) 0%, transparent 55%),
+    linear-gradient(150deg, #137a68 0%, #16917a 50%, #1fae8e 100%);
+  box-shadow: 0 24px 48px -34px rgba(4, 80, 60, .75), inset 0 1px 0 rgba(255, 255, 255, .12);
 }
 .board-hero-grid {
   position: absolute; inset: 0; pointer-events: none; opacity: .35;
