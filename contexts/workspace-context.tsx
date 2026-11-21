@@ -206,10 +206,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const hydrateModes = useCallback(
     (modes: DisplayModes) => {
-      setSplitEnabledState(modes.split)
-      setTabsEnabledState(modes.tabs)
+      // تبويبات محفوظة لهذا التبويب (تحديث الصفحة): حالته الأخيرة تتقدّم على الإعداد المحمَّل — كان إعداد الخادم
+      // (tabs=false إن لم يُحفظ التفضيل فعلاً) يطفئ التبويبات بعد الاستعادة فتُغلق كلها
+      const saved = readSavedWorkspace()
+      const split = saved ? saved.split : modes.split
+      setSplitEnabledState(split)
+      setTabsEnabledState(saved ? true : modes.tabs)
       setFullscreenEnabled(!!modes.fullscreen)
-      applySplit(modes.split)
+      applySplit(split)
     },
     [applySplit],
   )

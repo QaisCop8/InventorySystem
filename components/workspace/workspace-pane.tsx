@@ -38,7 +38,7 @@ export function WorkspacePane({ paneId, showTabStrip, showFocusRing, renderSecti
       onMouseDownCapture={() => setFocusedPane(paneId)}
     >
       {showPaneToolbar && (
-        <div className="flex items-center gap-1 bg-muted/30 border-b border-border px-2 py-1" dir={appDir()}>
+        <div className="flex items-end gap-1 border-b border-slate-200 bg-gradient-to-b from-slate-50 to-slate-100/80 px-2 pt-1.5 dark:border-slate-700 dark:from-slate-900 dark:to-slate-900/80" dir={appDir()}>
           <TabStrip
             tabs={showTabStrip ? pane.tabs : []}
             activeTabId={pane.activeTabId}

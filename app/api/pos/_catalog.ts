@@ -6,6 +6,7 @@ import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { getOpenPosSession } from "./_lib"
 import { getPosCampaigns, getPosCampaignUsage } from "@/lib/pos-campaign-storage"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { readCatalogStamp } from "@/lib/catalog-stamp"
 import { withDerivedUnitPrices } from "@/lib/unit-prices"
 
 const byText = (a: string, b: string) => a.localeCompare(b, "ar", { numeric: true })
@@ -74,6 +75,7 @@ export async function attachProductExtras<T extends { id: number | string }>(pro
 // كتالوج نقطة البيع (أصناف المخزن الرئيسي بأسعار فئة السعر، العملات، البنوك، البطاقات، الحملات وجلسة المستخدم المفتوحة)
 // — مشترك بين كاشير نقطة البيع (api/pos/catalog) وشاشة المطعم (api/restaurant/catalog)
 export async function buildPosCatalog(point: any, pointId: number, userId: string, priceCategoryId: number) {
+  const catalogStampPromise = readCatalogStamp().catch(() => "")
     const [products,customers,rates,session,salesmen,banks,bankBranches,cardTypes,systemSettings]=await Promise.all([
       // كتالوج الكاشير: كل جزء (آخر سعر لكل وحدة، الوحدة الافتراضية، قائمة الوحدات، الباركودات، الرصيد) يُحسب مرة واحدة لكل
       // الأصناف بتجميع ثم يُربط — بدل ~5 استعلامات فرعية مترابطة لكل صنف (16 ألف صنف ⇐ ~7 ثوانٍ). نفس قواعد الاختيار:
@@ -197,7 +199,7 @@ export async function buildPosCatalog(point: any, pointId: number, userId: strin
     // صلاحيات المستخدمين على الحسابات: العملاء الممنوعون عن المستخدم (بفرع النقطة) لا يظهرون بالكاشير/المطعم
     const deniedCustomers=await deniedAccountIdsFor(userId,Number(point.branch_id)||0)
     const visibleCustomers=deniedCustomers.size?(customers as any[]).filter((row:any)=>!deniedCustomers.has(Number(row.id))):customers
-    return {point:{...point,exchange_rate:pointRate},tax_rate:Number(systemSettings.tax_rate||0),allow_negative_item_balances:!(systemSettings.allow_negative_item_balances===false||systemSettings.allow_negative_item_balances==="false"||systemSettings.allow_negative_item_balances===0||systemSettings.allow_negative_item_balances==="0"),default_selling_account_id:Number(systemSettings.default_selling_account_id)||null,receiptSettings:{company_name:systemSettings.company_name||"",company_address:systemSettings.company_address||"",company_phone:systemSettings.company_phone||"",company_email:systemSettings.company_email||"",tax_number:systemSettings.tax_number||"",company_logo:systemSettings.company_logo||""},products:productsWithExtras,customers:visibleCustomers,salesmen,banks,bankBranches,cardTypes,campaigns,
+    return {catalog_stamp:await catalogStampPromise,point:{...point,exchange_rate:pointRate},tax_rate:Number(systemSettings.tax_rate||0),allow_negative_item_balances:!(systemSettings.allow_negative_item_balances===false||systemSettings.allow_negative_item_balances==="false"||systemSettings.allow_negative_item_balances===0||systemSettings.allow_negative_item_balances==="0"),default_selling_account_id:Number(systemSettings.default_selling_account_id)||null,receiptSettings:{company_name:systemSettings.company_name||"",company_address:systemSettings.company_address||"",company_phone:systemSettings.company_phone||"",company_email:systemSettings.company_email||"",tax_number:systemSettings.tax_number||"",company_logo:systemSettings.company_logo||""},products:productsWithExtras,customers:visibleCustomers,salesmen,banks,bankBranches,cardTypes,campaigns,
       campaignUsage,
       currencies:rates.filter((row:any)=>Number(row.exchange_rate)>0).map((row:any)=>({...row,rate_to_point:Number(row.exchange_rate)/pointRate})),
       session,server_time:new Date().toISOString()}

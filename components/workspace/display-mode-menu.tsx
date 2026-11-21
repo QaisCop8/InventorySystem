@@ -32,7 +32,10 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
         if (cancelled || !data) return
         const dashboardLayout = data.dashboard_layout || {}
         dashboardLayoutRef.current = dashboardLayout
-        const displayMode = dashboardLayout.display_mode || { split: false, tabs: false }
+        // تفضيل الجهاز (يُحفظ مع كل تغيير) يتقدّم: حفظه في الخادم قد يفشل بصمت فيعود الوضع مطفأً بعد كل تحديث
+        let local: { split?: boolean; tabs?: boolean } | null = null
+        try { local = JSON.parse(localStorage.getItem(`workspace_display_mode:${userId}`) || "null") } catch { local = null }
+        const displayMode = local || dashboardLayout.display_mode || { split: false, tabs: false }
         hydrateModes({
           split: !!displayMode.split,
           tabs: !!displayMode.tabs,
@@ -59,13 +62,15 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
       open_screens_fullscreen: fullscreen,
     }
     dashboardLayoutRef.current = nextDashboardLayout
+    try { localStorage.setItem(`workspace_display_mode:${userId}`, JSON.stringify(next)) } catch { /* تخزين غير متاح */ }
     setSaving(true)
     try {
-      await fetch("/api/settings/user", {
+      const response = await fetch("/api/settings/user", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId, dashboard_layout: nextDashboardLayout }),
       })
+      if (!response.ok) console.warn("[workspace] display mode not saved on server:", response.status)
       // يُبقي erp_user المخزَّن محلياً متزامناً فوراً بلا انتظار إعادة تسجيل دخول — أياً كانت مساحة
       // التخزين التي استُخدمت عند الدخول (تذكرني مفعّل أم لا، انظر auth-context.tsx login()).
       for (const storage of [localStorage, sessionStorage]) {

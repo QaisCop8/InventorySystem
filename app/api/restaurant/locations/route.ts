@@ -96,6 +96,7 @@ async function validate(data: any, id: number | null, userId: string) {
       name, code, branchId, warehouseId, currencyId, priceCategoryId, takeawayPriceCategoryId, salesBookId, accounts, maxDiscount, printMode, emails, pins, tableServiceId, extrasServiceId,
       printByGroup: data.print_by_item_group !== false,
       kitchenPrintConfirm: data.kitchen_print_confirm === true,
+      relatedOnDemand: data.related_on_demand === true,
       status: Number(data.status) === 2 ? 2 : 1,
       sortOrder: Math.max(0, Math.trunc(Number(data.sort_order) || 0)),
       color: text(data.color, 20) || null,
@@ -186,7 +187,7 @@ async function save(request: NextRequest, mode: "create" | "update") {
           price_category_id = ${v.priceCategoryId}, takeaway_price_category_id = ${v.takeawayPriceCategoryId}, extras_service_id = ${v.extrasServiceId}, sales_book_id = ${v.salesBookId}, cash_account_id = ${a.cash_account_id},
           walk_in_account_id = ${a.walk_in_account_id}, card_account_id = ${a.card_account_id}, cheque_account_id = ${a.cheque_account_id},
           tax_account_id = ${a.tax_account_id}, max_discount_percent = ${v.maxDiscount}, invoice_print_mode = ${v.printMode},
-          print_by_item_group = ${v.printByGroup}, kitchen_print_confirm = ${v.kitchenPrintConfirm}, sort_order = ${v.sortOrder}, color = ${v.color}, notes = ${v.notes}, status = ${v.status},
+          print_by_item_group = ${v.printByGroup}, kitchen_print_confirm = ${v.kitchenPrintConfirm}, related_on_demand = ${v.relatedOnDemand}, sort_order = ${v.sortOrder}, color = ${v.color}, notes = ${v.notes}, status = ${v.status},
           admin_email = ${v.emails.admin}, manager_email = ${v.emails.manager}, table_service_id = ${v.tableServiceId}, updated_at = NOW(),
           admin_pin_hash = CASE WHEN ${v.pins.admin !== undefined} THEN ${v.pins.admin ?? null} ELSE admin_pin_hash END,
           manager_pin_hash = CASE WHEN ${v.pins.manager !== undefined} THEN ${v.pins.manager ?? null} ELSE manager_pin_hash END
@@ -196,12 +197,12 @@ async function save(request: NextRequest, mode: "create" | "update") {
     : await sql`
         INSERT INTO restaurant_locations_tbl (
           code, name, branch_id, warehouse_id, currency_id, price_category_id, sales_book_id, cash_account_id, walk_in_account_id,
-          card_account_id, cheque_account_id, tax_account_id, max_discount_percent, invoice_print_mode, print_by_item_group, kitchen_print_confirm,
+          card_account_id, cheque_account_id, tax_account_id, max_discount_percent, invoice_print_mode, print_by_item_group, kitchen_print_confirm, related_on_demand,
           sort_order, color, notes, status, created_by, admin_email, manager_email, admin_pin_hash, manager_pin_hash, table_service_id, takeaway_price_category_id, extras_service_id
         ) VALUES (
           ${v.code}, ${v.name}, ${v.branchId}, ${v.warehouseId}, ${v.currencyId}, ${v.priceCategoryId}, ${v.salesBookId}, ${a.cash_account_id},
           ${a.walk_in_account_id}, ${a.card_account_id}, ${a.cheque_account_id}, ${a.tax_account_id}, ${v.maxDiscount}, ${v.printMode},
-          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}, ${v.emails.admin}, ${v.emails.manager}, ${v.pins.admin ?? null}, ${v.pins.manager ?? null}, ${v.tableServiceId}, ${v.takeawayPriceCategoryId}, ${v.extrasServiceId}
+          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.relatedOnDemand}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}, ${v.emails.admin}, ${v.emails.manager}, ${v.pins.admin ?? null}, ${v.pins.manager ?? null}, ${v.tableServiceId}, ${v.takeawayPriceCategoryId}, ${v.extrasServiceId}
         )
         RETURNING *
       `

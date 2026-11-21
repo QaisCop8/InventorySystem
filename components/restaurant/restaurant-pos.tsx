@@ -9,7 +9,7 @@ import {
   applyOffline, cacheCustody, cachedCustody, cacheFloor, cacheOrder, discardFailedOps, hasOfflineChanges, hasQueuedOps, isNetworkError, OFFLINE_ACTIONS,
   offlineFloor, offlineOps, offlineOrder, setRestaurantOfflineScope, syncRestaurantOffline, type OfflineOp,
 } from "@/lib/restaurant-offline"
-import { ArrowRightLeft, Ban, Combine, Loader2, Lock, Minus, Plus, Printer, Split, UserCog, Wallet } from "lucide-react"
+import { ArrowRightLeft, Ban, Combine, ListPlus, Loader2, Lock, Minus, Plus, Printer, Split, UserCog, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -184,7 +184,9 @@ export default function RestaurantPos() {
   const [cancelReason, setCancelReason] = useState("")
   const [valueDialog, setValueDialog] = useState<null | "discount" | "takeaway_name">(null)
   // اختيار يدوي من الأصناف التابعة (related_items_mode = 4): الصنف الأب + التوابع المؤشَّرة
-  const [relatedPick, setRelatedPick] = useState<{ product: Product; options: Product[]; selected: number[] } | null>(null)
+  const [relatedPick, setRelatedPick] = useState<{ product: Product; options: Product[]; selected: number[]; includeParent?: boolean } | null>(null)
+  // «الاضافات» (إعداد الموقع «اظهار الاصناف التابعة بعد اختيار الصنف»): أصناف الطلب التي لها توابع — يُختار أحدها ثم توابعه
+  const [relatedChooser, setRelatedChooser] = useState<Product[] | null>(null)
   // «اظهار الاصناف التابعة للمجموعة بعد الاختيار»: بعد إضافة الصنف يُختار صنف واحد من مجموعته المحددة (أو تخطي)
   const [followupPick, setFollowupPick] = useState<{ product: Product; options: Product[] } | null>(null)
   const [extrasWizard, setExtrasWizard] = useState<{ product: Product; related: Product[]; includeParent: boolean; attrs?: { addons: Addon[]; note: string } } | null>(null)
@@ -314,6 +316,8 @@ export default function RestaurantPos() {
   // الكتالوج: من الذاكرة أو من IndexedDB فوراً (كالكاشير) ثم تحديث بالخلفية؛ التحميل الكامل يُنتظر فقط أول مرة على الجهاز
   const catalogKey = useCallback((locationId: number) => `restaurant:${currentPosTenantKey(user?.id)}:location:${locationId}`, [user?.id])
   const catalogAt = useRef(new Map<number, number>())
+  // ختم كتالوج الأصناف (lib/catalog-stamp.ts) لآخر تحميل — يتغيّر عند أي تعديل في الأصناف/الأسعار
+  const catalogStamp = useRef("")
   const activeLocation = useRef<number | null>(null)
   /** مفتاح الكتالوج المعروض فعلاً في الشاشة (قد يختلف عن activeLocation أثناء التحميل) */
   const shownCatalogId = useRef<number | null>(null)
@@ -322,6 +326,7 @@ export default function RestaurantPos() {
     const response = await fetch(`/api/restaurant/catalog?location_id=${Math.abs(locationId)}${locationId < 0 ? "&order_type=takeaway" : ""}`, { cache: "no-store" })
     if (!response.ok) throw new Error(await errorOf(response, "تعذر تحميل الأصناف"))
     const raw = await response.json()
+    if (raw?.catalog_stamp) catalogStamp.current = String(raw.catalog_stamp)
     const next = normalizeCatalog(raw)
     catalogCache.current.set(locationId, next)
     catalogAt.current.set(locationId, Date.now())
@@ -334,6 +339,26 @@ export default function RestaurantPos() {
     }
     return next
   }, [catalogKey])
+  // تحديث الأصناف تلقائياً: الختم يُفحص كل 20 ثانية؛ عند تغيّره تُعتبر كل الكتالوجات المحفوظة قديمة ويُعاد تحميل
+  // كتالوج الموقع المعروض بالخلفية (كان التحديث كل 5 دقائق فقط)
+  useEffect(() => {
+    let busy = false
+    const check = async () => {
+      if (busy || !navigator.onLine || document.visibilityState !== "visible" || !catalogStamp.current) return
+      busy = true
+      try {
+        const data = await fetch("/api/pos/catalog-stamp", { cache: "no-store" }).then((response) => (response.ok ? response.json() : null))
+        if (!data?.stamp || data.stamp === catalogStamp.current) return
+        for (const key of catalogAt.current.keys()) catalogAt.current.set(key, 0)
+        const current = activeLocation.current
+        if (current !== null) await fetchCatalog(current)
+        else catalogStamp.current = String(data.stamp)
+      } catch { /* الدورة التالية */ } finally { busy = false }
+    }
+    const timer = window.setInterval(() => void check(), 20_000)
+    return () => window.clearInterval(timer)
+  }, [fetchCatalog])
+
   const loadCatalog = useCallback(async (locationId: number, force = false) => {
     activeLocation.current = locationId
     setCatalogError("")
@@ -685,6 +710,8 @@ export default function RestaurantPos() {
       setMessage({ type: "error", text: tr("سعر الصنف المختار غير محدد يجب تحديد السعر للتمكن من الاستمرار") })
       return
     }
+    // «اظهار الاصناف التابعة بعد اختيار الصنف» مفعّل في الموقع: الصنف وحده — التوابع تُضاف يدوياً بزر «الاضافات»
+    if (catalog?.point?.related_on_demand) { addLines(product, [], true); return }
     const related = product.relatedMode > 1 ? product.relatedIds.map((id) => productById.get(id)).filter((row): row is Product => Boolean(row)) : []
     const missing = product.relatedMode > 1 ? product.relatedIds.length - related.length : 0
     if (missing > 0) setMessage({ type: "error", text: tr("{0} من توابع {1} غير متاحة في قائمة هذا الموقع وتم تخطيها", missing, product.name) })
@@ -753,8 +780,22 @@ export default function RestaurantPos() {
 
   const confirmRelatedPick = () => {
     if (!relatedPick) return
-    addLines(relatedPick.product, relatedPick.options.filter((row) => relatedPick.selected.includes(row.id)), true)
+    addLines(relatedPick.product, relatedPick.options.filter((row) => relatedPick.selected.includes(row.id)), relatedPick.includeParent !== false)
     setRelatedPick(null)
+  }
+
+  // «الاضافات»: توابع صنف موجود في الطلب (الأحدث أولاً) — تُضاف بلا الصنف نفسه
+  const relatedOptionsOf = (product: Product) => (product.relatedIds || []).map((id) => productById.get(id)).filter((row): row is Product => Boolean(row))
+  const openRelatedFor = (product: Product) => {
+    setRelatedChooser(null)
+    setRelatedPick({ product, options: relatedOptionsOf(product), selected: [], includeParent: false })
+  }
+  const openExtrasPicker = () => {
+    const ids = [...pending.map((line) => line.productId).reverse(), ...(order?.items || []).map((item) => item.product_id).reverse()]
+    const candidates = [...new Set(ids)].map((id) => productById.get(id)).filter((row): row is Product => Boolean(row) && relatedOptionsOf(row as Product).length > 0)
+    if (!candidates.length) { setMessage({ type: "error", text: tr("لا توجد أصناف تابعة لأصناف هذا الطلب") }); return }
+    if (candidates.length === 1) openRelatedFor(candidates[0])
+    else setRelatedChooser(candidates)
   }
 
   // مرجع ثابت لشبكة الأصناف (memo) — الضغط على صنف لا يعيد رسم الشبكة
@@ -1191,6 +1232,21 @@ export default function RestaurantPos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={relatedChooser !== null} onOpenChange={(value) => { if (!value) setRelatedChooser(null) }}>
+        <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-md">
+          <DialogHeader><DialogTitle>{tr("الاضافات — اختر الصنف")}</DialogTitle></DialogHeader>
+          <div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
+            {relatedChooser?.map((row) => (
+              <button key={row.id} type="button" onClick={() => openRelatedFor(row)}
+                className="flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-start text-sm font-semibold transition-colors hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/40">
+                <span>{row.name}{row.unitName ? ` (${row.unitName})` : ""}</span>
+                <span className="text-xs text-muted-foreground">{tr("{0} صنف تابع", relatedOptionsOf(row).length)}</span>
+              </button>
+            ))}
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setRelatedChooser(null)}>{tr("إلغاء")}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
       <FollowupPickDialog open={followupPick !== null} title={followupPick?.product.name || ""} options={followupPick?.options || []} currency={currency}
         onSkip={() => setFollowupPick(null)}
         onPick={(row) => { setFollowupPick(null); void addProduct(row) }} />
@@ -1350,6 +1406,7 @@ export default function RestaurantPos() {
     { key: "print", label: tr("طباعة الحساب"), icon: Printer, show: true, disabled: !hasRemaining, onClick: gated("printBill", () => void printBill(), order.location_id) },
     { key: "cancel", label: order.payments.length ? tr("إغلاق") : tr("إلغاء"), icon: Ban, show: order.payments.length ? !hasRemainingValue : true, tone: "text-red-600",
       onClick: gated(order.payments.length ? "pay" : "cancelOrder", () => { if (order.payments.length) void act("close", { order_id: order.id }, tr("تم إغلاق الطاولة")); else { setCancelReason(""); setCancelOpen(true) } }, order.location_id) },
+    { key: "extras", label: tr("الاضافات"), icon: ListPlus, show: Boolean(catalog?.point?.related_on_demand), onClick: gated("addItems", () => openExtrasPicker(), order.location_id) },
     { key: "custody", label: tr("العهدة"), icon: Wallet, show: canCustody, onClick: () => void openCustody(order.location_id) },
     { key: "waiter", label: tr("النادل"), icon: UserCog, show: can("assignWaiter"), onClick: () => void openAssign() },
   ]

@@ -35,7 +35,7 @@ const PRINT_MODES = [{ id: "0", name: "عدم الطباعة" }, { id: "1", name
 type Form = {
   id: number; code: string; name: string; branch_id: string; warehouse_id: string; currency_id: string; price_category_id: string; takeaway_price_category_id: string; sales_book_id: string
   cash_account_id: string; walk_in_account_id: string; card_account_id: string; cheque_account_id: string; tax_account_id: string
-  max_discount_percent: string; invoice_print_mode: string; print_by_item_group: boolean; kitchen_print_confirm: boolean; sort_order: string; color: string; notes: string; active: boolean
+  max_discount_percent: string; invoice_print_mode: string; print_by_item_group: boolean; kitchen_print_confirm: boolean; related_on_demand: boolean; sort_order: string; color: string; notes: string; active: boolean
   admin_email: string; manager_email: string
   // خدمة الطاولات: "" = بدون خدمة
   table_service_id: string
@@ -47,7 +47,7 @@ const str = (value: unknown) => (value == null || value === "" ? "" : String(val
 const emptyForm = (branchId: number | null, code = ""): Form => ({
   id: 0, code, name: "", branch_id: str(branchId), warehouse_id: "", currency_id: "", price_category_id: "", takeaway_price_category_id: "", sales_book_id: "",
   cash_account_id: "", walk_in_account_id: "", card_account_id: "", cheque_account_id: "", tax_account_id: "",
-  max_discount_percent: "100", invoice_print_mode: "1", print_by_item_group: true, kitchen_print_confirm: false, sort_order: "0", color: "#0f766e", notes: "", active: true,
+  max_discount_percent: "100", invoice_print_mode: "1", print_by_item_group: true, kitchen_print_confirm: false, related_on_demand: false, sort_order: "0", color: "#0f766e", notes: "", active: true,
   table_service_id: "",
   extras_service_id: "",
   admin_email: "", manager_email: "", admin_pin: "", manager_pin: "", has_admin_pin: false, has_manager_pin: false, clear_admin_pin: false, clear_manager_pin: false,
@@ -57,7 +57,7 @@ const toForm = (row: Location): Form => ({
   price_category_id: str(row.price_category_id), takeaway_price_category_id: str(row.takeaway_price_category_id), sales_book_id: str(row.sales_book_id), cash_account_id: str(row.cash_account_id),
   walk_in_account_id: str(row.walk_in_account_id), card_account_id: str(row.card_account_id), cheque_account_id: str(row.cheque_account_id),
   tax_account_id: str(row.tax_account_id), max_discount_percent: str(row.max_discount_percent ?? 100), invoice_print_mode: str(row.invoice_print_mode ?? 1),
-  print_by_item_group: row.print_by_item_group !== false, kitchen_print_confirm: row.kitchen_print_confirm === true, sort_order: str(row.sort_order ?? 0), color: row.color || "#0f766e", notes: row.notes || "",
+  print_by_item_group: row.print_by_item_group !== false, kitchen_print_confirm: row.kitchen_print_confirm === true, related_on_demand: (row as any).related_on_demand === true, sort_order: str(row.sort_order ?? 0), color: row.color || "#0f766e", notes: row.notes || "",
   active: Number(row.status) !== 2,
   admin_email: row.admin_email || "", manager_email: row.manager_email || "", table_service_id: str(row.table_service_id), extras_service_id: str((row as any).extras_service_id),
   admin_pin: "", manager_pin: "", has_admin_pin: row.has_admin_pin === true, has_manager_pin: row.has_manager_pin === true, clear_admin_pin: false, clear_manager_pin: false,
@@ -415,6 +415,7 @@ export default function RestaurantLocations() {
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <SwitchRow checked={form.print_by_item_group} disabled={readOnly} onChange={(value) => set({ print_by_item_group: value })} title={tr("طباعة قسائم المطبخ حسب طابعة مجموعة الصنف")} hint={tr("كل مجموعة أصناف تُطبع على طابعتها")} />
                 <SwitchRow checked={form.kitchen_print_confirm} disabled={readOnly} onChange={(value) => set({ kitchen_print_confirm: value })} title={tr("اظهار رسالة طباعة عند ارسال الطلب الى المطبخ")} hint={tr("سؤال قبل الطباعة عند ارسال الى المطبخ")} />
+                <SwitchRow checked={form.related_on_demand} disabled={readOnly} onChange={(value) => set({ related_on_demand: value })} title={tr("اظهار الاصناف التابعة بعد اختيار الصنف")} hint={tr("الصنف يُضاف وحده بلا توابعه، وتُختار التوابع بزر «الاضافات» في الطلب")} />
                 <SwitchRow checked={form.active} disabled={readOnly} onChange={(value) => set({ active: value })} title={tr("نشط")} hint={tr("الموقع الموقوف لا يظهر في شاشة المطعم")} />
               </div>
             </FormSection>

@@ -44,6 +44,8 @@ export async function ensureRestaurantTables() {
       "warehouse_id INTEGER", "currency_id INTEGER", "price_category_id INTEGER", "sales_book_id INTEGER",
       "cash_account_id INTEGER", "walk_in_account_id INTEGER", "card_account_id INTEGER", "cheque_account_id INTEGER", "tax_account_id INTEGER",
       "max_discount_percent NUMERIC(7,3) NOT NULL DEFAULT 100", "invoice_print_mode INTEGER NOT NULL DEFAULT 1", "print_by_item_group BOOLEAN NOT NULL DEFAULT TRUE", "kitchen_print_confirm BOOLEAN NOT NULL DEFAULT FALSE",
+      // 2026-11-20 «اظهار الاصناف التابعة بعد اختيار الصنف»: الصنف يُضاف وحده، والتوابع تُختار يدوياً بزر «الاضافات»
+      "related_on_demand BOOLEAN NOT NULL DEFAULT FALSE",
       // ايميل مدير النظام + ايميل المسؤول: رمز التفعيل عند طلب صلاحية غير ممنوحة (lib/permission-approvals.ts)
       "admin_email VARCHAR(150)", "manager_email VARCHAR(150)", "admin_pin_hash VARCHAR(200)", "manager_pin_hash VARCHAR(200)",
       // خدمة الطاولات: خدمة (products.type=2) تُضاف تلقائياً عند فتح طاولة، وتُرحَّل على "حساب المبيعات" المعرّف في الخدمة
@@ -410,6 +412,7 @@ export async function locationSalePoint(location: any, userId: string, orderType
     print_by_item_group: location.print_by_item_group !== false,
     // "اظهار رسالة طباعة عند ارسال الطلب الى المطبخ" — يسأل قبل طباعة قسائم المطبخ
     kitchen_print_confirm: location.kitchen_print_confirm === true,
+    related_on_demand: location.related_on_demand === true,
   }, userId)
 }
 
