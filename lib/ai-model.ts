@@ -8,7 +8,8 @@ export function geminiModel(): string {
 // النموذج الأساسي ثم نماذج احتياطية اختيارية (GEMINI_FALLBACK_MODELS مفصولة بفواصل) تُجرَّب عند انشغال الأساسي
 // ("high demand"/503) أو عدم توفره. بلا قيمة لهذا المتغير يُستخدم الأساسي وحده.
 export function geminiModels(): string[] {
-  const fallbacks = String(process.env.GEMINI_FALLBACK_MODELS || "").split(",").map((name) => name.trim()).filter(Boolean)
+  // بلا GEMINI_FALLBACK_MODELS: الاسم المستعار الدائم لأحدث Flash احتياطياً (النموذج المحدد قد يُسحب أو يرفض الطلب)
+  const fallbacks = String(process.env.GEMINI_FALLBACK_MODELS || "gemini-flash-latest").split(",").map((name) => name.trim()).filter(Boolean)
   return [...new Set([geminiModel(), ...fallbacks])]
 }
 

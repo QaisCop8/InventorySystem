@@ -339,7 +339,11 @@ function failureText(error: unknown) {
   if (/quota|resource exhausted|rate limit|429/i.test(message)) return "تم تجاوز حصة استخدام خدمة الذكاء الاصطناعي حالياً. حاول بعد دقيقة."
   if (/timeout|timed out|aborted/i.test(message)) return "تأخرت خدمة الذكاء الاصطناعي في الرد (قد تكون مشغولة الآن). أعد إرسال السؤال بعد لحظات."
   if (/high demand|overloaded|unavailable|503/i.test(message)) return "خدمة الذكاء الاصطناعي مشغولة الآن. أعد إرسال السؤال بعد لحظات."
-  return "تعذر الحصول على رد من خدمة الذكاء الاصطناعي. أعد صياغة السؤال أو حاول مرة أخرى."
+  // سبب تقني مختصر في آخر الرسالة — لتشخيص الأعطال غير المعروفة من لقطة الشاشة (بلا مفاتيح أو بيانات)
+  const detail = message.replace(/key=[^&s]+/gi, "key=…").replace(/s+/g, " ").trim().slice(0, 160)
+  return `تعذر الحصول على رد من خدمة الذكاء الاصطناعي. أعد صياغة السؤال أو حاول مرة أخرى.${detail ? `
+
+(السبب: ${detail})` : ""}`
 }
 
 /**
@@ -353,14 +357,17 @@ function answerStream(conversation: { system: string; tools: any; stopWhen: any 
       let wrote = false
       const write = (text: string) => { if (text) { wrote = true; controller.enqueue(encoder.encode(text)) } }
       // يكتب النص المتدفق؛ يرمي الخطأ إن فشل النموذج. يعيد رسائل الخطوات (استدعاءات الأدوات ونتائجها)
-      const pump = async (modelName: string, history: ModelMessage[], withTools: boolean) => {
+      const pump = async (modelName: string, history: ModelMessage[], withTools: boolean, plain = false) => {
+        const options = aiCallOptions(modelName, { thinking: "low", timeoutMs: 45_000 })
         const result = streamText({
           // تفكير منخفض + مهلة 45 ثانية: الرد يبدأ أسرع ولا يبقى المستخدم معلّقاً عند انشغال الخدمة
-          ...aiCallOptions(modelName, { thinking: "low", timeoutMs: 45_000 }),
+          // plain: محاولة بلا إعدادات التفكير (نموذج لا يقبل thinkingLevel يرفض الطلب كله)
+          ...(plain ? { maxRetries: options.maxRetries, abortSignal: options.abortSignal } : options),
           model: google(modelName),
           system: conversation.system,
           messages: history,
-          ...(withTools ? { tools: conversation.tools, stopWhen: conversation.stopWhen } : {}),
+          // صياغة الجواب من نتائج الأدوات: تبقى تعريفات الأدوات (سجل فيه استدعاءات أدوات) لكن دون استدعاء جديد
+          ...(withTools ? { tools: conversation.tools, stopWhen: conversation.stopWhen } : { tools: conversation.tools, toolChoice: "none" as const }),
         })
         for await (const part of result.fullStream) {
           if (part.type === "text-delta") write(part.text)
@@ -373,16 +380,17 @@ function answerStream(conversation: { system: string; tools: any; stopWhen: any 
         attempts: for (const modelName of geminiModels()) {
           for (let attempt = 0; attempt < 2; attempt += 1) {
             try {
-              const steps = await pump(modelName, messages, true)
+              const plain = attempt > 0 && !isTemporaryAiError(lastError)
+              const steps = await pump(modelName, messages, true, plain)
               // استدعى الأدوات ولم يكتب جواباً ⇐ صياغة الجواب من نتائجها
-              if (!wrote && steps.length) await pump(modelName, [...messages, ...steps, { role: "user", content: "اكتب الآن الجواب للمستخدم بالعربية بناءً على نتائج الأدوات أعلاه." }], false)
+              if (!wrote && steps.length) await pump(modelName, [...messages, ...steps, { role: "user", content: "اكتب الآن الجواب للمستخدم بالعربية بناءً على نتائج الأدوات أعلاه." }], false, plain)
               lastError = null
               break attempts
             } catch (error) {
               lastError = error
               console.error(`[ai] chat stream failed (${modelName}, attempt ${attempt + 1}):`, error)
-              // بعد كتابة جزء من الرد لا يُعاد (يتكرر النص)؛ والخطأ غير المؤقت لا تفيد إعادته
-              if (wrote || !isTemporaryAiError(error)) break attempts
+              // بعد كتابة جزء من الرد لا يُعاد (يتكرر النص). خطأ غير مؤقت: تُعاد مرة بلا إعدادات التفكير ثم النموذج الاحتياطي
+              if (wrote) break attempts
             }
           }
         }
