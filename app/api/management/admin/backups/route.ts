@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getManagementSession } from "@/lib/management-auth"
 import managementSql from "@/lib/management-db"
 import {
-  backupDatabase, backupRetentionDays, backupStorageConfigured, backupTargets, deleteBackup, ensureBackupTables, managementDbName,
+  backupDatabase, backupEnvNamesPresent, backupRetentionDays, backupStorageConfigured, backupStorageMissing, backupTargets, deleteBackup, ensureBackupTables, managementDbName,
   restoreBackup, runScheduledBackups,
 } from "@/lib/backups"
 
@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
       backups, restores,
       targets: targets.map((target) => ({ db_name: target.dbName, company_id: target.companyId, company_name: target.companyName })),
       configured: backupStorageConfigured(),
+      missing_vars: backupStorageMissing(),
+      backup_env_names: backupEnvNamesPresent(),
       retention_days: backupRetentionDays(),
       management_db: managementDbName(),
     })

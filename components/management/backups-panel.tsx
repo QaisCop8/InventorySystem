@@ -12,7 +12,7 @@ type Backup = {
 }
 type RestoreJob = { id: number; backup_id: number; safety_backup_id: number | null; db_name: string; company_name: string | null; status: string; error: string | null; requested_by: string | null; started_at: string; finished_at: string | null }
 type Target = { db_name: string; company_id: number | null; company_name: string }
-type Data = { backups: Backup[]; restores: RestoreJob[]; targets: Target[]; configured: boolean; retention_days: number; management_db: string }
+type Data = { backups: Backup[]; restores: RestoreJob[]; targets: Target[]; configured: boolean; missing_vars?: string[]; backup_env_names?: string[]; retention_days: number; management_db: string }
 
 const KIND_LABEL: Record<Backup["kind"], string> = { scheduled: tr("مجدول"), manual: tr("يدوي"), pre_restore: tr("أمان قبل الاستعادة") }
 const STATUS: Record<string, { label: string; tone: string }> = {
@@ -100,7 +100,12 @@ export function BackupsPanel() {
       {data && !data.configured && (
         <p className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          {tr("التخزين غير مُعدّ. أضف في Render المتغيرات: BACKUP_S3_ENDPOINT، BACKUP_S3_BUCKET، BACKUP_S3_ACCESS_KEY_ID، BACKUP_S3_SECRET_ACCESS_KEY (و BACKUP_S3_REGION).")}
+          <span className="space-y-1">
+            <span className="block">{tr("التخزين غير مُعدّ. أضف في Render المتغيرات: BACKUP_S3_ENDPOINT، BACKUP_S3_BUCKET، BACKUP_S3_ACCESS_KEY_ID، BACKUP_S3_SECRET_ACCESS_KEY (و BACKUP_S3_REGION).")}</span>
+            {/* التشخيص من الخادم الذي يعمل الآن: ما ينقصه فعلاً، وأسماء متغيرات BACKUP الموجودة (يكشف خطأ الاسم أو عدم إعادة النشر) */}
+            {!!data.missing_vars?.length && <span className="block font-bold" dir="ltr">{tr("الناقص على الخادم الآن:")} {data.missing_vars.join(", ")}</span>}
+            <span className="block text-xs" dir="ltr">{tr("متغيرات BACKUP الموجودة:")} {data.backup_env_names?.length ? data.backup_env_names.join(", ") : tr("لا شيء")}</span>
+          </span>
         </p>
       )}
       {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}

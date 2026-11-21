@@ -15,12 +15,23 @@ import { getDatabaseNameFromUrl, withDatabaseName } from "./db-url"
 export type BackupKind = "scheduled" | "manual" | "pre_restore"
 export type BackupTarget = { dbName: string; companyId: number | null; companyName: string }
 
-const env = (name: string) => (process.env[name] || "").trim()
+// الاسم كما هو، وإلا اسم مطابق بعد إزالة المسافات وتجاهل حالة الأحرف (متغير أُضيف في Render بمسافة زائدة أو بأحرف صغيرة)
+const env = (name: string) => {
+  const exact = (process.env[name] || "").trim()
+  if (exact) return exact
+  const key = Object.keys(process.env).find((candidate) => candidate.trim().toUpperCase() === name)
+  return key ? (process.env[key] || "").trim() : ""
+}
+const REQUIRED_STORAGE_VARS = ["BACKUP_S3_ENDPOINT", "BACKUP_S3_BUCKET", "BACKUP_S3_ACCESS_KEY_ID", "BACKUP_S3_SECRET_ACCESS_KEY"] as const
+/** أسماء متغيرات التخزين الفارغة/غير الموجودة على الخادم الآن — لتشخيص "غير مُعدّ" (الأسماء فقط، لا القيم) */
+export const backupStorageMissing = () => REQUIRED_STORAGE_VARS.filter((name) => !env(name))
+/** أسماء متغيرات البيئة التي تبدأ بـ BACKUP الموجودة فعلاً (الأسماء فقط) — يكشف الخطأ الإملائي في الاسم */
+export const backupEnvNamesPresent = () => Object.keys(process.env).filter((name) => /backup/i.test(name)).map((name) => JSON.stringify(name)).sort()
 export const backupRetentionDays = () => Math.max(1, Number(env("BACKUP_RETENTION_DAYS")) || 30)
 export const managementDbName = () => getDatabaseNameFromUrl(env("DATABASE_URL"))
 
 export function backupStorageConfigured() {
-  return Boolean(env("BACKUP_S3_ENDPOINT") && env("BACKUP_S3_BUCKET") && env("BACKUP_S3_ACCESS_KEY_ID") && env("BACKUP_S3_SECRET_ACCESS_KEY"))
+  return backupStorageMissing().length === 0
 }
 
 let s3: S3Client | null = null
