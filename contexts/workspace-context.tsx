@@ -88,6 +88,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [fullscreenEnabled, setFullscreenEnabled] = useState(false)
   const [panes, setPanes] = useState<WorkspacePaneState[]>([makeEmptyPane("a")])
   const [focusedPaneId, setFocusedPaneIdState] = useState<PaneId>("a")
+  // 2026-11-22: تحديث المتصفح كان يغلق التبويبات «أحياناً»: استدعاءات openSection أثناء الإقلاع (رابط/شاشة افتراضية/
+  // مزامنة الرابط) تحمل إغلاقاً قديماً فيه tabsEnabled=false فتستبدل كل التبويبات بواحد ثم يُحفظ ذلك. الحالة الحية في ref،
+  // ووجود تبويبات محفوظة لهذا التبويب يعني أن الوضع مفعّل حتى قبل وصول الاستعادة
+  const tabsEnabledRef = useRef(false)
+  tabsEnabledRef.current = tabsEnabled
 
   // استعادة التبويبات بعد تحديث الصفحة. أثر المكوّن الأب يعمل بعد آثار الأبناء، أي بعد أن فتح app/page.tsx قسم
   // الرابط في الجزء "a" — فيُدمج: التبويبات المحفوظة + قسم الرابط (يُفعَّل إن كان مفتوحاً وإلا يُضاف).
@@ -132,10 +137,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const openSection = useCallback(
     (section: string, title: string, targetPaneId?: PaneId) => {
       const paneId = targetPaneId ?? focusedPaneId
+      const tabsOn = tabsEnabledRef.current || readSavedWorkspace() !== null
       setPanes((prev) =>
         prev.map((pane) => {
           if (pane.id !== paneId) return pane
-          if (tabsEnabled) {
+          if (tabsOn) {
             const existing = pane.tabs.find((t) => t.section === section)
             if (existing) return { ...pane, activeTabId: existing.id }
             const tab = makeTab(section, title)
@@ -146,7 +152,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         }),
       )
     },
-    [focusedPaneId, tabsEnabled],
+    [focusedPaneId],
   )
 
   const activateTab = useCallback((paneId: PaneId, tabId: string) => {
@@ -191,6 +197,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   )
 
   const setTabsEnabled = useCallback((enabled: boolean) => {
+    tabsEnabledRef.current = enabled
+    if (!enabled) { try { sessionStorage.removeItem(WORKSPACE_TABS_STORAGE_KEY) } catch { /* */ } }
     setTabsEnabledState(enabled)
     if (!enabled) {
       // يُبقي فقط التبويب النشط بكل جزء عند إيقاف التبويبات — يطابق سلوك "استبدال بمكانه" القديم
