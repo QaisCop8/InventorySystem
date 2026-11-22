@@ -233,7 +233,9 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
               {scopeLabel && <span className="board-hero-chip">{scopeLabel}</span>}
               <span className="board-hero-date"><CalendarDays className="h-3.5 w-3.5" />{dateText}</span>
             </div>
-            <h1 className="board-hero-title !whitespace-normal">{greeting()}{user?.fullName || user?.username ? tr("، {0}", user?.fullName || user?.username) : ""}</h1>
+            <h1 className="board-hero-title !whitespace-normal">{tr("لوحة المعلومات")}</h1>
+            {/* 2026-11-22: لا نعرض البريد الإلكتروني في الترويسة — التحية بالاسم الحقيقي فقط */}
+            <p className="board-hero-sub">{tr(greeting())}{user?.fullName && !user.fullName.includes("@") ? tr("، {0}", user.fullName) : ""}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

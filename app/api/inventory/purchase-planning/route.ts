@@ -72,9 +72,11 @@ export async function GET(request: NextRequest) {
       ? [productAccess.branchId]
       : await getGrantedBranchIds(productAccess.userId, productAccess.accessId)
     const productBranchIds = intersect(authorizedProductBranches, planningAccess.branchIds)
-    const salesAccess = await authorizeTransaction(request, "sales_invoice", "view")
-    const salesReturnAccess = await authorizeTransaction(request, "sales_return", "view")
-    const purchaseAccess = await authorizeTransaction(request, "purchase_order", "view")
+    const [salesAccess, salesReturnAccess, purchaseAccess] = await Promise.all([
+      authorizeTransaction(request, "sales_invoice", "view"),
+      authorizeTransaction(request, "sales_return", "view"),
+      authorizeTransaction(request, "purchase_order", "view"),
+    ])
     const purchaseBranchIds = purchaseAccess.ok
       ? intersect(productBranchIds, purchaseAccess.branchIds)
       : []
@@ -92,15 +94,22 @@ export async function GET(request: NextRequest) {
 
     const requestedDays = Number(new URL(request.url).searchParams.get("days") || 90)
     const periodDays = Number.isInteger(requestedDays) ? Math.min(365, Math.max(30, requestedDays)) : 90
+    // 2026-11-22 أداء: to_jsonb على الموردين مرة لكل مورد (لا لكل صنف)، والوحدة الأولى بـ DISTINCT ON بدل LATERAL لكل صنف
     const products = await sql`
+      WITH sup AS (SELECT s.id, to_jsonb(s) AS j FROM suppliers s),
+      first_unit AS (
+        SELECT DISTINCT ON (product_unit.product_id) product_unit.product_id, product_unit.unit_id
+        FROM product_units product_unit
+        ORDER BY product_unit.product_id, product_unit.id ASC
+      )
       SELECT
         p.id,
         p.product_code,
         p.product_name,
         p.supplier_id,
-        COALESCE(NULLIF(to_jsonb(s)->>'supplier_name', ''), to_jsonb(s)->>'name', '') AS supplier_name,
-        CASE WHEN COALESCE(to_jsonb(s)->>'account_id', '') ~ '^[0-9]+$'
-          THEN (to_jsonb(s)->>'account_id')::integer ELSE NULL END AS supplier_account_id,
+        COALESCE(NULLIF(s.j->>'supplier_name', ''), s.j->>'name', '') AS supplier_name,
+        CASE WHEN COALESCE(s.j->>'account_id', '') ~ '^[0-9]+$'
+          THEN (s.j->>'account_id')::integer ELSE NULL END AS supplier_account_id,
         p.default_store,
         COALESCE(ps.current_stock, 0)::float AS current_stock,
         COALESCE(ps.reserved_stock, 0)::float AS reserved_stock,
@@ -114,16 +123,10 @@ export async function GET(request: NextRequest) {
         u.unit_name
       FROM products p
       LEFT JOIN product_stock ps ON ps.product_id = p.id AND COALESCE(ps.organization_id, 1) = 1
-      LEFT JOIN suppliers s ON s.id = p.supplier_id
+      LEFT JOIN sup s ON s.id = p.supplier_id
       LEFT JOIN currency c ON c.id = p.currency_id
       LEFT JOIN currency lpc ON lpc.id = p.last_purchase_currency_id
-      LEFT JOIN LATERAL (
-        SELECT product_unit.unit_id
-        FROM product_units product_unit
-        WHERE product_unit.product_id = p.id
-        ORDER BY product_unit.id ASC
-        LIMIT 1
-      ) pu ON TRUE
+      LEFT JOIN first_unit pu ON pu.product_id = p.id
       LEFT JOIN units u ON u.id = pu.unit_id
       WHERE COALESCE(p.type, 1) = 1
         AND (p.deleted IS NULL OR p.deleted = false)
@@ -162,7 +165,6 @@ export async function GET(request: NextRequest) {
                 OR (vh.vch_type = 16 AND vh.branch_id = ANY(${returnBranchIds}::int[]))
               )
               AND vh.vch_date >= CURRENT_DATE - (${periodDays}::int * INTERVAL '1 day')
-              AND vi.item_id = ANY(${productIds}::int[])
             GROUP BY vi.item_id
           `
         : Promise.resolve([]),
@@ -192,7 +194,6 @@ export async function GET(request: NextRequest) {
               AND o.branch_id = ANY(${purchaseBranchIds}::int[])
               AND COALESCE(o.order_status, 1) IN (1, 2, 3)
               AND COALESCE(oi.item_status, 1) IN (1, 2, 3)
-              AND oi.product_id = ANY(${productIds}::int[])
             GROUP BY oi.product_id
           `
         : Promise.resolve([]),

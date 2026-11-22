@@ -1,7 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { AlertTriangle, CalendarClock, Package, RefreshCw, Search, ShoppingCart, TrendingUp } from "lucide-react"
 import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { Badge } from "@/components/ui/badge"
@@ -40,6 +40,8 @@ const finite = (value: unknown) => {
   return Number.isFinite(number) ? number : 0
 }
 
+const PAGE_SIZE = 150
+
 const formatNumber = (value: number, maximumFractionDigits = 2) =>
   value.toLocaleString("en-US", { maximumFractionDigits })
 
@@ -60,6 +62,13 @@ export function PurchasePlanning() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
+  // 2026-11-22: «كل الأصناف» قد تكون عشرات الآلاف — رسمها دفعة واحدة كان يجمّد الصفحة، فنعرض دفعات
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const deferredQuery = useDeferredValue(query)
+  const [filterPending, startFilter] = useTransition()
+  const busy = loading || refreshing || filterPending || deferredQuery !== query
+  const coverageRef = useRef(coverageDays)
+  const selectedSet = useMemo(() => new Set(selected), [selected])
 
   const load = useCallback(async (quiet = false) => {
     if (quiet) setRefreshing(true)
@@ -77,22 +86,25 @@ export function PurchasePlanning() {
       setSalesHistoryAvailable(payload.sales_history_available !== false)
       setPurchaseOrdersAvailable(payload.purchase_orders_available !== false)
       setCanCreatePurchaseOrder(payload.can_create_purchase_order === true)
-      const initialSelected: number[] = []
-      const nextQuantities: Record<number, number> = {}
-      nextProducts.forEach((product: PlanningProduct) => {
-        const quantity = suggestedQuantity(product, coverageDays, Number(payload.period_days) || periodDays)
-        nextQuantities[product.id] = quantity
-        if (quantity > 0) initialSelected.push(product.id)
-      })
-      setQuantities(nextQuantities)
-      setSelected(initialSelected)
+      const days = Number(payload.period_days) || periodDays
+      // الكميات المحسوبة تُشتق في suggestions؛ quantities تحفظ تعديلات المستخدم فقط
+      setQuantities({})
+      setSelected(nextProducts.filter((product: PlanningProduct) => suggestedQuantity(product, coverageRef.current, days) > 0).map((product: PlanningProduct) => product.id))
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : tr("تعذر تحميل بيانات التخطيط"))
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [activeBranchId, coverageDays, periodDays])
+  }, [activeBranchId, periodDays])
+
+  // تغيير مدة التغطية يعيد الحساب محلياً دون إعادة جلب البيانات من الخادم
+  useEffect(() => {
+    if (coverageRef.current === coverageDays) return
+    coverageRef.current = coverageDays
+    setQuantities({})
+    setSelected(products.filter((product) => suggestedQuantity(product, coverageDays, periodDays) > 0).map((product) => product.id))
+  }, [coverageDays, products, periodDays])
 
   useEffect(() => {
     if (authLoading) return
@@ -136,15 +148,18 @@ export function PurchasePlanning() {
     return Array.from(unique.entries()).sort((left, right) => left[1].localeCompare(right[1], "ar"))
   }, [products])
 
+  const needle = deferredQuery.trim().toLowerCase()
   const filtered = useMemo(() => suggestions.filter((product) => {
     if (supplierFilter !== "all" && String(product.supplier_id || "") !== supplierFilter) return false
     if (stockFilter === "needs-order" && product.quantity <= 0) return false
     if (stockFilter === "out" && product.available_stock > 0) return false
-    if (query && !`${product.product_name} ${product.product_code}`.toLowerCase().includes(query.trim().toLowerCase())) return false
+    if (needle && !`${product.product_name} ${product.product_code}`.toLowerCase().includes(needle)) return false
     return true
-  }), [suggestions, supplierFilter, stockFilter, query])
+  }), [suggestions, supplierFilter, stockFilter, needle])
+  useEffect(() => { setVisibleCount(PAGE_SIZE) }, [supplierFilter, stockFilter, needle, products])
+  const shownRows = filtered.length > visibleCount ? filtered.slice(0, visibleCount) : filtered
 
-  const selectedRows = suggestions.filter((product) => selected.includes(product.id) && product.quantity > 0)
+  const selectedRows = useMemo(() => suggestions.filter((product) => selectedSet.has(product.id) && product.quantity > 0), [suggestions, selectedSet])
   const selectedQuantity = selectedRows.reduce((sum, product) => sum + product.quantity, 0)
   const selectedValue = selectedRows.reduce((sum, product) => sum + (product.estimated_value || 0), 0)
   const selectedCurrencies = new Set(selectedRows.map((product) => product.purchase_currency_name || "").filter(Boolean))
@@ -167,10 +182,10 @@ export function PurchasePlanning() {
   }
 
   const toggleVisible = (checked: boolean) => {
-    const visibleIds = filtered.map((product) => product.id)
+    const visibleIds = new Set(filtered.map((product) => product.id))
     setSelected((current) => checked
       ? Array.from(new Set([...current, ...visibleIds]))
-      : current.filter((id) => !visibleIds.includes(id)))
+      : current.filter((id) => !visibleIds.has(id)))
   }
 
   const createPurchaseOrder = () => {
@@ -252,7 +267,7 @@ export function PurchasePlanning() {
               <Input className="mt-1 h-9 ps-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr("اسم الصنف أو رقمه")} />
             </label>
             <label className="text-xs text-muted-foreground">{tr("المورد")}
-              <div className="mt-1"><Dropdown id="purchase-planning-supplier" value={supplierFilter} options={[{ value: "all", label: tr("كل الموردين") }, ...suppliers.map(([id, name]) => ({ value: id, label: name }))]} optionLabel="label" optionValue="value" filter onChange={(event) => setSupplierFilter(String(event.value))} /></div>
+              <div className="mt-1"><Dropdown id="purchase-planning-supplier" value={supplierFilter} options={[{ value: "all", label: tr("كل الموردين") }, ...suppliers.map(([id, name]) => ({ value: id, label: name }))]} optionLabel="label" optionValue="value" filter onChange={(event) => startFilter(() => setSupplierFilter(String(event.value)))} /></div>
             </label>
           </div>
         </CardHeader>
@@ -260,7 +275,7 @@ export function PurchasePlanning() {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">{tr("عرض:")}</span>
-              <div className="w-48 shrink-0"><Dropdown id="purchase-planning-stock-filter" value={stockFilter} options={[{ value: "needs-order", label: tr("المقترح شراؤها") }, { value: "all", label: tr("كل الأصناف") }, { value: "out", label: tr("النافدة أو غير المتاحة") }]} optionLabel="label" optionValue="value" onChange={(event) => setStockFilter(String(event.value))} /></div>
+              <div className="w-48 shrink-0"><Dropdown id="purchase-planning-stock-filter" value={stockFilter} options={[{ value: "needs-order", label: tr("المقترح شراؤها") }, { value: "all", label: tr("كل الأصناف") }, { value: "out", label: tr("النافدة أو غير المتاحة") }]} optionLabel="label" optionValue="value" onChange={(event) => startFilter(() => setStockFilter(String(event.value)))} /></div>
             </div>
             {canCreatePurchaseOrder && <Button onClick={createPurchaseOrder} disabled={loading || selectedRows.length === 0}>
               <ShoppingCart className="me-2 h-4 w-4" />{tr(" إنشاء طلبية شراء للأصناف المحددة")}
@@ -268,14 +283,14 @@ export function PurchasePlanning() {
           </div>
           <Table className="[&_th]:text-start" containerClassName="rounded-lg border lg:min-h-48 lg:flex-1 lg:overflow-auto">
             <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-background"><TableRow>
-              <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && filtered.every((row) => selected.includes(row.id))} onCheckedChange={(checked) => toggleVisible(checked === true)} aria-label={tr("تحديد الأصناف الظاهرة")} /></TableHead>
+              <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && filtered.every((row) => selectedSet.has(row.id))} onCheckedChange={(checked) => toggleVisible(checked === true)} aria-label={tr("تحديد الأصناف الظاهرة")} /></TableHead>
               <TableHead>{tr("الصنف")}</TableHead><TableHead>{tr("المورد")}</TableHead><TableHead>{tr("المتاح")}</TableHead><TableHead>{tr("الوارد بطلبات مفتوحة")}</TableHead><TableHead>{tr("مبيعات الفترة")}</TableHead><TableHead>{tr("متوسط يومي")}</TableHead><TableHead>{tr("تغطية المخزون")}</TableHead><TableHead>{tr("آخر سعر شراء")}</TableHead><TableHead className="min-w-28">{tr("الكمية المقترحة")}</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {loading ? <TableRow><TableCell colSpan={10} className="h-28 text-center text-muted-foreground">{tr("جارٍ إعداد خطة الشراء...")}</TableCell></TableRow>
+              {busy ? <TableRow><TableCell colSpan={10} className="h-28 text-center text-muted-foreground"><span className="inline-flex items-center gap-2"><RefreshCw className="h-4 w-4 animate-spin" />{tr("جاري تحميل البيانات...")}</span></TableCell></TableRow>
                 : filtered.length === 0 ? <TableRow><TableCell colSpan={10} className="h-28 text-center text-muted-foreground">{tr("لا توجد أصناف مطابقة للبحث والمرشحات.")}</TableCell></TableRow>
-                  : filtered.map((product) => <TableRow key={product.id}>
-                    <TableCell><Checkbox checked={selected.includes(product.id)} onCheckedChange={(checked) => toggleProduct(product.id, checked === true)} aria-label={tr("تحديد {0}", product.product_name)} /></TableCell>
+                  : shownRows.map((product) => <TableRow key={product.id}>
+                    <TableCell><Checkbox checked={selectedSet.has(product.id)} onCheckedChange={(checked) => toggleProduct(product.id, checked === true)} aria-label={tr("تحديد {0}", product.product_name)} /></TableCell>
                     <TableCell><div className="font-medium">{product.product_name}</div><div className="text-xs text-muted-foreground">{product.product_code} · {product.unit_name || "—"}</div></TableCell>
                     <TableCell>{product.supplier_name || <span className="text-muted-foreground">{tr("غير محدد")}</span>}</TableCell>
                     <TableCell><div className="font-medium">{formatNumber(finite(product.available_stock))}</div><div className="text-xs text-muted-foreground">{tr("الرصيد ")}{formatNumber(finite(product.current_stock))}{tr(" · محجوز ")}{formatNumber(finite(product.reserved_stock))}</div></TableCell>
@@ -286,6 +301,9 @@ export function PurchasePlanning() {
                     <TableCell>{product.can_view_purchase_price ? `${formatNumber(finite(product.last_purchase_price))} ${product.purchase_currency_name || ""}` : <span className="text-muted-foreground">{tr("غير متاح")}</span>}</TableCell>
                     <TableCell><Input aria-label={tr("كمية الشراء المقترحة لـ {0}", product.product_name)} type="number" min="0" step="any" className="h-8 min-w-24 text-end" dir="ltr" value={quantities[product.id] ?? product.calculated_quantity} onChange={(event) => setQuantity(product.id, event.target.value)} /></TableCell>
                   </TableRow>)}
+              {!busy && filtered.length > shownRows.length && <TableRow><TableCell colSpan={10} className="py-3 text-center">
+                <Button type="button" variant="outline" size="sm" onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}>{tr("عرض المزيد")} ({formatNumber(filtered.length - shownRows.length, 0)} {tr("صنف متبقٍ")})</Button>
+              </TableCell></TableRow>}
             </TableBody>
           </Table>
           <p className="mt-3 text-xs text-muted-foreground">{tr("الكمية المقترحة تغطي الاستهلاك المتوقع للفترة المحددة، وتراعي نقطة إعادة الطلب والمخزون الوارد. راجع الكميات والمورد قبل حفظ الطلبية.")}</p>
