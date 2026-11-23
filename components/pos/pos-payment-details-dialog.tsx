@@ -120,9 +120,10 @@ export function PosPaymentDetailsDialog(props:Props){
  const methodTone=(key:PaymentMethod)=>payments.some(row=>row.method===key&&Number(row.amount)>0)
  const isSale=mode==="sale"
  return <WorkspaceDialogProvider container={phone?null:workspaceDialog.container} confined={phone?false:workspaceDialog.confined}><Dialog open={open} onOpenChange={onOpenChange}><DialogContent dir={appDir()} onKeyDown={onKeyDown} onPointerDownOutside={event=>event.preventDefault()} onInteractOutside={event=>event.preventDefault()} onOpenAutoFocus={event=>{event.preventDefault();requestAnimationFrame(()=>{amountInputRef.current?.focus();amountInputRef.current?.select()})}} onCloseAutoFocus={event=>{if(onSavedClose?.())event.preventDefault()}} hideCloseButton className="pos-payment-dialog flex h-[min(calc(100%-1rem),calc(100dvh-1rem))] max-h-[min(calc(100%-1rem),calc(100dvh-1rem))] w-[min(calc(100%-1rem),calc(100vw-1rem))] max-w-none flex-col gap-0 overflow-hidden rounded-[26px] border-0 p-0 text-slate-900 sm:h-[min(640px,calc(100dvh-1.5rem))] sm:w-[min(calc(100%-1.5rem),96vw,980px)]">
-  <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[320px_minmax(0,1fr)] md:grid-rows-1">
+  {/* 2026-11-23: على الجوال العمود الوحيد كان يتمدد لعرض حقل المبلغ (حجم ذاتي ~20 حرفاً بخط 4xl) فتُقصّ النافذة من الجانبين */}
+  <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[320px_minmax(0,1fr)] md:grid-rows-1">
    {/* ── اللوحة الجانبية: المبالغ وطرق الدفع ── */}
-   <aside className="flex min-h-0 flex-col gap-3 bg-[#24453a] p-4 text-white md:p-5">
+   <aside className="flex min-h-0 min-w-0 flex-col gap-3 bg-[#24453a] p-4 text-white md:p-5">
     <DialogHeader className="flex flex-row items-center gap-3 space-y-0 text-start">
      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10"><WalletCards className="h-5 w-5"/></span>
      <div className="min-w-0 flex-1"><DialogTitle className="truncate text-base font-black text-white">{mode==="return"?tr("تفاصيل الاسترجاع"):mode==="gift"?tr("تأكيد الهدية"):tr("تفاصيل الدفع")}</DialogTitle><DialogDescription className="text-xs text-white/70">{tr("مبلغ الفاتورة")}</DialogDescription></div>
@@ -144,7 +145,7 @@ export function PosPaymentDetailsDialog(props:Props){
    </aside>
 
    {/* ── لوحة العمل ── */}
-   <section className="flex min-h-0 flex-col bg-[#f8f5ef]">
+   <section className="flex min-h-0 min-w-0 flex-col bg-[#f8f5ef]">
     <PosDialogMessages error={error} open={open}/>
     <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
      {mode==="gift"?<p className="rounded-2xl bg-white p-6 text-center text-sm font-semibold">{tr("سيُنشأ سند إخراج للهدية دون دفعة مالية.")}</p>:<div role="tabpanel">
@@ -162,7 +163,7 @@ export function PosPaymentDetailsDialog(props:Props){
          value={cashEntry??(activeAmount?String(activeAmount):"0")} onFocus={selectAllOnFocus}
          onChange={event=>{const text=event.target.value.replace(/[^\d.]/g,"");setCash(text)}}
          onKeyDown={event=>{if(event.key==="Enter"){event.preventDefault();event.stopPropagation();setCashEntry(null);confirmButtonRef.current?.focus()}}}
-         className="min-w-0 flex-1 bg-transparent text-left text-4xl font-black tabular-nums outline-none"/>
+         size={1} className="w-0 min-w-0 flex-1 bg-transparent text-left text-4xl font-black tabular-nums outline-none"/>
        </label>
        <div className="grid grid-cols-5 gap-2">
         <button type="button" onClick={fillRemaining} className="rounded-xl bg-[#dcefe6] px-1 py-3 text-xs font-black text-[#24453a] sm:text-sm">{tr("المبلغ كاملاً")}</button>

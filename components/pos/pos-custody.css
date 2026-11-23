@@ -137,3 +137,18 @@
 .pos-custody .pc-total:has(.pc-total-item + .pc-total-item) { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); border-radius: 26px; }
 .pos-custody .pc-total:has(.pc-total-item + .pc-total-item) .pc-total-item { flex-direction: column; align-items: flex-start; gap: 6px; }
 @media (max-width: 639px) { .pos-custody .pc-total:has(.pc-total-item + .pc-total-item) { grid-template-columns: repeat(3, minmax(0, 1fr)); } .pos-custody .pc-total:has(.pc-total-item + .pc-total-item) .pc-total-icon { display: none; } }
+
+/* 2026-11-23: الأقسام كانت تنضغط داخل الجسم (flex عمودي + overflow:hidden ⇒ min-height 0) فتُقصّ جداولها —
+   لا تنكمش؛ الجسم نفسه يمرّر. وعلى الشاشات الصغيرة: هوامش أقل والأزرار بعرض كامل */
+.pos-custody .pc-body > * { flex-shrink: 0; }
+.pos-custody .pc-body .pc-card .max-h-64 { max-height: min(16rem, 40vh); }
+@media (max-width: 639px) {
+  .pos-custody { width: 100% !important; max-width: 100% !important; height: 100% !important; max-height: 100% !important; border-radius: 0 !important; }
+  .pos-custody .pc-body { gap: 10px; padding: 10px; }
+  .pos-custody .pc-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .pos-custody .pc-card { border-radius: 16px; }
+  .pos-custody .pc-head-row { flex-wrap: wrap; }
+  .pos-custody .pc-chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .pos-custody .pc-foot { padding: 10px; }
+  .pos-custody .pc-foot > button { flex: 1 1 0; min-width: 0; }
+}
