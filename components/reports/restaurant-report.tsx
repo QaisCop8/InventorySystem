@@ -29,7 +29,7 @@ const CONFIG: Record<View, { title: string; description: string; icon: LucideIco
     title: tr("تقرير الطاولات"), icon: LayoutGrid, countLabel: tr("عدد الطاولات"),
     description: tr("لكل طاولة: عدد مرات الاستخدام، الأشخاص، الإيراد، متوسط الطلب ومتوسط مدة الجلوس وآخر استخدام"),
     columns: [
-      { key: "id", label: tr("رقم الطاولة"), align: "center" }, { key: "table_name", label: tr("الطاولة") }, { key: "location_name", label: tr("الموقع") }, { key: "branch_name", label: tr("الفرع") },
+      { key: "id", label: tr("رقم الطاولة"), align: "center", format: "int" }, { key: "table_name", label: tr("الطاولة") }, { key: "location_name", label: tr("الموقع") }, { key: "branch_name", label: tr("الفرع") },
       { key: "seats", label: tr("المقاعد"), align: "center", format: "int" },
       { key: "times_used", label: tr("مرات الاستخدام"), align: "center", format: "int", sum: true },
       { key: "guests", label: tr("الأشخاص"), align: "center", format: "int", sum: true },
