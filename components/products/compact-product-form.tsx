@@ -230,6 +230,8 @@ interface ManufacturingComponentItem {
   width?: number | null
   height?: number | null
   count?: number | null
+  /** نسبة الهدر المتوقعة % (lib/production-recipe.ts) */
+  waste_percent?: number | null
   ser?: number
 }
 
@@ -567,6 +569,8 @@ export function CompactProductForm({
   const [relatedOptionsDraft, setRelatedOptionsDraft] = useState<RelatedProductItem | null>(null)
   const [manufacturingComponents, setManufacturingComponents] = useState<ManufacturingComponentItem[]>([])
   const [manufacturingComponentSearchOpen, setManufacturingComponentSearchOpen] = useState(false)
+  // تكاليف الوصفة المعيارية لكل وحدة منتَجة — تُضاف تلقائياً لتكاليف سند الانتاج (2026-11-24)
+  const [recipeCosts, setRecipeCosts] = useState({ labor_cost: "", overhead_cost: "", packaging_cost: "", shelf_life_days: "" })
   const [manufacturingComponentsImportOpen, setManufacturingComponentsImportOpen] = useState(false)
   // منتقيات SimpleListPicker لأعمدة الوحدات/الأسعار/المستودعات/حالة مركز التكلفة — بديل موحَّد عن
   // Column.editor المباشر (DataGridView الفعلي يتطلّب عنصر تحكم Wijmo حقيقياً لا JSX، انظر
@@ -920,7 +924,7 @@ export function CompactProductForm({
             related_items_mode: formData.related_items_mode,
             manufacturing_components: manufacturingComponents.map((row) => ({
               component_id: row.component_id, quantity: calculateManufacturingComponentQuantity(row), unit_id: row.unit_id,
-              length: row.length, width: row.width, height: row.height, count: row.count,
+              length: row.length, width: row.width, height: row.height, count: row.count, waste_percent: Number(row.waste_percent) || 0,
             })),
           }),
         }),
@@ -1159,6 +1163,8 @@ export function CompactProductForm({
     setRelatedProducts([])
     setManufacturingComponents([])
     if (Number(product.id) > 0) fetch(`/api/inventory/products/${product.id}/related-items`).then((r) => r.ok ? r.json() : []).then((rows) => setRelatedProducts(Array.isArray(rows) ? rows.map((row: RelatedProductItem, index: number) => ({ ...row, add_price: row.add_price !== false, no_kitchen_print: row.no_kitchen_print === true, product_id: Number(product.id), ser: index + 1 })) : [])).catch(() => setRelatedProducts([]))
+    setRecipeCosts({ labor_cost: "", overhead_cost: "", packaging_cost: "", shelf_life_days: "" })
+    if (Number(product.id) > 0) fetch(`/api/inventory/products/${product.id}/manufacturing-components?settings=1`).then((r) => r.ok ? r.json() : null).then((row) => { if (row) setRecipeCosts({ labor_cost: Number(row.labor_cost) ? String(row.labor_cost) : "", overhead_cost: Number(row.overhead_cost) ? String(row.overhead_cost) : "", packaging_cost: Number(row.packaging_cost) ? String(row.packaging_cost) : "", shelf_life_days: Number(row.shelf_life_days) ? String(row.shelf_life_days) : "" }) }).catch(() => undefined)
     if (Number(product.id) > 0) fetch(`/api/inventory/products/${product.id}/manufacturing-components`).then((r) => r.ok ? r.json() : []).then((rows) => setManufacturingComponents(Array.isArray(rows) ? rows.map((row: ManufacturingComponentItem, index: number) => ({ ...row, product_id: Number(product.id), ser: index + 1 })) : [])).catch(() => setManufacturingComponents([]))
     initialHash.current = getFormDataHash(newFormData);
     baselineCodeRef.current = String(newFormData.product_code || "");
@@ -2232,6 +2238,7 @@ export function CompactProductForm({
       { header: tr("العدد"), name: "count", width: 110, dataType: "Number", visible: hasMeasuredComponents },
       { header: tr("الوحدة"), name: "unit_id", width: 140, dataMap: manufacturingUnitMap },
       { header: tr("الكمية المطلوبة"), name: "quantity", width: 150, isReadOnly: false },
+      { header: tr("نسبة الهدر %"), name: "waste_percent", width: 120, dataType: "Number", isReadOnly: false },
       { header: " ", name: "delete", width: 80, buttonBody: "button" as const, iconType: "delete", title: tr("حذف"), onClick: (_e: any, ctx: any) => deleteManufacturingComponent(Number(ctx.row.dataItem?.ser || 0) - 1) },
     ],
   }), [hasMeasuredComponents, hasVolumeComponents, manufacturingUnitMap])
@@ -2294,7 +2301,7 @@ export function CompactProductForm({
   }
   const deleteManufacturingComponent = (index: number) => setManufacturingComponents((current) => current.filter((_row, rowIndex) => rowIndex !== index).map((row, rowIndex) => ({ ...row, ser: rowIndex + 1 })))
   const saveManufacturingComponents = async (productId: number) => {
-    const response = await fetch(`/api/inventory/products/${productId}/manufacturing-components`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ components: manufacturingComponents.map((row) => ({ component_id: row.component_id, quantity: calculateManufacturingComponentQuantity(row), unit_id: row.unit_id, length: row.length, width: row.width, height: row.height, count: row.count })) }) })
+    const response = await fetch(`/api/inventory/products/${productId}/manufacturing-components`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ components: manufacturingComponents.map((row) => ({ component_id: row.component_id, quantity: calculateManufacturingComponentQuantity(row), unit_id: row.unit_id, length: row.length, width: row.width, height: row.height, count: row.count, waste_percent: Number(row.waste_percent) || 0 })), settings: { labor_cost: Number(recipeCosts.labor_cost) || 0, overhead_cost: Number(recipeCosts.overhead_cost) || 0, packaging_cost: Number(recipeCosts.packaging_cost) || 0, shelf_life_days: Number(recipeCosts.shelf_life_days) || 0 } }) })
     if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || tr("فشل حفظ مكونات التصنيع")) }
   }
   const searchProductByCode = async (code: string) => {
@@ -3970,7 +3977,19 @@ export function CompactProductForm({
                   {!isService && <TabsContent value="manufacturing-components">
                     <Card>
                       <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">{tr("مكونات التصنيع")}</CardTitle><div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" onClick={() => setManufacturingComponentsImportOpen(true)} disabled={!formData.id || !canUpdate}><FileSpreadsheet className="me-2 h-4 w-4" />{tr("استيراد من Excel")}</Button><Button type="button" onClick={() => setManufacturingComponentSearchOpen(true)} disabled={!formData.id}><Plus className="me-2 h-4 w-4" />{tr("إضافة مكون")}</Button></div></div></CardHeader>
-                      <CardContent>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">{tr("احفظ الصنف أولاً لإضافة مكونات التصنيع.")}</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={manufacturingComponents} scheme={manufacturingComponentScheme} isReport={false} showContextMenu={false} dontConvertToCards={true} beginningEdit={manufacturingComponentBeginningEdit} cellEditEnded={manufacturingComponentCellEditEnded} /></div><p className="mt-2 text-xs text-muted-foreground">{tr("الكمية تُحتسب تلقائياً من الأبعاد والعدد لمكونات القياس غير العادي، ويمكن تعديلها مباشرة للمكونات العادية.")}</p></CardContent>
+                      <CardContent>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">{tr("احفظ الصنف أولاً لإضافة مكونات التصنيع.")}</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={manufacturingComponents} scheme={manufacturingComponentScheme} isReport={false} showContextMenu={false} dontConvertToCards={true} beginningEdit={manufacturingComponentBeginningEdit} cellEditEnded={manufacturingComponentCellEditEnded} /></div><p className="mt-2 text-xs text-muted-foreground">{tr("الكمية تُحتسب تلقائياً من الأبعاد والعدد لمكونات القياس غير العادي، ويمكن تعديلها مباشرة للمكونات العادية.")} {tr("نسبة الهدر تُضاف لكمية المكوّن المصروفة في سند الانتاج.")}</p>
+                        <div className="mt-4 rounded-lg border bg-muted/30 p-3">
+                          <p className="mb-2 text-sm font-semibold">{tr("تكاليف الانتاج المعيارية لكل وحدة منتَجة")}</p>
+                          <div className="grid gap-3 sm:grid-cols-4">
+                            {([["labor_cost", "أجور عمال"], ["overhead_cost", "مصاريف تشغيل (كهرباء، ماء، آلات)"], ["packaging_cost", "تغليف وتعبئة"], ["shelf_life_days", "مدة الصلاحية (يوم)"]] as const).map(([key, label]) => (
+                              <div key={key} className="space-y-1">
+                                <Label className="text-xs">{tr(label)}</Label>
+                                <Input type="number" min={0} step="any" dir="ltr" disabled={!formData.id || !canUpdate} value={recipeCosts[key]} onChange={(event) => setRecipeCosts((value) => ({ ...value, [key]: event.target.value }))} />
+                              </div>
+                            ))}
+                          </div>
+                          <p className="mt-2 text-xs text-muted-foreground">{tr("التكاليف تُضاف تلقائياً (× الكمية المنتَجة) إلى التكاليف الإضافية في سند الانتاج فتدخل في كلفة المنتَج؛ مدة الصلاحية تملأ تاريخ صلاحية المنتَج تلقائياً.")}</p>
+                        </div></CardContent>
                     </Card>
                   </TabsContent>}
                 </>

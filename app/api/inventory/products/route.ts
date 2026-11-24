@@ -864,6 +864,7 @@ async function persistNewProductChildren(client: any, productId: number, data: a
   const components = (Array.isArray(data.manufacturing_components) ? data.manufacturing_components : []).map((item: any) => ({
     id: Number(item.component_id), quantity: Number(item.quantity), length: Number(item.length || 0),
     width: Number(item.width || 0), height: Number(item.height || 0), count: Number(item.count || 0), unit_id: item.unit_id,
+    waste_percent: Math.min(99.99, Math.max(0, Number(item.waste_percent) || 0)),
   }))
   if (relatedIds.some((id) => !Number.isInteger(id) || id <= 0 || id === productId)) throw new Error("Invalid related product")
   const componentIds = components.map((item: any) => item.id)
@@ -879,6 +880,7 @@ async function persistNewProductChildren(client: any, productId: number, data: a
   if (components.length) {
     await client.query("CREATE TABLE IF NOT EXISTS product_manufacturing_components (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, component_id INTEGER NOT NULL REFERENCES products(id) ON DELETE RESTRICT, quantity NUMERIC(18,6) NOT NULL CHECK (quantity > 0), UNIQUE(product_id, component_id), CHECK (product_id <> component_id))")
     for (const column of ["length", "width", "height", "count"]) await client.query(`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS ${column} NUMERIC(18,6)`)
+    await client.query("ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS waste_percent NUMERIC(9,4) NOT NULL DEFAULT 0")
     await ensureComponentUnitColumns((text) => client.query(text))
     const componentUnits = await loadComponentUnits(componentIds)
     for (const item of components) {
@@ -889,7 +891,7 @@ async function persistNewProductChildren(client: any, productId: number, data: a
       }
       if (!Number.isFinite(item.quantity) || item.quantity <= 0) throw new Error("Manufacturing component quantity must be positive")
       const unit = resolveComponentUnit(componentUnits.get(item.id), item.unit_id, item.quantity, measurement)
-      await client.query("INSERT INTO product_manufacturing_components (product_id, component_id, quantity, length, width, height, count, unit_id, unit_quantity) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)", [productId, item.id, unit.quantity, measurement === 1 ? null : item.length, measurement === 1 ? null : item.width, measurement === 3 ? item.height : null, measurement === 1 ? null : item.count, unit.unit_id, unit.unit_quantity])
+      await client.query("INSERT INTO product_manufacturing_components (product_id, component_id, quantity, length, width, height, count, unit_id, unit_quantity, waste_percent) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)", [productId, item.id, unit.quantity, measurement === 1 ? null : item.length, measurement === 1 ? null : item.width, measurement === 3 ? item.height : null, measurement === 1 ? null : item.count, unit.unit_id, unit.unit_quantity, item.waste_percent])
     }
   }
 }

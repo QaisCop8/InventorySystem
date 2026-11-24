@@ -416,6 +416,7 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "internal-delivery-vouchers": "internal_delivery",
   "use-vouchers": "stock_use",
   "production-vouchers": "production",
+  "production-orders": "production",
   "receipt-vouchers": "receipt",
   "payment-vouchers": "payment",
   "cheque-payment-vouchers": "cheque_payment",

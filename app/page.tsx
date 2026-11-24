@@ -69,6 +69,7 @@ const SerialMovementsReport = lazyNamed(() => import("@/components/reports/seria
 const StockCounts = lazyDefault(() => import("@/components/inventory/stock-counts"))
 const StockCountApproval = lazyDefault(() => import("@/components/inventory/stock-count-approval"))
 const ProductionVouchers = lazyDefault(() => import("@/components/inventory/production-vouchers"))
+const ProductionOrders = lazyDefault(() => import("@/components/inventory/production-orders"))
 const AccountAccess = lazyDefault(() => import("@/components/tools/account-access"))
 const ManagerAttachments = lazyDefault(() => import("@/components/tools/manager-attachments"))
 const ManagerInbox = lazyDefault(() => import("@/components/tools/manager-inbox"))
@@ -363,6 +364,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "stock-counts": StockCounts,
   "stock-count-approval": StockCountApproval,
   "production-vouchers": ProductionVouchers,
+  "production-orders": ProductionOrders,
   "account-access": AccountAccess,
   "manager-attachments": ManagerAttachments,
   "manager-inbox": ManagerInbox,
@@ -374,6 +376,11 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "production-produced-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionProducedReport"),
   "production-raw-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionRawReport"),
   "production-vouchers-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionVouchersReport"),
+  "production-variance-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionVarianceReport"),
+  "production-profitability-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionProfitabilityReport"),
+  "production-workers-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionWorkersReport"),
+  "production-centers-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionCentersReport"),
+  "production-dashboard": lazyNamed(() => import("@/components/reports/production-dashboard"), "ProductionDashboard"),
   "sales-invoices": (props: any) => <SalesDelivery {...props} voucherType={12} />,
   "pos-cashier": PosCashier,
   "pos-points-settings": PosPointsSettings,

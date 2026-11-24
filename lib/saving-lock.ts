@@ -18,6 +18,7 @@ const VOUCHER_API_ROOTS = new Set([
   "purchase-orders",
   "stock-counts",
   "production-vouchers",
+  "production-orders",
 ])
 // مسارات القراءة/المساعدة التي لا تحفظ سنداً حتى لو كانت POST
 const NON_SAVE_SEGMENTS = /(resolve-code|generate-number|navigation|search|voucher-books|check|validate|preview|lookup|draft)/

@@ -1129,7 +1129,7 @@ function UnifiedSalesOrder({
       const resolvedStore = resolveProductStore(ii);
       // 2026-11-24: قيمة متغير مختارة من نافذة البحث (المتغيرات والخصائص) ⇐ يُضاف فرق سعرها بفئة سعر الطلبية
       const variantAttributes = (ii.selected_attributes || {}) as Record<string, string>;
-      const variantDelta = setFromExcelRef.current ? 0 : (await variantAddDelta(ii, Number(ii.price) || Number(ii.first_price) || 0, Number(priceCategoryIdRef.current) || 1)) / (Number(state.formData.exchange_rate) || 1);
+      const variantDelta = setFromExcelRef.current ? 0 : (vch_type === 2 ? (ii.selected_attributes && Object.keys(ii.selected_attributes).length ? await variantPriceChange(Number(ii.product_id || ii.id), {}, ii.selected_attributes, 1) : 0) : await variantAddDelta(ii, Number(ii.price) || Number(ii.first_price) || 0, Number(priceCategoryIdRef.current) || 1)) / (Number(state.formData.exchange_rate) || 1);
       const initialPrice = (() => {
         const p = ii.price ? ii.price / state.formData.exchange_rate : NaN;
         const fallback = ii.first_price ? ii.first_price / state.formData.exchange_rate : NaN;

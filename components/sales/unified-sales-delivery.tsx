@@ -514,6 +514,11 @@ export default function UnifiedSalesDelivery({
   const isDeliveryVoucher = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE].includes(voucherType)
   const isSalesDeliveryVoucher = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE].includes(voucherType)
   const isPurchaseDeliveryVoucher = [PURCHASE_INVOICE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE, RETURN_PURCHASE_VCH_TYPE].includes(voucherType)
+  // فرق سعر المتغير المختار عند إضافة صنف: البيع ⇐ سعر القيمة − سعر السطر؛ المشتريات (سعر السطر = سعر شراء) ⇐
+  // فرق القيمة عن سعر بيع الصنف فقط (كبير 40 لصنف سعره 35 ⇐ +5 على سعر الشراء) لا استبداله بسعر البيع
+  const voucherVariantDelta = async (product: any, basePrice: number) => !product?.selected_attributes || !Object.keys(product.selected_attributes).length ? 0
+    : isPurchaseDeliveryVoucher ? variantPriceChange(Number(product?.product_id || product?.id), {}, product?.selected_attributes, 1)
+    : variantAddDelta(product, basePrice, 1)
   // عنوان بطاقة الملخص أعلى الشاشة يتبع نوع السند الفعلي بدل "ملخص الطلبية" الثابت: فاتورة
   // لفاتورة مبيعات/مشتريات، مرتجع لمرتجع مبيعات/مشتريات (بما فيها مرتجع إرسالية برسم البيع)،
   // وإرسالية لبقية الأنواع (إرسالية مبيعات/برسم البيع/مشتريات).
@@ -2144,7 +2149,7 @@ export default function UnifiedSalesDelivery({
         ? purchaseBase * (Number(product.to_main_unit_qty ?? product.to_main_qnty) || 1)
         : product.price != null ? Number(product.price) : 0
       // متغير مختار بعد إدخال الرقم/الباركود ⇐ فرق سعر قيمته (كنافذة البحث)
-      const variantDelta = await variantAddDelta(product, enteredPrice, 1)
+      const variantDelta = await voucherVariantDelta(product, enteredPrice)
       const unitPrice = entryPriceToNet(enteredPrice + variantDelta, await itemVatRateFor(product.id)) ?? 0
       const warehousePatch = resolveDefaultWarehouse(product)
       const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
@@ -2500,7 +2505,7 @@ export default function UnifiedSalesDelivery({
       if (!isMountedRef.current) return
       // سعر الوحدة (أو سعر الصنف إن كانت 0) + فرق سعر قيمة المتغير المختارة من نافذة البحث (كل أنواع السندات)
       const basePrice = Number(unit?.price) || Number(product.first_price) || 0
-      const entryPrice = basePrice + await variantAddDelta(product, basePrice, 1)
+      const entryPrice = basePrice + await voucherVariantDelta(product, basePrice)
       const unitPrice = entryPriceToNet(entryPrice, await itemVatRateFor(product.id)) ?? 0
       const patched: SalesVoucherItemRow = {
         ...currentRow,

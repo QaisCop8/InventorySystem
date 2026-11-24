@@ -24,6 +24,8 @@ type Props = {
   produced: boolean
   showExpiry: boolean
   showBatch: boolean
+  /** سعر محسوب (احتساب كلفة المنتَج تلقائياً) — عمود السعر للقراءة فقط */
+  priceReadOnly?: boolean
   /** يحلّ رقم الصنف المكتوب في السطر row (row = lines.length سطر جديد) — true عند النجاح */
   onCode: (row: number, code: string) => Promise<boolean>
   onSearch: (row: number) => void
@@ -44,7 +46,7 @@ const safeFinishEditing = (grid: any) => {
 }
 const NAVIGATION_KEYS = new Set([Util.keyboardKeys.Tab, Util.keyboardKeys.Enter, Util.keyboardKeys.DownArrow, Util.keyboardKeys.UpArrow, Util.keyboardKeys.LeftArrow, Util.keyboardKeys.RightArrow, Util.keyboardKeys.Esc, Util.keyboardKeys.F10, Util.keyboardKeys.F7])
 
-export function ProductionGrid({ gridKey, lines, locked, produced, showExpiry, showBatch, onCode, onSearch, onPatch, onRemove }: Props) {
+export function ProductionGrid({ gridKey, lines, locked, produced, showExpiry, showBatch, priceReadOnly = false, onCode, onSearch, onPatch, onRemove }: Props) {
   const gridRef = useRef<any>(null)
   const linesRef = useRef(lines)
   linesRef.current = lines
@@ -59,7 +61,7 @@ export function ProductionGrid({ gridKey, lines, locked, produced, showExpiry, s
   }, [gridKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ترتيب الخلايا القابلة للتحرير (تنقّل Enter/Tab)
-  const editable = useMemo(() => ["product_code", "quantity", "price", ...(produced && showExpiry ? ["expiry_date"] : []), ...(produced && showBatch ? ["batch_no"] : [])], [produced, showExpiry, showBatch])
+  const editable = useMemo(() => ["product_code", "quantity", ...(priceReadOnly ? [] : ["price"]), ...(produced && showExpiry ? ["expiry_date"] : []), ...(produced && showBatch ? ["batch_no"] : [])], [produced, showExpiry, showBatch, priceReadOnly])
 
   const focusCell = (row: number, col: string) => {
     const grid = resolveFlexControl(gridRef.current)
@@ -102,7 +104,7 @@ export function ProductionGrid({ gridKey, lines, locked, produced, showExpiry, s
       ...(!produced ? [{ header: tr("المصدر"), name: "source_label", width: 110, isReadOnly: true }] : []),
       { header: tr("الوحدة"), name: "unit_name", width: 90, isReadOnly: true },
       { header: tr("الكمية"), name: "quantity", width: 100, dataType: wjcCore.DataType.Number, isReadOnly: locked },
-      { header: tr("سعر الشراء"), name: "price", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: locked },
+      { header: produced ? tr("كلفة الوحدة") : tr("الكلفة"), name: "price", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: locked || priceReadOnly },
       { header: tr("القيمة"), name: "total", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: true },
       ...(produced && showExpiry ? [{ header: tr("الصلاحية (yyyy-mm-dd)"), name: "expiry_date", width: 140, maxLength: 10, isReadOnly: locked }] : []),
       ...(produced && showBatch ? [{ header: tr("الرقم التشغيلي"), name: "batch_no", width: 120, maxLength: 30, isReadOnly: locked }] : []),
@@ -112,7 +114,7 @@ export function ProductionGrid({ gridKey, lines, locked, produced, showExpiry, s
         onClick: (_e: any, ctx: any) => { if (!locked && ctx.row.index < linesRef.current.length) handlersRef.current.onRemove(ctx.row.index) },
       },
     ],
-  }), [produced, locked, showExpiry, showBatch])
+  }), [produced, locked, showExpiry, showBatch, priceReadOnly])
 
   const handleCellEditEnded = (grid: any, e: any) => {
     if (grid?.disposed || e?.cancel) return
@@ -187,7 +189,7 @@ export function ProductionGrid({ gridKey, lines, locked, produced, showExpiry, s
   return (
     <div className="w-full max-w-full overflow-x-auto">
       <DataGridView
-        key={`${gridKey}-${locked ? "locked" : "edit"}-${showExpiry}-${showBatch}`}
+        key={`${gridKey}-${locked ? "locked" : "edit"}-${showExpiry}-${showBatch}-${priceReadOnly}`}
         allowSorting={false}
         innerRef={gridRef}
         style={{ height: "260px" }}

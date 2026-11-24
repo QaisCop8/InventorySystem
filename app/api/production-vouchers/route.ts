@@ -7,6 +7,9 @@ import {
   defaultProductionWarehouses,
   deleteProduction,
   ensureProductionTables,
+  listWorkCenters,
+  productionEmployees,
+  saveWorkCenters,
   loadProduction,
   nextProductionCode,
   resolveProductionCode,
@@ -18,6 +21,16 @@ import {
   transferProduction,
   unpostProduction,
 } from "@/lib/production-vouchers"
+import { refreshOrderStatus } from "@/lib/production-orders"
+
+// حالة أمر الانتاج تتبع سنداته (قيد التنفيذ/منتهي) — تُحدَّث بعد كل حفظ/ترحيل/إلغاء/حذف لسند مرتبط
+async function syncOrders(...orderIds: unknown[]) {
+  for (const id of new Set(orderIds.map(Number).filter((value) => value > 0))) await refreshOrderStatus(id).catch((error) => console.error("production order status", error))
+}
+async function voucherOrderId(id: number) {
+  const row = ((await sql`SELECT order_id FROM production_vouchers_tbl WHERE id = ${id}`.catch(() => [])) as any[])[0]
+  return row?.order_id ? Number(row.order_id) : null
+}
 
 export const dynamic = "force-dynamic"
 
@@ -67,7 +80,7 @@ export async function GET(request: NextRequest) {
         ? [await productionProductIdByCode(String(params.get("product_code")))].filter((id): id is number => Boolean(id))
         : String(params.get("product_ids")).split(",").map(Number).filter((id) => id > 0)
       if (params.has("product_code") && !ids.length) return NextResponse.json({ error: `لا يوجد صنف بالرقم ${params.get("product_code")}` }, { status: 404 })
-      return NextResponse.json({ items: await productionProductsInfo(ids) })
+      return NextResponse.json({ items: await productionProductsInfo(ids, String(params.get("date") || "")) })
     }
     // التنقل (الأول/السابق/التالي/الأخير) بترتيب المعرّف كباقي السندات — على فروع المستخدم المسموحة، دون الملغاة.
     // سند جديد (current_id=0): السابق = الأخير والتالي = الأول. يُعاد معه موقع السند (index من total) لعدّاد الشريط.
@@ -109,6 +122,17 @@ export async function GET(request: NextRequest) {
       const branchId = Number(params.get("branch_id")) || auth.branchId
       if (params.has("resolve_code")) return NextResponse.json(await resolveProductionCode(String(params.get("resolve_code")), branchId))
       return NextResponse.json({ code: await nextProductionCode(branchId), id: null })
+    }
+    // مراكز العمل (خطوط/آلات) وموظفو الفرع مع أجر الساعة — قسم «العمال ومركز العمل» والانتاج السريع
+    if (params.get("work_centers") === "1") {
+      const auth = await authorize(request, "view")
+      if (!auth.ok) return auth.response
+      return NextResponse.json(await listWorkCenters(params.get("all") === "1"))
+    }
+    if (params.get("employees") === "1") {
+      const auth = await authorize(request, "view")
+      if (!auth.ok) return auth.response
+      return NextResponse.json(await productionEmployees(auth.branchIds))
     }
     if (params.get("meta") === "1") {
       const auth = await authorize(request, "view", params.get("branch_id") || undefined)
@@ -169,6 +193,7 @@ async function save(request: NextRequest, mode: "create" | "update") {
     const posting = await authorize(request, "post", auth.branchId)
     if (!posting.ok) return posting.response
   }
+  const previousOrder = existingId ? await voucherOrderId(Number(existingId)) : null
   const id = await saveProduction(request, data, auth.userId, auth.branchId, existingId)
   let posted: any = null
   let postError: string | null = null
@@ -178,6 +203,7 @@ async function save(request: NextRequest, mode: "create" | "update") {
       postError = error.message
     }
   }
+  await syncOrders(previousOrder, data.order_id)
   return NextResponse.json({ ...(await loadProduction(id)), posted, post_error: postError }, { status: mode === "create" ? 201 : 200 })
 }
 
@@ -193,6 +219,11 @@ export async function PATCH(request: NextRequest) {
   try {
     await ensureProductionTables()
     const data = await request.json().catch(() => ({}))
+    if (data.action === "save_work_centers") {
+      const auth = await authorize(request, "update")
+      if (!auth.ok) return auth.response
+      return NextResponse.json({ ok: true, work_centers: await saveWorkCenters(data.work_centers) })
+    }
     const id = Number(data.id)
     if (!(id > 0)) throw new ProductionError("معرف سند الانتاج مطلوب")
     const branchId = await storedBranch(id)
@@ -206,6 +237,7 @@ export async function PATCH(request: NextRequest) {
     else if (action === "unpost") await unpostProduction(request, id, auth.userId)
     else if (action === "transfer") result = await transferProduction(request, id, data, auth.userId)
     else await cancelProductionTransfer(request, id, Number(data.transfer_id))
+    if (action === "post" || action === "unpost") await syncOrders(await voucherOrderId(id))
     return NextResponse.json({ ok: true, result, production: await loadProduction(id) })
   } catch (error) {
     return fail(error, "تعذر تنفيذ الإجراء")
@@ -219,7 +251,9 @@ export async function DELETE(request: NextRequest) {
     if (!(id > 0)) throw new ProductionError("معرف سند الانتاج غير صالح")
     const auth = await authorize(request, "delete", await storedBranch(id))
     if (!auth.ok) return auth.response
+    const orderId = await voucherOrderId(id)
     await deleteProduction(request, id)
+    await syncOrders(orderId)
     return NextResponse.json({ ok: true })
   } catch (error) {
     return fail(error, "تعذر حذف سند الانتاج")

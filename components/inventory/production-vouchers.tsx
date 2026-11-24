@@ -3,7 +3,8 @@ import { tr, appDir } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ArrowLeftRight, ExternalLink, Factory, Loader2, PackagePlus, Plus, Undo2 } from "lucide-react"
+import { ArrowLeftRight, ExternalLink, Factory, Loader2, PackagePlus, Plus, Settings2, Trash2, Undo2, Users, Zap } from "lucide-react"
+import { QuickProductionDialog, WorkCentersDialog } from "@/components/inventory/production-shop-floor"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,6 +22,14 @@ import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/p
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 import StockVoucherPrintLayout, { type StockVoucherPrintData } from "@/components/common/stock-voucher-print-layout"
 import { VoucherSearchButton as CodeSearchButton } from "@/components/common/voucher-search-dialog"
+import { useSectionIntent } from "@/lib/section-intents"
+
+/** «تنفيذ» من شاشة أوامر الانتاج: سند جديد مرتبط بالأمر بالكميات المتبقية (components/inventory/production-orders.tsx) */
+export type ProductionOrderIntent = {
+  order_id: number; order_code: string; branch_id: number | null
+  finished_store_id: number | null; raw_store_id: number | null
+  items: { item_id: number; quantity: number }[]
+}
 
 // سند انتاج بضاعة: جدول المواد المنتجة + جدول المواد الخام. اختيار صنف منتَج يضيف مكونات التصنيع المعرّفة عليه
 // للمواد الخام (كمية المكوّن × كمية المنتَج، وتُعاد حسابها مع تغيّر الكمية ما لم يعدّلها المستخدم يدوياً).
@@ -32,10 +41,39 @@ type Line = {
   has_expiry?: boolean; has_batch?: boolean; transferred?: number
   /** المواد الخام: مفتاح سطر المنتَج الذي أضافها + كمية المكوّن لكل وحدة منتَجة */
   source?: string | null; per_unit?: number | null; edited?: boolean
+  /** المنتَج: نسبة توزيع الكلفة (فارغ = حسب الكمية) */
+  cost_share?: string
+  /** الخام المضاف من الوصفة: الكمية المعيارية المحفوظة (سند أُعيد فتحه) */
+  standard_quantity?: number | null
 }
+/** تكلفة إضافية (أجور/تشغيل/تغليف/أخرى) — source/per_unit: أُضيفت من وصفة منتَج وتتبع كميته ما لم تُعدَّل */
+type CostLine = { key: string; cost_type: string; description: string; amount: string; source?: string | null; per_unit?: number | null; edited?: boolean }
+const COST_TYPES: Record<string, string> = { labor: tr("أجور عمال"), overhead: tr("مصاريف تشغيل"), packaging: tr("تغليف وتعبئة"), other: tr("أخرى") }
 type Production = Record<string, any> & { id?: number; code?: string; status?: number }
 type Option = { id: number; name: string; code?: string }
-type Form = { id: number | null; code: string; status: number; vch_date: string; branch_id: number | null; finished_store_id: string; raw_store_id: string; note: string; produced: Line[]; raw: Line[] }
+type Form = { id: number | null; code: string; status: number; vch_date: string; branch_id: number | null; finished_store_id: string; raw_store_id: string; note: string; produced: Line[]; raw: Line[]; auto_cost: boolean; costs: CostLine[]; order_id: number | null; order_code: string
+  work_center_id: string; machine_hours: string; workers: Worker[] }
+/** عامل على السند: ساعات × أجر الساعة ⇐ سطر «عمال الانتاج» في التكاليف الإضافية */
+type Worker = { key: string; employee_id: number | null; worker_name: string; hours: string; hourly_rate: string }
+type WorkCenter = { id: number; name: string; hourly_rate: number; active: boolean }
+type Employee = { id: number; code: string; name: string; hourly_rate: number }
+// أسطر تكاليف تولّدها الشاشة من العمال/مركز العمل — تُعرف بعد إعادة الفتح من بيانها
+const WORKERS_COST_LABEL = "عمال الانتاج"
+const CENTER_COST_PREFIX = "مركز العمل: "
+
+/** يعيد توليد سطري «عمال الانتاج» و«مركز العمل» (غير المعدّلين يدوياً) من العمال وساعات التشغيل */
+function withAutoCosts(form: Form, centers: WorkCenter[]): Form {
+  const kept = form.costs.filter((line) => !(line.source?.startsWith("@") && !line.edited))
+  const labor = form.workers.reduce((sum, worker) => sum + num(worker.hours) * num(worker.hourly_rate), 0)
+  const center = centers.find((row) => String(row.id) === form.work_center_id)
+  const overhead = center ? num(form.machine_hours) * center.hourly_rate : 0
+  const auto: CostLine[] = []
+  const editedLabor = form.costs.some((line) => line.source === "@workers" && line.edited)
+  const editedCenter = form.costs.some((line) => line.source === "@center" && line.edited)
+  if (labor > 0 && !editedLabor) auto.push({ key: keyOf(), cost_type: "labor", description: WORKERS_COST_LABEL, amount: String(Math.round(labor * 1e4) / 1e4), source: "@workers", edited: false })
+  if (overhead > 0 && center && !editedCenter) auto.push({ key: keyOf(), cost_type: "overhead", description: CENTER_COST_PREFIX + center.name, amount: String(Math.round(overhead * 1e4) / 1e4), source: "@center", edited: false })
+  return { ...form, costs: [...kept, ...auto] }
+}
 
 const today = () => new Date().toISOString().slice(0, 10)
 const money = (value: number) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
@@ -49,7 +87,8 @@ const emptyForm = (defaults?: { finished_store_id?: number | null; raw_store_id?
   id: null, code: "", status: 1, vch_date: today(), branch_id: branchId,
   finished_store_id: defaults?.finished_store_id ? String(defaults.finished_store_id) : "",
   raw_store_id: defaults?.raw_store_id ? String(defaults.raw_store_id) : "",
-  note: "", produced: [], raw: [],
+  note: "", produced: [], raw: [], auto_cost: true, costs: [], order_id: null, order_code: "",
+  work_center_id: "", machine_hours: "", workers: [],
 })
 
 const openVoucher = (id: number | null | undefined, type: number) => {
@@ -70,13 +109,28 @@ function fromServer(row: any): Form {
       key: producedKeys[index], id: line.id, item_id: line.item_id, product_code: line.product_code, product_name: line.product_name, unit_name: line.unit_name,
       quantity: String(line.quantity), price: String(line.price), expiry_date: line.expiry_date || "", batch_no: line.batch_no || "", note: line.note || "",
       has_expiry: Boolean(line.expiry_date), has_batch: Boolean(line.batch_no), transferred: Number(line.transferred || 0),
+      cost_share: line.cost_share != null ? String(line.cost_share) : "",
     })),
     raw: (row.raw || []).map((line: any) => ({
       key: keyOf(), id: line.id, item_id: line.item_id, product_code: line.product_code, product_name: line.product_name, unit_name: line.unit_name,
       quantity: String(line.quantity), price: String(line.price), expiry_date: "", batch_no: "", note: line.note || "",
       // بعد إعادة الفتح تبقى كميات الخام كما حُفظت (لا إعادة حساب تلقائية)
       source: line.source_line != null ? producedKeys[line.source_line] ?? null : null, per_unit: null, edited: true,
+      standard_quantity: line.standard_quantity != null ? Number(line.standard_quantity) : null,
     })),
+    auto_cost: Boolean(row.auto_cost),
+    order_id: row.order_id ? Number(row.order_id) : null, order_code: row.order_code || "",
+    work_center_id: row.work_center_id ? String(row.work_center_id) : "", machine_hours: row.machine_hours ? String(row.machine_hours) : "",
+    workers: (row.workers || []).map((worker: any) => ({ key: keyOf(), employee_id: worker.employee_id, worker_name: worker.worker_name || "", hours: String(worker.hours || ""), hourly_rate: String(worker.hourly_rate || "") })),
+    costs: (row.costs || []).map((line: any) => {
+      // سطرا العمال/مركز العمل المولَّدان يبقيان مرتبطين بمصدرهما (يُعاد حسابهما عند تعديل الساعات)
+      const auto = line.source_line == null && line.cost_type === "labor" && line.description === WORKERS_COST_LABEL ? "@workers"
+        : line.source_line == null && line.cost_type === "overhead" && String(line.description || "").startsWith(CENTER_COST_PREFIX) ? "@center" : null
+      return {
+        key: keyOf(), cost_type: line.cost_type || "other", description: line.description || "", amount: String(line.amount ?? ""),
+        source: auto || (line.source_line != null ? producedKeys[line.source_line] ?? null : null), per_unit: null, edited: !auto,
+      }
+    }),
   }
 }
 
@@ -103,6 +157,18 @@ export default function ProductionVouchers() {
   const [nav, setNav] = useState({ index: 1, total: 0 })
   const [printData, setPrintData] = useState<StockVoucherPrintData | null>(null)
   const initialRef = useRef("")
+  const [workCenters, setWorkCenters] = useState<WorkCenter[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [centersOpen, setCentersOpen] = useState(false)
+  const [quickOpen, setQuickOpen] = useState(false)
+  const loadCenters = useCallback(() => {
+    fetch("/api/production-vouchers?work_centers=1&all=1", { cache: "no-store" }).then((response) => (response.ok ? response.json() : [])).then((rows) => setWorkCenters(Array.isArray(rows) ? rows : [])).catch(() => undefined)
+  }, [])
+  useEffect(() => {
+    loadCenters()
+    fetch("/api/production-vouchers?employees=1", { cache: "no-store" }).then((response) => (response.ok ? response.json() : [])).then((rows) => setEmployees(Array.isArray(rows) ? rows : [])).catch(() => undefined)
+  }, [loadCenters])
+  const patchShop = (patch: Partial<Form>) => setForm((value) => withAutoCosts({ ...value, ...patch }, workCenters))
 
   const locked = form.status !== 1
   const dirty = open && !locked && JSON.stringify(form) !== initialRef.current
@@ -210,11 +276,13 @@ export default function ProductionVouchers() {
   const setProduced = (key: string, patch: Partial<Line>) => setForm((value) => {
     const produced = value.produced.map((line) => (line.key === key ? { ...line, ...patch } : line))
     let raw = value.raw
+    let costs = value.costs
     if (patch.quantity !== undefined) {
       const quantity = num(patch.quantity)
       raw = raw.map((line) => (line.source === key && !line.edited && line.per_unit ? { ...line, quantity: String(Math.round(line.per_unit * quantity * 1e6) / 1e6) } : line))
+      costs = costs.map((line) => (line.source === key && !line.edited && line.per_unit ? { ...line, amount: String(Math.round(line.per_unit * quantity * 1e4) / 1e4) } : line))
     }
-    return { ...value, produced, raw }
+    return { ...value, produced, raw, costs }
   })
   const setRaw = (key: string, patch: Partial<Line>) => setForm((value) => ({
     ...value, raw: value.raw.map((line) => (line.key === key ? { ...line, ...patch, edited: patch.quantity !== undefined ? true : line.edited } : line)),
@@ -226,6 +294,8 @@ export default function ProductionVouchers() {
       ...value,
       produced: value.produced.filter((row) => row.key !== line.key),
       raw: value.raw.filter((row) => !(dropLinked && row.source === line.key && !row.edited)).map((row) => (row.source === line.key ? { ...row, source: null } : row)),
+      // تكاليف وصفة المنتَج المحذوف تُحذف معه (المعدّلة يدوياً تبقى بلا مصدر)
+      costs: value.costs.filter((row) => !(row.source === line.key && !row.edited)).map((row) => (row.source === line.key ? { ...row, source: null } : row)),
     }))
   }
 
@@ -235,14 +305,14 @@ export default function ProductionVouchers() {
   const lastPickRef = useRef({ key: "", at: 0 })
   const formRef = useRef(form)
   formRef.current = form
-  const applyProducts = (items: { product: any; components: any[] }[], target: "produced" | "raw", atIndex?: number) => {
+  const applyProducts = (items: { product: any; components: any[]; recipe?: any }[], target: "produced" | "raw", atIndex?: number, quantities?: Map<number, number>) => {
     let added = false
     const messages: string[] = []
     const base = (p: any): Omit<Line, "key"> => ({
       item_id: p.id, product_code: p.product_code, product_name: p.product_name, unit_name: p.unit_name, quantity: "1", price: String(p.price || 0),
       expiry_date: "", batch_no: "", note: "", has_expiry: p.has_expiry, has_batch: p.has_batch,
     })
-    items.forEach(({ product, components }, position) => {
+    items.forEach(({ product, components, recipe }, position) => {
       if (product.unsupported) { messages.push(`لا يمكن استخدام "${product.product_name}" في سند الانتاج: ${product.unsupported}`); return }
       const replaceAt = position === 0 && atIndex !== undefined && atIndex < formRef.current[target].length ? atIndex : null
       added = true
@@ -262,17 +332,32 @@ export default function ProductionVouchers() {
       setForm((value) => {
         const produced = [...value.produced]
         const previous = replaceAt !== null ? produced[replaceAt] : null
-        const quantity = previous ? num(previous.quantity) || 1 : 1
-        const line = { ...base(product), key, quantity: String(quantity) }
+        const quantity = previous ? num(previous.quantity) || 1 : quantities?.get(Number(product.id)) || 1
+        // صلاحية/رقم تشغيلي تلقائي: تاريخ السند + مدة صلاحية الوصفة، ورقم تشغيلي من تاريخ السند وترتيب السطر
+        const shelfLife = Number(recipe?.shelf_life_days) || 0
+        const expiry = product.has_expiry && shelfLife > 0 && value.vch_date
+          ? (() => { const date = new Date(`${value.vch_date}T12:00:00`); date.setDate(date.getDate() + shelfLife); return date.toISOString().slice(0, 10) })()
+          : ""
+        const batch = product.has_batch ? `B${value.vch_date.replace(/-/g, "").slice(2)}-${(replaceAt ?? produced.length) + 1}` : ""
+        const line = { ...base(product), key, quantity: String(quantity), expiry_date: previous?.expiry_date || expiry, batch_no: previous?.batch_no || batch }
         if (previous) produced[replaceAt!] = line
         else produced.push(line)
         // تغيير الصنف المنتَج في سطر: تُستبدل مكوناته غير المعدّلة بمكونات الصنف الجديد
         const raw = value.raw
           .filter((row) => !(previous && row.source === previous.key && !row.edited))
           .map((row) => (previous && row.source === previous.key ? { ...row, source: null } : row))
+        // تكاليف الوصفة المعيارية لكل وحدة (أجور/تشغيل/تغليف) × الكمية
+        const recipeCosts: CostLine[] = (["labor", "overhead", "packaging"] as const)
+          .map((type) => ({ type, perUnit: Number(recipe?.[`${type}_cost`]) || 0 }))
+          .filter((row) => row.perUnit > 0)
+          .map((row) => ({ key: keyOf(), cost_type: row.type, description: product.product_name, amount: String(Math.round(row.perUnit * quantity * 1e4) / 1e4), source: key, per_unit: row.perUnit, edited: false }))
+        const costs = value.costs
+          .filter((row) => !(previous && row.source === previous.key && !row.edited))
+          .map((row) => (previous && row.source === previous.key ? { ...row, source: null } : row))
         return {
           ...value,
           produced,
+          costs: [...costs, ...recipeCosts],
           raw: [
             ...raw,
             ...usable.map((component: any, index: number) => ({
@@ -289,7 +374,7 @@ export default function ProductionVouchers() {
     return added
   }
 
-  const addProducts = async (products: any[], target: "produced" | "raw", atIndex?: number): Promise<boolean> => {
+  const addProducts = async (products: any[], target: "produced" | "raw", atIndex?: number, quantities?: Map<number, number>): Promise<boolean> => {
     const ids = [...new Set(products.map((picked) => Number(picked?.id || picked?.product_id)).filter((id) => id > 0))]
     if (!ids.length) return false
     const guardKey = `${target}:${atIndex ?? "end"}:${ids.join(",")}`
@@ -297,10 +382,10 @@ export default function ProductionVouchers() {
     addingRef.current.add(guardKey)
     setFormError("")
     try {
-      const response = await fetch(`/api/production-vouchers?product_ids=${ids.join(",")}`, { cache: "no-store" })
+      const response = await fetch(`/api/production-vouchers?product_ids=${ids.join(",")}&date=${formRef.current.vch_date}`, { cache: "no-store" })
       if (!response.ok) throw new Error(await readError(response, tr("تعذر تحميل الأصناف")))
       const { items } = await response.json()
-      return applyProducts(items || [], target, atIndex)
+      return applyProducts(items || [], target, atIndex, quantities)
     } catch (e) {
       setFormError(e instanceof Error ? e.message : tr("تعذر إضافة الصنف"))
       return false
@@ -308,6 +393,22 @@ export default function ProductionVouchers() {
       addingRef.current.delete(guardKey)
     }
   }
+
+  // تنفيذ أمر انتاج: سند جديد بمستودعات الأمر ومنتجاته بكمياتها المتبقية (مكوناتها وتكاليف وصفتها تُضاف تلقائياً)
+  useSectionIntent<ProductionOrderIntent>("production-vouchers", (intent) => {
+    void guarded(() => {
+      const base = newForm(intent.branch_id ?? activeBranchId ?? null)
+      begin({
+        ...base,
+        finished_store_id: intent.finished_store_id ? String(intent.finished_store_id) : base.finished_store_id,
+        raw_store_id: intent.raw_store_id ? String(intent.raw_store_id) : base.raw_store_id,
+        order_id: intent.order_id, order_code: intent.order_code, note: tr("تنفيذ أمر الانتاج {0}", intent.order_code),
+      }, null)
+      setNotice("")
+      const quantities = new Map(intent.items.map((line) => [Number(line.item_id), Number(line.quantity)]))
+      setTimeout(() => void addProducts(intent.items.map((line) => ({ id: line.item_id })), "produced", undefined, quantities), 0)
+    })
+  })
 
   // رقم/باركود صنف مكتوب في الجدول: طلب واحد يحلّ الرقم ويحمّل الصنف ومكوناته
   const lookupCode = async (target: "produced" | "raw", row: number, code: string) => {
@@ -327,20 +428,49 @@ export default function ProductionVouchers() {
     }
   }
 
+  // كلفة الانتاج: الخام + التكاليف الإضافية، موزعة على المنتجات بنسبة التوزيع (وإلا بالكمية) — نفس قاعدة الخادم
+  // (lib/production-vouchers.ts#allocateProductionCost). الاحتساب التلقائي يجعل سعر المنتَج محسوباً لا يُدخل.
+  const costing = useMemo(() => {
+    const rawTotal = form.raw.reduce((sum, line) => sum + num(line.quantity) * num(line.price), 0)
+    const extra = form.costs.reduce((sum, line) => sum + num(line.amount), 0)
+    const total = rawTotal + extra
+    const shares = form.produced.map((line) => Math.max(0, num(line.cost_share)))
+    const shareTotal = shares.reduce((sum, value) => sum + value, 0)
+    const quantityTotal = form.produced.reduce((sum, line) => sum + num(line.quantity), 0)
+    const unit = new Map(form.produced.map((line, index) => {
+      const portion = shareTotal > 0 ? shares[index] / shareTotal : quantityTotal > 0 ? num(line.quantity) / quantityTotal : 0
+      return [line.key, num(line.quantity) > 0 ? Math.round(((total * portion) / num(line.quantity)) * 1e6) / 1e6 : 0]
+    }))
+    return { rawTotal, extra, total, unit }
+  }, [form.produced, form.raw, form.costs])
+  const producedView = useMemo(
+    () => (form.auto_cost && !locked ? form.produced.map((line) => ({ ...line, price: String(costing.unit.get(line.key) ?? 0) })) : form.produced),
+    [form.auto_cost, form.produced, costing, locked],
+  )
   const totals = useMemo(() => {
     const value = (lines: Line[]) => lines.reduce((sum, line) => sum + num(line.quantity) * num(line.price), 0)
-    return { produced: value(form.produced), raw: value(form.raw) }
-  }, [form.produced, form.raw])
+    return { produced: value(producedView), raw: value(form.raw) }
+  }, [producedView, form.raw])
 
   // ───── الحفظ والإجراءات ─────
   const payload = () => {
     const producedIndex = new Map(form.produced.map((line, index) => [line.key, index]))
     const shape = (line: Line) => ({ item_id: line.item_id, quantity: num(line.quantity), price: num(line.price), expiry_date: line.expiry_date || null, batch_no: line.batch_no, note: line.note })
+    const producedQty = new Map(form.produced.map((line) => [line.key, num(line.quantity)]))
     return {
+      order_id: form.order_id || undefined,
+      work_center_id: Number(form.work_center_id) || null, machine_hours: num(form.machine_hours) || null,
+      workers: form.workers.filter((worker) => worker.employee_id || worker.worker_name.trim()).map((worker) => ({ employee_id: worker.employee_id, worker_name: worker.worker_name, hours: num(worker.hours), hourly_rate: num(worker.hourly_rate) })),
+      auto_cost: form.auto_cost,
+      costs: form.costs.filter((line) => num(line.amount) > 0).map((line) => ({ cost_type: line.cost_type, description: line.description, amount: num(line.amount), source_line: line.source ? producedIndex.get(line.source) ?? null : null })),
       id: form.id || undefined, branch_id: form.branch_id || activeBranchId || undefined, code: form.id ? undefined : form.code, vch_date: form.vch_date,
       finished_store_id: Number(form.finished_store_id) || null, raw_store_id: Number(form.raw_store_id) || null, note: form.note,
-      produced: form.produced.map(shape),
-      raw: form.raw.map((line) => ({ ...shape(line), source_line: line.source ? producedIndex.get(line.source) ?? null : null })),
+      produced: producedView.map((line) => ({ ...shape(line), cost_share: num(line.cost_share) || null })),
+      // الكمية المعيارية (الوصفة مع الهدر × الكمية المنتجة) لتقارير انحراف الاستهلاك
+      raw: form.raw.map((line) => ({
+        ...shape(line), source_line: line.source ? producedIndex.get(line.source) ?? null : null,
+        standard_quantity: line.source && line.per_unit ? Math.round(line.per_unit * (producedQty.get(line.source) || 0) * 1e6) / 1e6 : line.standard_quantity ?? null,
+      })),
     }
   }
 
@@ -400,7 +530,7 @@ export default function ProductionVouchers() {
       copyLabel: doc.status === 2 ? "" : tr("نسخة للتدقيق"),
       vch_code: doc.code,
       vch_date: doc.vch_date,
-      note: [doc.note, `قيمة المواد المنتجة ${money(value(doc.produced))} — قيمة المواد الخام ${money(value(doc.raw))}`].filter(Boolean).join(" — "),
+      note: [doc.note, `قيمة المواد المنتجة ${money(value(doc.produced))} — قيمة المواد الخام ${money(value(doc.raw))}`, doc.costs.length ? `تكاليف إضافية: ${doc.costs.map((line) => `${COST_TYPES[line.cost_type] || line.cost_type}${line.description ? ` (${line.description})` : ""} ${money(num(line.amount))}`).join("، ")}` : ""].filter(Boolean).join(" — "),
       rows: [...rowsOf(doc.produced, "منتَج", finished), ...rowsOf(doc.raw, "خام", raw)],
     })
   }
@@ -427,9 +557,10 @@ export default function ProductionVouchers() {
     const keys = new Map(form.produced.map((line) => [line.key, keyOf()]))
     const strip = (line: Line): Line => ({ ...line, id: undefined, transferred: 0 })
     begin({
-      ...form, id: null, code: "", status: 1, vch_date: today(),
+      ...form, id: null, code: "", status: 1, vch_date: today(), order_id: null, order_code: "",
       produced: form.produced.map((line) => ({ ...strip(line), key: keys.get(line.key)! })),
       raw: form.raw.map((line) => ({ ...strip(line), key: keyOf(), source: line.source ? keys.get(line.source) ?? null : null })),
+      costs: form.costs.map((line) => ({ ...line, key: keyOf(), source: line.source ? keys.get(line.source) ?? null : null })),
     }, null)
   }
 
@@ -457,7 +588,7 @@ export default function ProductionVouchers() {
   ]
 
   const grid = (target: "produced" | "raw") => {
-    const lines = form[target]
+    const lines = target === "produced" ? producedView : form.raw
     const update = target === "produced" ? setProduced : setRaw
     return (
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -490,6 +621,7 @@ export default function ProductionVouchers() {
           produced={target === "produced"}
           showExpiry={target === "produced" && showExpiry}
           showBatch={target === "produced" && showBatch}
+          priceReadOnly={target === "produced" && form.auto_cost}
           onCode={(row, code) => lookupCode(target, row, code)}
           onSearch={(row) => { setSearchRow(row); setSearch(target) }}
           onPatch={(key, patch) => update(key, patch)}
@@ -502,7 +634,11 @@ export default function ProductionVouchers() {
 
   return (
     <div className="space-y-5 p-4" dir={appDir()}>
-      <VoucherListHero icon={Factory} title={tr("سند انتاج بضاعة")} subtitle={tr("المواد المنتجة تدخل مستودع المواد الجاهزة والمواد الخام تُصرف من مستودع المواد الخام")} addLabel={tr("سند انتاج جديد")} onNew={openNew} addDisabled={busy} />
+      <VoucherListHero icon={Factory} title={tr("سند انتاج بضاعة")} subtitle={tr("المواد المنتجة تدخل مستودع المواد الجاهزة والمواد الخام تُصرف من مستودع المواد الخام")} addLabel={tr("سند انتاج جديد")} onNew={openNew} addDisabled={busy}
+        actions={<>
+          <Button type="button" onClick={() => setQuickOpen(true)} className="gap-1.5 bg-amber-500 text-white hover:bg-amber-600"><Zap className="h-4 w-4" />{tr("انتاج سريع")}</Button>
+          <Button type="button" variant="outline" onClick={() => setCentersOpen(true)} className="gap-1.5 bg-white/90 text-slate-700"><Settings2 className="h-4 w-4" />{tr("مراكز العمل")}</Button>
+        </>} />
       <VoucherStats stats={listStats} />
 
       <section className="grid gap-3 rounded-2xl border bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
@@ -571,6 +707,7 @@ export default function ProductionVouchers() {
               <Factory className="h-5 w-5" />{tr("سند انتاج بضاعة")}
               <span className="rounded-full bg-white/15 px-2.5 py-0.5 font-mono text-sm">{form.code || tr("جديد")}</span>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${STATUS_TONE[form.status] || "bg-white/20"}`}>{STATUS_LABEL[form.status] || ""}</span>
+              {form.order_code && <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs">{tr("أمر الانتاج")} <b className="font-mono">{form.order_code}</b></span>}
             </DialogTitle>
           </DialogHeader>
 
@@ -611,11 +748,23 @@ export default function ProductionVouchers() {
             {grid("produced")}
             {grid("raw")}
 
-            <div className="grid gap-3 rounded-2xl border bg-slate-50 p-4 text-sm sm:grid-cols-3">
-              <div>{tr("قيمة المواد المنتجة: ")}<b dir="ltr" className="font-mono">{money(totals.produced)}</b></div>
-              <div>{tr("قيمة المواد الخام: ")}<b dir="ltr" className="font-mono">{money(totals.raw)}</b></div>
-              <div>{tr("الفرق: ")}<b dir="ltr" className={`font-mono ${totals.produced - totals.raw < 0 ? "text-rose-700" : "text-emerald-700"}`}>{money(totals.produced - totals.raw)}</b></div>
-            </div>
+            <ShopFloorPanel
+              form={form}
+              locked={locked}
+              centers={workCenters}
+              employees={employees}
+              onChange={patchShop}
+            />
+
+            <CostsPanel
+              form={form}
+              locked={locked}
+              costing={costing}
+              producedValue={totals.produced}
+              onAutoCost={(value) => setForm((current) => ({ ...current, auto_cost: value }))}
+              onCosts={(costs) => setForm((current) => ({ ...current, costs }))}
+              onShare={(key, share) => setForm((current) => ({ ...current, produced: current.produced.map((line) => (line.key === key ? { ...line, cost_share: share } : line)) }))}
+            />
 
             {current && (current.in_vch_code || current.out_vch_code || current.transfers?.length > 0) && (
               <div className="space-y-2 rounded-2xl border p-4 text-sm">
@@ -669,6 +818,18 @@ export default function ProductionVouchers() {
 
       <StockVoucherPrintLayout data={printData} voucherTypeId={8} />
 
+      {centersOpen && <WorkCentersDialog centers={workCenters} onClose={() => setCentersOpen(false)} onSaved={(rows) => { setWorkCenters(rows); setCentersOpen(false) }} />}
+      {quickOpen && (
+        <QuickProductionDialog
+          branchId={activeBranchId ?? null}
+          warehouses={warehouses}
+          defaults={defaults}
+          onClose={() => setQuickOpen(false)}
+          onDone={() => void loadList()}
+          onOpenVoucher={(id) => { setQuickOpen(false); void openRow(id) }}
+        />
+      )}
+
       <PostVoucherDialog visible={postOpen} isSaving={busy} onSelect={handlePostAction} onCancel={() => setPostOpen(false)} />
 
       {codeSearchOpen && (
@@ -689,6 +850,129 @@ export default function ProductionVouchers() {
         />
       )}
     </div>
+  )
+}
+
+/**
+ * التكاليف الإضافية وكلفة الانتاج (2026-11-24): أجور/تشغيل/تغليف/أخرى + ملخص (خام + إضافية = كلفة الانتاج) وكلفة وحدة
+ * كل منتَج مع نسبة توزيع الكلفة عند أكثر من منتَج. «احتساب الكلفة تلقائياً» يجعل كلفة المنتَج محسوبة (الخام بمتوسط كلفته).
+ */
+/** العمال ومركز العمل: أجور العمال (ساعات × أجر الساعة) وكلفة تشغيل المركز (ساعات × كلفة الساعة) ⇐ تكاليف إضافية تلقائية */
+function ShopFloorPanel({ form, locked, centers, employees, onChange }: {
+  form: Form; locked: boolean; centers: WorkCenter[]; employees: Employee[]; onChange: (patch: Partial<Form>) => void
+}) {
+  const setWorker = (key: string, patch: Partial<Worker>) => onChange({ workers: form.workers.map((worker) => (worker.key === key ? { ...worker, ...patch } : worker)) })
+  const activeCenters = centers.filter((center) => center.active || String(center.id) === form.work_center_id)
+  const laborTotal = form.workers.reduce((sum, worker) => sum + num(worker.hours) * num(worker.hourly_rate), 0)
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-violet-50/70 px-4 py-3">
+        <h3 className="flex items-center gap-2 font-bold text-slate-800"><Users className="h-5 w-5 text-violet-600" />{tr("العمال ومركز العمل")}</h3>
+        {!locked && <Button type="button" size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={() => onChange({ workers: [...form.workers, { key: keyOf(), employee_id: null, worker_name: "", hours: "", hourly_rate: "" }] })}><Plus className="h-3.5 w-3.5" />{tr("إضافة عامل")}</Button>}
+      </div>
+      <div className="grid gap-4 p-4 lg:grid-cols-[1fr_1.6fr]">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="col-span-2 space-y-1 sm:col-span-1 lg:col-span-2">
+            <Label className="text-xs">{tr("مركز العمل / خط الانتاج")}</Label>
+            <select disabled={locked} className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={form.work_center_id} onChange={(event) => onChange({ work_center_id: event.target.value })}>
+              <option value="">{tr("— بدون —")}</option>
+              {activeCenters.map((center) => <option key={center.id} value={center.id}>{center.name}{center.hourly_rate ? ` (${money(center.hourly_rate)} / ${tr("ساعة")})` : ""}</option>)}
+            </select>
+          </div>
+          <div className="col-span-2 space-y-1 sm:col-span-1 lg:col-span-2">
+            <Label className="text-xs">{tr("ساعات التشغيل")}</Label>
+            <Input disabled={locked || !form.work_center_id} type="number" min={0} step="any" dir="ltr" className="h-9 font-mono" value={form.machine_hours} onChange={(event) => onChange({ machine_hours: event.target.value })} />
+          </div>
+        </div>
+        <div className="min-w-0 space-y-1.5">
+          {form.workers.length === 0 ? (
+            <p className="rounded-lg border border-dashed p-3 text-center text-xs text-slate-500">{tr("أضف العمال وساعات عملهم — تُحسب أجورهم تلقائياً ضمن كلفة الانتاج")}</p>
+          ) : form.workers.map((worker) => (
+            <div key={worker.key} className="grid grid-cols-[minmax(0,1fr)_80px_90px_auto] items-center gap-1.5">
+              {!employees.length ? <Input disabled={locked} className="h-9 min-w-0" placeholder={tr("اسم العامل")} value={worker.worker_name} onChange={(event) => setWorker(worker.key, { worker_name: event.target.value })} /> :
+              <select disabled={locked} className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm" value={worker.employee_id ?? ""}
+                onChange={(event) => {
+                  const employee = employees.find((row) => row.id === Number(event.target.value))
+                  setWorker(worker.key, { employee_id: employee?.id ?? null, worker_name: employee?.name || "", hourly_rate: employee && !num(worker.hourly_rate) ? String(employee.hourly_rate || "") : worker.hourly_rate })
+                }}>
+                <option value="">{worker.worker_name && !worker.employee_id ? worker.worker_name : tr("— اختر الموظف —")}</option>
+                {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
+              </select>}
+              <Input disabled={locked} type="number" min={0} step="any" dir="ltr" className="h-9 font-mono" placeholder={tr("ساعات")} value={worker.hours} onChange={(event) => setWorker(worker.key, { hours: event.target.value })} />
+              <Input disabled={locked} type="number" min={0} step="any" dir="ltr" className="h-9 font-mono" placeholder={tr("أجر الساعة")} value={worker.hourly_rate} onChange={(event) => setWorker(worker.key, { hourly_rate: event.target.value })} />
+              {!locked ? <Button type="button" size="sm" variant="ghost" className="h-9 px-2 text-rose-600" onClick={() => onChange({ workers: form.workers.filter((row) => row.key !== worker.key) })} aria-label={tr("حذف")}><Trash2 className="h-4 w-4" /></Button> : <span />}
+            </div>
+          ))}
+          {laborTotal > 0 && <p className="text-end text-xs text-slate-500">{tr("أجور العمال")}: <b dir="ltr" className="font-mono">{money(laborTotal)}</b></p>}
+          {!employees.length && form.workers.length > 0 && <p className="text-[11px] text-slate-400">{tr("لا يوجد موظفون معرّفون في الموارد البشرية — اكتب اسم العامل وأجر ساعته")}</p>}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function CostsPanel({ form, locked, costing, producedValue, onAutoCost, onCosts, onShare }: {
+  form: Form; locked: boolean; costing: { rawTotal: number; extra: number; total: number; unit: Map<string, number> }; producedValue: number
+  onAutoCost: (value: boolean) => void; onCosts: (costs: CostLine[]) => void; onShare: (key: string, share: string) => void
+}) {
+  const patch = (key: string, value: Partial<CostLine>) => onCosts(form.costs.map((line) => (line.key === key ? { ...line, ...value, edited: value.amount !== undefined ? true : line.edited } : line)))
+  const difference = producedValue - costing.total
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-sky-50/70 px-4 py-3">
+        <h3 className="font-bold text-slate-800">{tr("كلفة الانتاج")}</h3>
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" className="h-4 w-4 accent-emerald-600" disabled={locked} checked={form.auto_cost} onChange={(event) => onAutoCost(event.target.checked)} />
+          {tr("احتساب كلفة المنتَج تلقائياً")}
+        </label>
+      </div>
+      <div className="grid gap-4 p-4 lg:grid-cols-[1.4fr_1fr]">
+        <div className="min-w-0 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-700">{tr("التكاليف الإضافية")}</p>
+            {!locked && <Button type="button" size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={() => onCosts([...form.costs, { key: keyOf(), cost_type: "labor", description: "", amount: "", edited: true }])}><Plus className="h-3.5 w-3.5" />{tr("إضافة تكلفة")}</Button>}
+          </div>
+          {form.costs.length === 0 ? (
+            <p className="rounded-lg border border-dashed p-3 text-center text-xs text-slate-500">{tr("لا توجد تكاليف إضافية — أضف أجور العمال ومصاريف التشغيل والتغليف لتدخل في كلفة المنتَج")}</p>
+          ) : (
+            <div className="space-y-1.5">
+              {form.costs.map((line) => (
+                <div key={line.key} className="grid grid-cols-[minmax(0,130px)_minmax(0,1fr)_100px_auto] items-center gap-1.5">
+                  <select disabled={locked} className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm" value={line.cost_type} onChange={(event) => patch(line.key, { cost_type: event.target.value })}>
+                    {Object.entries(COST_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                  <Input disabled={locked} className="h-9 min-w-0" placeholder={tr("البيان")} value={line.description} onChange={(event) => patch(line.key, { description: event.target.value })} />
+                  <Input disabled={locked} className="h-9 font-mono" type="number" min={0} step="any" dir="ltr" value={line.amount} onChange={(event) => patch(line.key, { amount: event.target.value })} />
+                  {!locked ? <Button type="button" size="sm" variant="ghost" className="h-9 px-2 text-rose-600" onClick={() => onCosts(form.costs.filter((row) => row.key !== line.key))} aria-label={tr("حذف")}>✕</Button> : <span />}
+                </div>
+              ))}
+            </div>
+          )}
+          {form.produced.length > 1 && (
+            <div className="mt-3 rounded-lg border">
+              <p className="border-b bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">{tr("توزيع الكلفة على المواد المنتجة (فارغ = حسب الكمية)")}</p>
+              {form.produced.map((line) => (
+                <div key={line.key} className="flex items-center gap-2 border-t px-3 py-1.5 text-sm first:border-t-0">
+                  <span className="min-w-0 flex-1 truncate">{line.product_name}</span>
+                  <Input disabled={locked || !form.auto_cost} className="h-8 w-20 font-mono" type="number" min={0} step="any" dir="ltr" placeholder="%" value={line.cost_share || ""} onChange={(event) => onShare(line.key, event.target.value)} />
+                  <span className="w-32 text-end font-mono text-xs text-slate-500" dir="ltr">{money(costing.unit.get(line.key) ?? 0)} / {line.unit_name || tr("وحدة")}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="space-y-2 rounded-xl bg-slate-50 p-3 text-sm">
+          <div className="flex justify-between gap-2"><span>{tr("كلفة المواد الخام")}</span><b dir="ltr" className="font-mono">{money(costing.rawTotal)}</b></div>
+          <div className="flex justify-between gap-2"><span>{tr("التكاليف الإضافية")}</span><b dir="ltr" className="font-mono">{money(costing.extra)}</b></div>
+          <div className="flex justify-between gap-2 border-t pt-2 text-base"><span className="font-semibold">{tr("إجمالي كلفة الانتاج")}</span><b dir="ltr" className="font-mono text-emerald-700">{money(costing.total)}</b></div>
+          {form.produced.length === 1 && <div className="flex justify-between gap-2 text-xs text-slate-500"><span>{tr("كلفة الوحدة المنتجة")}</span><b dir="ltr" className="font-mono">{money(costing.unit.get(form.produced[0].key) ?? 0)}</b></div>}
+          {!form.auto_cost && Math.abs(difference) > 0.005 && (
+            <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-800">{tr("قيمة المواد المنتجة المُدخلة تختلف عن كلفة الانتاج بمقدار")} <b dir="ltr">{money(difference)}</b></p>
+          )}
+          {form.auto_cost && <p className="text-[11px] text-slate-500">{tr("كلفة الخام = متوسط الكلفة بتاريخ السند، وتُعاد عند الحفظ")}</p>}
+        </div>
+      </div>
+    </section>
   )
 }
 

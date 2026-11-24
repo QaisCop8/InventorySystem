@@ -17,7 +17,7 @@ import { Icons } from "@/components/ui/icons";
 import { QuickThemeToggle } from "@/components/theme/theme-toggle";
 import { LanguageToggle } from "@/components/i18n/language-toggle";
 import { DisplayModeMenu } from "@/components/workspace/display-mode-menu";
-import { Loader2, Building2, ChevronDown, ArrowLeftRight, ImagePlus, KeyRound, MapPin } from "lucide-react";
+import { Loader2, Building2, ChevronDown, ArrowLeftRight, ImagePlus, KeyRound, MapPin, CircleDollarSign } from "lucide-react";
 import { ChangePasswordDialog } from "@/components/management/change-password-dialog";
 import { GlobalSearch } from "@/components/navigation/global-search";
 import { menuItems, SECTION_TITLES, type MenuItem } from "@/components/sidebar";
@@ -31,6 +31,11 @@ import { useToast } from "@/hooks/use-toast";
 
 const DailyExchangeRatesDialog = dynamic(
   () => import("@/components/settings/daily-exchange-rates").then((module) => module.DailyExchangeRatesDialog),
+  { ssr: false },
+);
+// «ربحك اليومي بضغطة» — يُحمَّل عند فتحه فقط
+const DailyProfitDialog = dynamic(
+  () => import("@/components/reports/daily-profit-dialog").then((module) => module.DailyProfitDialog),
   { ssr: false },
 );
 const NotificationCenter = dynamic(
@@ -192,6 +197,17 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
   };
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
   const [branchRetry, setBranchRetry] = useState(0);
+  // زر ربح اليوم يظهر لمن يملك صلاحية تقارير الأرباح فقط (فحص خفيف ?check=1)
+  const [dailyProfitOpen, setDailyProfitOpen] = useState(false);
+  const [canSeeProfit, setCanSeeProfit] = useState(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    fetch("/api/reports/daily-profit?check=1", { cache: "no-store" })
+      .then((response) => { if (!cancelled) setCanSeeProfit(response.ok); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [user?.id, activeBranchId]);
   const { dialogOpen: exchangeRatesOpen, setDialogOpen: setExchangeRatesOpen, checkNow: recheckExchangeRates } = useDailyExchangeRatesCheck();
 
   useEffect(() => {
@@ -446,6 +462,20 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
               <TooltipContent side="bottom">{tr("اسعار الصرف اليومية")}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          {canSeeProfit && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <RefButton className={toolButtonClass} onClick={() => setDailyProfitOpen(true)} aria-label={tr("ربح اليوم")}>
+                    <CircleDollarSign className="h-[18px] w-[18px]" />
+                  </RefButton>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{tr("ربح اليوم")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {dailyProfitOpen && <DailyProfitDialog open={dailyProfitOpen} onOpenChange={setDailyProfitOpen} />}
 
           {/* جرس واحد: مركز الإشعارات نفسه هو زر الهيدر (كان داخل قائمة منسدلة بجرس ثانٍ يجب النقر عليه) */}
           <NotificationCenter userId={user?.id} department={user?.department} className={`${toolButtonClass} [&_svg]:h-[18px] [&_svg]:w-[18px]`} />
