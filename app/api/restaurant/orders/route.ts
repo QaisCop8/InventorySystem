@@ -574,7 +574,8 @@ async function handlePay(ctx: Ctx, order: any) {
   const saved = await response.json().catch(() => ({}))
   if (!response.ok) throw Object.assign(fail(String(saved?.error || "تعذر حفظ فاتورة الطاولة"), response.status), saved?.permission_required ? { permission_required: saved.permission_required } : {})
   if (saved?.duplicate) throw fail("هذه الدفعة سُجّلت مسبقاً؛ حدّث الشاشة", 409)
-  const voucher = (await sql`SELECT id, vch_code, amount FROM voucher_header_tbl WHERE id = ${Number(saved.id)}`)[0]
+  // رقم الوردية GUID على الفاتورة مثل الكاشير (وردية المطعم بدل عهدة نقطة البيع)
+  const voucher = (await sql`UPDATE voucher_header_tbl SET shift_guid = ${String(session.shift_guid)}::uuid WHERE id = ${Number(saved.id)} RETURNING id, vch_code, amount`)[0]
   await recordRestaurantSaleCash(session, point, body, String(voucher?.vch_code || ""), ctx.userId)
   for (const { item, quantity } of selected) {
     await sql`UPDATE restaurant_order_items_tbl SET paid_quantity = paid_quantity + ${quantity}, updated_at = NOW() WHERE id = ${Number(item.id)}`

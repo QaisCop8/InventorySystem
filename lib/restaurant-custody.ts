@@ -54,6 +54,13 @@ export async function ensureRestaurantCustodyTables() {
       )
     `
     await sql`ALTER TABLE restaurant_order_payments_tbl ADD COLUMN IF NOT EXISTS session_id BIGINT`
+    // 2026-11-23: فواتير المطعم تحمل GUID وردية المطعم مثل فواتير الكاشير (voucher_header_tbl.shift_guid) — تعبئة القديم
+    await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS shift_guid UUID`
+    await sql`
+      UPDATE voucher_header_tbl vh SET shift_guid = s.shift_guid
+      FROM restaurant_order_payments_tbl p JOIN restaurant_sessions_tbl s ON s.id = p.session_id
+      WHERE p.voucher_id = vh.id AND vh.shift_guid IS NULL
+    `
   })
 }
 
