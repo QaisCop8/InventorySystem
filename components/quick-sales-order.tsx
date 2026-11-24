@@ -7,8 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Save, Trash2, UserSearch } from "lucide-react"
+import { CalendarDays, PackageOpen, Plus, Save, ShoppingCart, StickyNote, Trash2, UserSearch } from "lucide-react"
 import { Toast } from "primereact/toast"
 import Util from "./common/Util"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
@@ -366,7 +365,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
   return (
     <Dialog open={open} onOpenChange={(next) => !isSubmitting && onOpenChange(next)}>
       <DialogContent
-        className="max-w-4xl max-h-[90vh] overflow-y-auto"
+        className="flex max-h-[92vh] max-w-4xl flex-col gap-0 overflow-hidden rounded-3xl p-0"
         dir={appDir()}
         // ProductSearchPopup يُركَّب عبر createPortal مباشرة إلى document.body (خارج شجرة DOM لهذه
         // النافذة تماماً)، خلافاً لـCustomerSearchPopup التي تُعرَض ضمن الشجرة نفسها بلا portal —
@@ -381,128 +380,123 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
       >
         <Toast ref={toast} position="top-left" className="erp-toast-host" style={{ top: 100, whiteSpace: "pre-line" }} />
 
-        <DialogHeader>
-          <div className="flex justify-between items-center">
-            <DialogTitle className="text-start">{tr("طلبية مبيعات سريعة")}</DialogTitle>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">{tr("F2: بحث عميل")}</Badge>
-              <Badge variant="outline" className="text-xs">{tr("F3: بحث صنف")}</Badge>
+        {/* 2026-11-24: تصميم جديد — ترويسة بتدرّج النظام، بطاقة العميل، جدول أصناف مضغوط، وشريط إجمالي ثابت */}
+        <DialogHeader className="relative shrink-0 overflow-hidden bg-gradient-to-l from-[#137a68] via-[#16917a] to-[#1fae8e] px-6 pb-5 pt-5 text-white">
+          <div className="flex flex-wrap items-center gap-3 pe-10">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25"><ShoppingCart className="h-5 w-5" /></span>
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-start text-xl font-black text-white">{tr("طلبية مبيعات سريعة")}</DialogTitle>
+              <p className="mt-0.5 text-xs text-emerald-50/80">{tr("اختر الحساب وأضف الأصناف ثم احفظ")}</p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-bold">{tr("F2: بحث عميل")}</span>
+              <span className="rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-bold">{tr("F3: بحث صنف")}</span>
             </div>
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSaveOrder} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label className="text-start block mb-2">{tr("العميل *")}</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={customer?.name || ""}
-                  readOnly
-                  placeholder={tr("-- اختر العميل --")}
-                  className="text-start"
-                />
-                <Button type="button" variant="outline" size="icon" onClick={() => setShowCustomerSearch(true)}>
-                  <UserSearch className="h-4 w-4" />
+        <form onSubmit={handleSaveOrder} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+              <button
+                type="button"
+                onClick={() => setShowCustomerSearch(true)}
+                className={`group flex min-w-0 items-center gap-3 rounded-2xl border-2 px-4 py-3 text-start transition ${customer ? "border-emerald-200 bg-emerald-50/60 hover:border-emerald-300" : "border-dashed border-slate-300 bg-slate-50 hover:border-emerald-300 hover:bg-emerald-50/40"} dark:border-slate-700 dark:bg-slate-900`}
+              >
+                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${customer ? "bg-emerald-600 text-white" : "bg-white text-slate-400 ring-1 ring-slate-200"}`}><UserSearch className="h-5 w-5" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[11px] font-bold text-slate-500">{tr("العميل *")}</span>
+                  <span className={`block truncate text-sm font-extrabold ${customer ? "text-slate-800 dark:text-slate-100" : "text-slate-400"}`}>{customer?.name || tr("-- اختر العميل --")}</span>
+                  {customer?.customer_code && <span className="block font-mono text-[11px] text-slate-500" dir="ltr">{customer.customer_code}</span>}
+                </span>
+                <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-100 group-hover:bg-emerald-600 group-hover:text-white">{customer ? tr("تغيير") : tr("اختيار")}</span>
+              </button>
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+                <Label className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-slate-500"><CalendarDays className="h-3.5 w-3.5" />{tr("تاريخ الطلبية")}</Label>
+                <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className="h-9 border-0 bg-transparent px-0 text-start font-bold shadow-none focus-visible:ring-0" />
+              </div>
+              <div className="md:col-span-2">
+                <div className="relative">
+                  <StickyNote className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={tr("ملاحظات")} className="h-11 rounded-xl ps-9 text-start" />
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+                <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-700 dark:text-slate-200">
+                  {tr("الأصناف")}
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">{items.filter((item) => item.product_name).length}</span>
+                </h3>
+                <Button type="button" size="sm" onClick={() => setShowProductSearch(true)} className="h-8 gap-1.5 rounded-lg bg-emerald-600 font-bold hover:bg-emerald-700">
+                  <Plus className="h-4 w-4" />
+                  {tr("إضافة صنف")}
                 </Button>
               </div>
-            </div>
-            <div>
-              <Label className="text-start block mb-2">{tr("تاريخ الطلبية")}</Label>
-              <Input
-                type="date"
-                value={orderDate}
-                onChange={(e) => setOrderDate(e.target.value)}
-                className="text-start"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <Label className="text-start block mb-2">{tr("ملاحظات")}</Label>
-              <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="text-start" />
+
+              <div className="hidden grid-cols-[minmax(0,2.4fr)_repeat(3,minmax(0,1fr))_minmax(0,1fr)_40px] gap-2 border-b border-slate-100 px-4 py-2 text-[11px] font-bold text-slate-500 md:grid dark:border-slate-800">
+                <span>{tr("اسم الصنف")}</span><span>{tr("الكمية")}</span><span>{tr("السعر")}</span><span>{tr("الخصم")}</span><span className="text-end">{tr("المبلغ")}</span><span />
+              </div>
+
+              {items.every((item) => !item.product_name) && items.length <= 1 ? (
+                <button type="button" onClick={() => setShowProductSearch(true)} className="flex w-full flex-col items-center gap-2 px-4 py-8 text-slate-400 hover:bg-emerald-50/40 hover:text-emerald-700">
+                  <PackageOpen className="h-8 w-8" />
+                  <span className="text-sm font-bold">{tr("لا توجد أصناف بعد — اضغط لإضافة صنف (F3)")}</span>
+                </button>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {items.map((item, index) => (
+                    <div key={item.rowId} className="grid grid-cols-2 items-center gap-2 px-4 py-2.5 md:grid-cols-[minmax(0,2.4fr)_repeat(3,minmax(0,1fr))_minmax(0,1fr)_40px]">
+                      <div className="col-span-2 flex min-w-0 items-center gap-2 md:col-span-1">
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-slate-100 text-[11px] font-bold text-slate-500">{index + 1}</span>
+                        <span className="truncate text-sm font-bold text-slate-800 dark:text-slate-100" title={item.product_name || ""}>{item.product_name || "—"}</span>
+                      </div>
+                      <label className="min-w-0">
+                        <span className="mb-0.5 block text-[10px] font-bold text-slate-400 md:hidden">{tr("الكمية")}</span>
+                        <Input
+                          type="number"
+                          value={item.qty}
+                          onChange={(e) => updateItem(item.rowId, "qty", e.target.value)}
+                          onFocus={() => openMeasurementDialog(item)}
+                          onClick={() => openMeasurementDialog(item)}
+                          readOnly={Number(item.measurment_id || 1) !== 1}
+                          className="h-9 rounded-lg text-start tabular-nums"
+                        />
+                      </label>
+                      <label className="min-w-0">
+                        <span className="mb-0.5 block text-[10px] font-bold text-slate-400 md:hidden">{tr("السعر")}</span>
+                        <Input type="number" step="0.01" value={item.price} onChange={(e) => updateItem(item.rowId, "price", e.target.value)} className="h-9 rounded-lg text-start tabular-nums" />
+                      </label>
+                      <label className="min-w-0">
+                        <span className="mb-0.5 block text-[10px] font-bold text-slate-400 md:hidden">{tr("الخصم")}</span>
+                        <Input type="number" step="0.01" value={item.discount} onChange={(e) => updateItem(item.rowId, "discount", e.target.value)} className="h-9 rounded-lg text-start tabular-nums" />
+                      </label>
+                      <span className="text-end text-sm font-extrabold tabular-nums text-slate-800 dark:text-slate-100">{amountOf(item).toFixed(2)}</span>
+                      <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(item.rowId)} className="h-8 w-8 justify-self-end rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-600" aria-label={tr("حذف")}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-start">{tr("الأصناف")}</h3>
-              <Button type="button" size="sm" onClick={() => setShowProductSearch(true)}>
-                <Plus className="h-4 w-4 ms-2" />
-                {tr("إضافة صنف")}
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-6 py-3.5 dark:border-slate-700 dark:bg-slate-950">
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-bold text-slate-500">{tr("الإجمالي:")}</span>
+              <span className="text-2xl font-black tabular-nums text-emerald-700 dark:text-emerald-400">{totalAmount.toFixed(2)}</span>
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting} className="h-10 rounded-xl px-5">
+                {tr("إلغاء")}
+              </Button>
+              <Button type="submit" disabled={isSubmitting} className="h-10 gap-2 rounded-xl bg-emerald-600 px-6 font-bold hover:bg-emerald-700">
+                <Save className="h-4 w-4" />
+                {isSubmitting ? tr("جاري الحفظ...") : tr("حفظ الطلبية")}
               </Button>
             </div>
-
-            <div className="space-y-3">
-              {items.map((item) => (
-                <div key={item.rowId} className="grid grid-cols-1 md:grid-cols-6 gap-3 p-3 border rounded-lg items-end">
-                  <div className="md:col-span-2">
-                    <Label className="text-start block mb-1 text-sm">{tr("اسم الصنف")}</Label>
-                    <div className="rounded-md border bg-muted px-3 py-2 text-sm text-start min-h-[38px]">
-                      {item.product_name || "—"}
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-start block mb-1 text-sm">{tr("الكمية")}</Label>
-                    <Input
-                      type="number"
-                      value={item.qty}
-                      onChange={(e) => updateItem(item.rowId, "qty", e.target.value)}
-                      onFocus={() => openMeasurementDialog(item)}
-                      onClick={() => openMeasurementDialog(item)}
-                      readOnly={Number(item.measurment_id || 1) !== 1}
-                      className="text-start"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-start block mb-1 text-sm">{tr("السعر")}</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={item.price}
-                      onChange={(e) => updateItem(item.rowId, "price", e.target.value)}
-                      className="text-start"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-start block mb-1 text-sm">{tr("الخصم")}</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={item.discount}
-                      onChange={(e) => updateItem(item.rowId, "discount", e.target.value)}
-                      className="text-start"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold">{amountOf(item).toFixed(2)}</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => removeItem(item.rowId)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 p-3 bg-muted rounded-lg">
-              <div className="flex justify-between items-center">
-                <span className="font-semibold">{tr("الإجمالي:")}</span>
-                <span className="text-xl font-bold">{totalAmount.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-2 justify-end">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-              {tr("إلغاء")}
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              <Save className="h-4 w-4 ms-2" />
-              {isSubmitting ? tr("جاري الحفظ...") : tr("حفظ الطلبية")}
-            </Button>
           </div>
         </form>
 

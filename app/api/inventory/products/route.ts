@@ -543,15 +543,16 @@ export async function GET(request: NextRequest) {
     const products = productsResult.rows
     const productIds = products.map((product: any) => Number(product.id)).filter((id: number) => Number.isInteger(id) && id > 0)
     const listMode = url.searchParams.get("list") === "1"
-    if (productIds.length && !liteMode && !listMode) {
+    // 2026-11-24: نافذة بحث الأصناف (lite) تحتاج المتغيرات مع صورها أيضاً — جدول الروابط صغير فيُقرأ كاملاً بدل ANY(كل الأصناف)
+    if (productIds.length && !listMode) {
       const attributeLinks = await (await getTenantPool()).query(
         `SELECT pav.product_id, a.name AS attribute_name, v.name AS value_name, pav.image_url
          FROM product_atrributes_values_tbl pav
          JOIN attributes_tbl a ON a.id = pav.attr_id
          JOIN attribute_values_tbl v ON v.id = pav.value_id
-         WHERE pav.product_id = ANY($1::int[])
+         ${liteMode ? "" : "WHERE pav.product_id = ANY($1::int[])"}
          ORDER BY pav.product_id, a.name, v.name`,
-        [productIds],
+        liteMode ? [] : [productIds],
       )
       const grouped = new Map<number, any[]>()
       for (const row of attributeLinks.rows) {

@@ -1026,7 +1026,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
             ) : (
               <>
                 {/* 2026-11-24: الوحدات دائماً، والمتغيرات والخصائص بصورها تحتها (كانت تحل محل الوحدات) */}
-                <div className={showingAttributes ? "flex min-h-[96px] flex-[2] flex-col" : "flex min-h-0 flex-1 flex-col"}>
+                <div className="flex min-h-[96px] flex-[2] flex-col">
                   <SearchResultsTable<Unit>
                     ref={unitsTableRef}
                     rows={unitBarcodeRows(selectedProduct.units || [])}
@@ -1039,9 +1039,13 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
                     rowHeightClassName="h-9"
                   />
                 </div>
-                {showingAttributes && (
+                <div className="mt-1 px-1 text-[11px] font-bold text-slate-500">{tr("المتغيرات والخصائص")}</div>
+                {!showingAttributes ? (
+                  <div className="flex min-h-[80px] flex-[3] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-4 text-center text-xs text-slate-400">
+                    {tr("لا توجد متغيرات وخصائص لهذا الصنف")}
+                  </div>
+                ) : (
                   <>
-                    <div className="mt-1 px-1 text-[11px] font-bold text-slate-500">{tr("المتغيرات والخصائص")}</div>
                     <div className="flex min-h-[120px] flex-[3] flex-col">
                       <SearchResultsTable<AttributeRow>
                         ref={attributesTableRef}
