@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CalendarDays, PackageOpen, Plus, Save, ShoppingCart, SlidersHorizontal, StickyNote, Trash2, UserSearch } from "lucide-react"
 import { requestProductVariant } from "@/components/products/product-variant-service"
-import { baseVariantName, normalizeVariantSelection, variantPriceChange } from "@/lib/variant-pricing"
+import { baseVariantName, normalizeVariantSelection, variantAddDelta, variantPriceChange } from "@/lib/variant-pricing"
 import { Toast } from "primereact/toast"
 import Util from "./common/Util"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
@@ -17,7 +17,6 @@ import ProductSearchPopup from "./products/ProductSearchPopup"
 import { useAuth } from "./auth/auth-context"
 import MeasurementInputDialog from "./common/MeasurementInputDialog"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
-import { categoryAttributeDeltas } from "@/lib/attribute-prices"
 
 // نوع طلبية المبيعات ثابت في هذه النافذة السريعة — لا يُعرض للمستخدم ولا يمكن تغييره
 const SALES_ORDER_TYPE = 1
@@ -169,7 +168,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
     setShowCustomerSearch(false)
   }
 
-  const handleProductSelect = (products: any[]) => {
+  const handleProductSelect = async (products: any[]) => {
     const product = products?.[0]
     setShowProductSearch(false)
     if (!product) return
@@ -177,11 +176,8 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
     const unit = product.selected_unit || product.units?.[0]
     // 2026-11-24: سعر الوحدة (أو سعر الصنف إن كانت 0) + فرق سعر قيمة المتغير المختارة بفئة السعر 1
     const basePrice = Number(unit?.price) || Number(product.first_price) || 0
-    let price = basePrice
-    for (const [group, value] of Object.entries((product.selected_attributes || {}) as Record<string, string>)) {
-      const attribute = (Array.isArray(product.attributes) ? product.attributes : []).find((row: any) => row?.name === group)
-      if (attribute) price += Number(categoryAttributeDeltas(attribute, basePrice, 1)[value] || 0)
-    }
+    // النافذة لا تحمل أسعار القيم (الوضع الخفيف) ⇐ تُقرأ من الخادم
+    const price = basePrice + await variantAddDelta(product, basePrice, 1)
 
     setItems((prev) => {
       // أول سطر فارغ يُملأ مباشرة بدل إضافة سطر جديد، وإلا يُضاف سطر جديد بنهاية القائمة

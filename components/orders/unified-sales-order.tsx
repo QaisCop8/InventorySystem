@@ -70,8 +70,7 @@ import { adjustStock } from "@/lib/inventory"
 import { maxLength } from "zod/v4"
 import Dropdown from "../common/Dropdown"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
-import { categoryAttributeDeltas } from "@/lib/attribute-prices"
-import { baseVariantName, normalizeVariantSelection, variantPriceChange } from "@/lib/variant-pricing"
+import { baseVariantName, normalizeVariantSelection, variantAddDelta, variantPriceChange } from "@/lib/variant-pricing"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import OrderSearchPopup from "./OrderSearchPopup"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
@@ -1130,16 +1129,7 @@ function UnifiedSalesOrder({
       const resolvedStore = resolveProductStore(ii);
       // 2026-11-24: قيمة متغير مختارة من نافذة البحث (المتغيرات والخصائص) ⇐ يُضاف فرق سعرها بفئة سعر الطلبية
       const variantAttributes = (ii.selected_attributes || {}) as Record<string, string>;
-      const variantDelta = (() => {
-        if (setFromExcelRef.current) return 0;
-        const base = Number(ii.price) || Number(ii.first_price) || 0;
-        let delta = 0;
-        for (const [group, value] of Object.entries(variantAttributes)) {
-          const attribute = (Array.isArray(ii.attributes) ? ii.attributes : []).find((row: any) => row?.name === group);
-          if (attribute) delta += Number(categoryAttributeDeltas(attribute, base, Number(priceCategoryIdRef.current) || 1)[value] || 0);
-        }
-        return delta / (Number(state.formData.exchange_rate) || 1);
-      })();
+      const variantDelta = setFromExcelRef.current ? 0 : (await variantAddDelta(ii, Number(ii.price) || Number(ii.first_price) || 0, Number(priceCategoryIdRef.current) || 1)) / (Number(state.formData.exchange_rate) || 1);
       const initialPrice = (() => {
         const p = ii.price ? ii.price / state.formData.exchange_rate : NaN;
         const fallback = ii.first_price ? ii.first_price / state.formData.exchange_rate : NaN;

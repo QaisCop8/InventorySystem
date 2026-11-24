@@ -71,18 +71,8 @@ import { SmsSendDialog } from "@/components/sms/sms-send-dialog"
 import { pickRoleUnit } from "@/lib/product-unit-roles"
 import VoucherItemCards, { type ItemCardField } from "@/components/sales/voucher-item-cards"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { categoryAttributeDeltas } from "@/lib/attribute-prices"
-import { baseVariantName, normalizeVariantSelection, variantPriceChange } from "@/lib/variant-pricing"
+import { baseVariantName, normalizeVariantSelection, variantAddDelta, variantPriceChange } from "@/lib/variant-pricing"
 
-// 2026-11-24: فرق سعر قيم «المتغيرات والخصائص» المختارة عن سعر الصنف (فئة السعر 1 كما في نافذة بحث الأصناف هنا)
-const variantPriceDelta = (attributes: any[] | undefined, chosen: Record<string, string> | undefined, basePrice: number) => {
-  let delta = 0
-  for (const [group, value] of Object.entries(chosen || {})) {
-    const attribute = (Array.isArray(attributes) ? attributes : []).find((entry: any) => entry?.name === group)
-    if (attribute) delta += Number(categoryAttributeDeltas(attribute, basePrice, 1)[value] || 0)
-  }
-  return delta
-}
 
 // vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23) — هذا المكوّن يخدم
 // الأنواع الثمانية جميعها الآن عبر خاصية voucherType (بنفس أسلوب unified-stock-voucher.tsx مع
@@ -2508,7 +2498,7 @@ export default function UnifiedSalesDelivery({
       if (!isMountedRef.current) return
       // سعر الوحدة (أو سعر الصنف إن كانت 0) + فرق سعر قيمة المتغير المختارة من نافذة البحث (كل أنواع السندات)
       const basePrice = Number(unit?.price) || Number(product.first_price) || 0
-      const entryPrice = basePrice + variantPriceDelta(product.attributes, product.selected_attributes, basePrice)
+      const entryPrice = basePrice + await variantAddDelta(product, basePrice, 1)
       const unitPrice = entryPriceToNet(entryPrice, await itemVatRateFor(product.id)) ?? 0
       const patched: SalesVoucherItemRow = {
         ...currentRow,

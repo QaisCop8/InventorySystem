@@ -73,6 +73,24 @@ export function normalizeVariantSelection(attributes: PricedAttribute[] | undefi
 /** اسم الصنف بلا لاحقة الخصائص «(الحجم: كبير)» (قد تتكرر) */
 export const baseVariantName = (name: string) => String(name || "").replace(/(\s*\([^)]*:[^)]*\))+\s*$/, "").trim()
 
+/**
+ * فرق سعر القيم المختارة عند إضافة صنف من نافذة البحث (النقر على متغير): النافذة تجلب الأصناف بالوضع الخفيف بلا أسعار
+ * القيم (value_prices) فكان الفرق صفراً ⇐ تُقرأ من الخادم. basePrice = سعر السطر قبل المتغير.
+ */
+export async function variantAddDelta(product: { id?: unknown; product_id?: unknown; attributes?: unknown; selected_attributes?: unknown }, basePrice: number, priceCategoryId = 1) {
+  const chosen = product?.selected_attributes && typeof product.selected_attributes === "object" ? product.selected_attributes as Record<string, string> : {}
+  if (!Object.keys(chosen).length) return 0
+  const productId = Number(product.product_id || product.id)
+  const local = Array.isArray(product.attributes) ? product.attributes as PricedAttribute[] : []
+  const hasPrices = local.some((attribute) => attribute?.value_prices && Object.keys(attribute.value_prices).length)
+  let attributes = local
+  if (!hasPrices && productId) {
+    const loaded = await loadVariantPricing(productId, priceCategoryId)
+    attributes = loaded.attributes
+  }
+  return variantPriceDelta(attributes, normalizeVariantSelection(attributes, chosen), basePrice, priceCategoryId)
+}
+
 /** فرق السعر عند تبديل قيمة: فرق القيم الجديدة − فرق القيم القديمة (lineName: اسم السطر لاستخراج القيمة القديمة إن لم تُحفظ) */
 export async function variantPriceChange(productId: number, before: unknown, after: Record<string, string> | undefined, priceCategoryId = 1, lineName?: string) {
   const { attributes, basePrice } = await loadVariantPricing(productId, priceCategoryId)
