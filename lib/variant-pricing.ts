@@ -17,12 +17,30 @@ export async function loadVariantPricing(productId: number, priceCategoryId = 1)
   }
 }
 
+/**
+ * سعر قيمة بفئة سعر: { [فئة]: سعر } ⇐ سعر الفئة المطلوبة، وإن لم يُحدَّد لها سعر فالفئة 1 ثم أول فئة محفوظة
+ * (كان يُعطي فرقاً صفراً إذا كانت فئة الطلبية بلا سعر للقيمة). رقم واحد = الصيغة القديمة (فرق عن base_price).
+ */
+function valuePriceFor(attribute: PricedAttribute, value: string, priceCategoryId: number): number | null {
+  const raw = attribute.value_prices && typeof attribute.value_prices === "object" ? (attribute.value_prices as Record<string, unknown>)[value] : undefined
+  if (raw && typeof raw === "object") {
+    const prices = raw as Record<string, unknown>
+    const pick = [String(priceCategoryId || 1), "1", ...Object.keys(prices)]
+      .map((key) => Number(prices[key]))
+      .find((amount) => Number.isFinite(amount) && amount > 0)
+    return pick ?? null
+  }
+  return null
+}
+
 /** مجموع فروق أسعار القيم المختارة عن سعر الصنف (بعملة سعر الصنف) */
 export function variantPriceDelta(attributes: PricedAttribute[] | undefined, chosen: Record<string, string> | undefined, basePrice: number, priceCategoryId = 1) {
   let delta = 0
   for (const [group, value] of Object.entries(chosen || {})) {
     const attribute = (Array.isArray(attributes) ? attributes : []).find((entry) => entry?.name === group)
-    if (attribute) delta += Number(categoryAttributeDeltas(attribute, basePrice, priceCategoryId || 1)[value] || 0)
+    if (!attribute) continue
+    const price = valuePriceFor(attribute, value, priceCategoryId)
+    delta += price !== null ? price - basePrice : Number(categoryAttributeDeltas(attribute, basePrice, priceCategoryId || 1)[value] || 0)
   }
   return Math.round(delta * 10000) / 10000
 }
