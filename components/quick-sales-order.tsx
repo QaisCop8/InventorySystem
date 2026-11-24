@@ -374,8 +374,9 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         // الـDialog وتُغلقها تلقائياً، فتُغلَق نافذة الطلبية السريعة كاملة معها. تُمنَع هذه الإغلاقات
         // التلقائية طالما نافذة بحث الأصناف مفتوحة — إغلاقها هي نفسها يبقى بيد onClose/Escape الخاصين
         // بها فقط.
-        onPointerDownOutside={(e) => { if (showProductSearch || showCustomerSearch || measurementItem) e.preventDefault() }}
-        onInteractOutside={(e) => { if (showProductSearch || showCustomerSearch || measurementItem) e.preventDefault() }}
+        // 2026-11-24: النقر خارج النافذة لا يغلق الطلبية (الإغلاق بزر X/إلغاء/Escape فقط)
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => { if (showProductSearch || showCustomerSearch || measurementItem) e.preventDefault() }}
       >
         <Toast ref={toast} position="top-left" className="erp-toast-host" style={{ top: 100, whiteSpace: "pre-line" }} />
