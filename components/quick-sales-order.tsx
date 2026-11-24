@@ -7,7 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CalendarDays, PackageOpen, Plus, Save, ShoppingCart, StickyNote, Trash2, UserSearch } from "lucide-react"
+import { CalendarDays, PackageOpen, Plus, Save, ShoppingCart, SlidersHorizontal, StickyNote, Trash2, UserSearch } from "lucide-react"
+import { requestProductVariant } from "@/components/products/product-variant-service"
+import { variantPriceChange } from "@/lib/variant-pricing"
 import { Toast } from "primereact/toast"
 import Util from "./common/Util"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
@@ -38,6 +40,10 @@ interface QuickOrderItem {
   width: number | null
   height: number | null
   count: number | null
+  store_id?: number | null
+  selected_attributes?: Record<string, string>
+  attributes?: any[]
+  base_product_name?: string
 }
 
 interface SelectedCustomer {
@@ -198,6 +204,11 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         width: null,
         height: null,
         count: 1,
+        // 2026-11-24: مستودع الصنف الافتراضي (يُكمَّل عند الحفظ بمستودع المستخدم ثم أول مستودع) + المتغير المختار
+        store_id: Number(product.default_store || product.store_id) || null,
+        selected_attributes: product.selected_attributes && Object.keys(product.selected_attributes).length ? product.selected_attributes : undefined,
+        attributes: Array.isArray(product.attributes) && product.attributes.length ? product.attributes : undefined,
+        base_product_name: product.base_product_name || String(product.product_name || "").replace(/\s*\([^)]*\)\s*$/, ""),
       }
 
       if (emptyIndex >= 0) {
@@ -219,6 +230,26 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         return { ...item, [field]: numeric }
       }),
     )
+  }
+
+  // 2026-11-24: تغيير قيمة المتغير على السطر ⇐ يتغير الاسم والسعر بفرق سعر القيمة (lib/variant-pricing.ts، فئة السعر 1)
+  const changeVariant = async (item: QuickOrderItem) => {
+    if (!item.product_id || !item.attributes?.length) return
+    const selected = await requestProductVariant({
+      id: Number(item.product_id),
+      product_name: item.base_product_name || item.product_name,
+      base_product_name: item.base_product_name || item.product_name,
+      attributes: item.attributes,
+      selected_attributes: item.selected_attributes,
+    }, true)
+    if (!selected) return
+    const change = await variantPriceChange(Number(item.product_id), item.selected_attributes, selected.selected_attributes, 1)
+    setItems((prev) => prev.map((row) => row.rowId !== item.rowId ? row : {
+      ...row,
+      product_name: selected.product_name || row.product_name,
+      selected_attributes: selected.selected_attributes,
+      price: Math.round(((Number(row.price) || 0) + change) * 10000) / 10000,
+    }))
   }
 
   const removeItem = (rowId: string) => {
@@ -304,6 +335,13 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         branch_id: activeBranchId ?? null,
       }
 
+      // المستودع كان يُرسل من إعداد المستخدم فقط ⇐ فارغ في الطلبية إن لم يُحدَّد له مستودع (نفس ترتيب طلبية المبيعات)
+      let fallbackStoreId: number | null = defaultItemWarehouseId ?? null
+      if (!fallbackStoreId && validated.validItems.some((item) => !item.store_id)) {
+        const warehouses = await fetch("/api/warehouses").then((res) => (res.ok ? res.json() : [])).catch(() => [])
+        const list = Array.isArray(warehouses) ? warehouses : Array.isArray(warehouses?.data) ? warehouses.data : []
+        fallbackStoreId = Number(list[0]?.id) || null
+      }
       const orderItems = validated.validItems.map((item) => ({
         product_id: item.product_id,
         product_name: item.product_name,
@@ -313,7 +351,8 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         discount: Number(item.discount) || 0,
         barcode: item.barcode || null,
         unit_id: item.unit_id || null,
-        store_id: defaultItemWarehouseId ?? null,
+        store_id: item.store_id || fallbackStoreId,
+        selected_attributes: item.selected_attributes,
         delivered_quantity: 0,
         expiry_date: null,
         batch_number: null,
@@ -459,6 +498,11 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
                       <div className="col-span-2 flex min-w-0 items-center gap-2 md:col-span-1">
                         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-slate-100 text-[11px] font-bold text-slate-500">{index + 1}</span>
                         <span className="truncate text-sm font-bold text-slate-800 dark:text-slate-100" title={item.product_name || ""}>{item.product_name || "—"}</span>
+                        {!!item.attributes?.length && (
+                          <button type="button" onClick={() => void changeVariant(item)} title={tr("المتغيرات والخصائص")} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white">
+                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                       <label className="min-w-0">
                         <span className="mb-0.5 block text-[10px] font-bold text-slate-400 md:hidden">{tr("الكمية")}</span>

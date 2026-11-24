@@ -71,6 +71,7 @@ import { maxLength } from "zod/v4"
 import Dropdown from "../common/Dropdown"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import { categoryAttributeDeltas } from "@/lib/attribute-prices"
+import { variantPriceChange } from "@/lib/variant-pricing"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import OrderSearchPopup from "./OrderSearchPopup"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
@@ -1735,16 +1736,9 @@ function UnifiedSalesOrder({
     // الصفحة (Cannot read properties of undefined (reading 'map')). يُعدَّل السطر نفسه ويُستبدل فرق سعر القيمة القديمة بالجديدة.
     const row: any = item
     const attributes = Array.isArray(selected.attributes) && selected.attributes.length ? selected.attributes : product.attributes
-    const variantDelta = (chosen: Record<string, string> | undefined) => {
-      const base = Number(product.first_price) || Number(product.price) || 0
-      let delta = 0
-      for (const [group, value] of Object.entries(chosen || {})) {
-        const attribute = (Array.isArray(attributes) ? attributes : []).find((entry: any) => entry?.name === group)
-        if (attribute) delta += Number(categoryAttributeDeltas(attribute, base, Number(priceCategoryIdRef.current) || 1)[value] || 0)
-      }
-      return delta / (Number(state.formData.exchange_rate) || 1)
-    }
-    const priceChange = variantDelta(selected.selected_attributes) - variantDelta(row.selected_attributes)
+    // أسعار القيم من تعريف الصنف الحالي (lib/variant-pricing.ts) — السطر المحفوظ قد لا يحملها
+    const priceChange = (await variantPriceChange(productId, row.selected_attributes, selected.selected_attributes, Number(priceCategoryIdRef.current) || 1))
+      / (Number(state.formData.exchange_rate) || 1)
     CollectionView.editItem(row)
     row.product_name = selected.product_name || row.product_name || row.name
     row.name = selected.product_name || row.name
