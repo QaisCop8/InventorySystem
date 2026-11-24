@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CalendarDays, PackageOpen, Plus, Save, ShoppingCart, SlidersHorizontal, StickyNote, Trash2, UserSearch } from "lucide-react"
 import { requestProductVariant } from "@/components/products/product-variant-service"
-import { variantPriceChange } from "@/lib/variant-pricing"
+import { baseVariantName, normalizeVariantSelection, variantPriceChange } from "@/lib/variant-pricing"
 import { Toast } from "primereact/toast"
 import Util from "./common/Util"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
@@ -243,7 +243,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
       selected_attributes: item.selected_attributes,
     }, true)
     if (!selected) return
-    const change = await variantPriceChange(Number(item.product_id), item.selected_attributes, selected.selected_attributes, 1)
+    const change = await variantPriceChange(Number(item.product_id), item.selected_attributes, selected.selected_attributes, 1, item.product_name)
     setItems((prev) => prev.map((row) => row.rowId !== item.rowId ? row : {
       ...row,
       product_name: selected.product_name || row.product_name,

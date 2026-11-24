@@ -72,7 +72,7 @@ import { pickRoleUnit } from "@/lib/product-unit-roles"
 import VoucherItemCards, { type ItemCardField } from "@/components/sales/voucher-item-cards"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { categoryAttributeDeltas } from "@/lib/attribute-prices"
-import { variantPriceChange } from "@/lib/variant-pricing"
+import { baseVariantName, normalizeVariantSelection, variantPriceChange } from "@/lib/variant-pricing"
 
 // 2026-11-24: فرق سعر قيم «المتغيرات والخصائص» المختارة عن سعر الصنف (فئة السعر 1 كما في نافذة بحث الأصناف هنا)
 const variantPriceDelta = (attributes: any[] | undefined, chosen: Record<string, string> | undefined, basePrice: number) => {
@@ -1679,14 +1679,15 @@ export default function UnifiedSalesDelivery({
     const selected = await requestProductVariant({
       ...product,
       id: productId,
-      product_name: product.base_product_name || product.product_name,
+      product_name: baseVariantName(product.base_product_name || product.product_name || ""),
+      base_product_name: baseVariantName(product.base_product_name || product.product_name || ""),
       selected_attributes: savedSelection,
     }, { forceEdit: true, readOnly: !editable })
     if (selected && editable) {
       // 2026-11-24: تغيير القيمة يستبدل فرق سعر القيمة القديمة بفرق الجديدة (كل أنواع السندات في هذه الشاشة)
       const attributes = Array.isArray(selected.attributes) && selected.attributes.length ? selected.attributes : product.attributes
       // أسعار القيم من تعريف الصنف الحالي (lib/variant-pricing.ts) — السطر المحفوظ قد لا يحملها
-      const entryChange = await variantPriceChange(productId, savedSelection, selected.selected_attributes, 1)
+      const entryChange = await variantPriceChange(productId, savedSelection, selected.selected_attributes, 1, String(row.product_name || ""))
       const netChange = entryChange ? (entryPriceToNet(entryChange, await itemVatRateFor(productId)) ?? 0) : 0
       const repriced = netChange ? (() => {
         const unit_price = Math.round((Number(row.unit_price || 0) + netChange) * 10000) / 10000

@@ -71,7 +71,7 @@ import { maxLength } from "zod/v4"
 import Dropdown from "../common/Dropdown"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import { categoryAttributeDeltas } from "@/lib/attribute-prices"
-import { variantPriceChange } from "@/lib/variant-pricing"
+import { baseVariantName, normalizeVariantSelection, variantPriceChange } from "@/lib/variant-pricing"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import OrderSearchPopup from "./OrderSearchPopup"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
@@ -1725,11 +1725,15 @@ function UnifiedSalesOrder({
       }
     }
     if (!Array.isArray(product.attributes) || product.attributes.length === 0) return
+    // الاسم بلا لاحقة «(الحجم: كبير)» (كانت تتكرر عند كل تغيير) والاختيار الحالي بصيغة { المتغير: القيمة }
+    const lineName = String(item.product_name || (item as any).name || "")
+    const previousSelection = normalizeVariantSelection(product.attributes, item.selected_attributes || product.selected_attributes, lineName)
     const selected = await requestProductVariant({
       ...product,
       id: productId,
-      product_name: item.product_name || (item as any).name,
-      selected_attributes: item.selected_attributes || product.selected_attributes,
+      product_name: baseVariantName(lineName),
+      base_product_name: baseVariantName(lineName),
+      selected_attributes: previousSelection,
     }, true)
     if (!selected) return
     // 2026-11-24: السطر في شبكة Wijmo (CollectionView) — updateOrderItem يعدّل state.orderItems غير الموجود فكان يعطل
@@ -1737,7 +1741,7 @@ function UnifiedSalesOrder({
     const row: any = item
     const attributes = Array.isArray(selected.attributes) && selected.attributes.length ? selected.attributes : product.attributes
     // أسعار القيم من تعريف الصنف الحالي (lib/variant-pricing.ts) — السطر المحفوظ قد لا يحملها
-    const priceChange = (await variantPriceChange(productId, row.selected_attributes, selected.selected_attributes, Number(priceCategoryIdRef.current) || 1))
+    const priceChange = (await variantPriceChange(productId, previousSelection, selected.selected_attributes, Number(priceCategoryIdRef.current) || 1, lineName))
       / (Number(state.formData.exchange_rate) || 1)
     CollectionView.editItem(row)
     row.product_name = selected.product_name || row.product_name || row.name

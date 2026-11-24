@@ -27,8 +27,37 @@ export function variantPriceDelta(attributes: PricedAttribute[] | undefined, cho
   return Math.round(delta * 10000) / 10000
 }
 
-/** فرق السعر عند تبديل قيمة: فرق القيم الجديدة − فرق القيم القديمة */
-export async function variantPriceChange(productId: number, before: Record<string, string> | undefined, after: Record<string, string> | undefined, priceCategoryId = 1) {
+/**
+ * الاختيار المحفوظ على سطر قد يأتي بأشكال مختلفة: { المتغير: القيمة } أو مصفوفة قيم (features في الطلبيات) أو مفاتيح
+ * لا تطابق أسماء المتغيرات — أو فارغاً والقيمة موجودة فقط في اسم السطر «(الحجم: كبير)». يُعاد بناؤه { المتغير: القيمة }.
+ */
+export function normalizeVariantSelection(attributes: PricedAttribute[] | undefined, chosen: unknown, lineName?: string): Record<string, string> {
+  const list = Array.isArray(attributes) ? attributes : []
+  const result: Record<string, string> = {}
+  const entries: Array<[string, string]> = Array.isArray(chosen)
+    ? chosen.map((value, index) => [String(index), String(value)])
+    : chosen && typeof chosen === "object" ? Object.entries(chosen as Record<string, unknown>).map(([key, value]) => [key, String(value ?? "")]) : []
+  for (const [key, value] of entries) {
+    const byName = list.find((attribute) => attribute.name === key && attribute.values?.includes(value))
+    const byValue = byName || list.find((attribute) => !result[attribute.name] && attribute.values?.includes(value))
+    if (byValue) result[byValue.name] = value
+  }
+  if (lineName) {
+    for (const attribute of list) {
+      if (result[attribute.name]) continue
+      const value = (attribute.values || []).find((candidate) => lineName.includes(`${attribute.name}: ${candidate}`))
+      if (value) result[attribute.name] = value
+    }
+  }
+  return result
+}
+
+/** اسم الصنف بلا لاحقة الخصائص «(الحجم: كبير)» (قد تتكرر) */
+export const baseVariantName = (name: string) => String(name || "").replace(/(\s*\([^)]*:[^)]*\))+\s*$/, "").trim()
+
+/** فرق السعر عند تبديل قيمة: فرق القيم الجديدة − فرق القيم القديمة (lineName: اسم السطر لاستخراج القيمة القديمة إن لم تُحفظ) */
+export async function variantPriceChange(productId: number, before: unknown, after: Record<string, string> | undefined, priceCategoryId = 1, lineName?: string) {
   const { attributes, basePrice } = await loadVariantPricing(productId, priceCategoryId)
-  return variantPriceDelta(attributes, after, basePrice, priceCategoryId) - variantPriceDelta(attributes, before, basePrice, priceCategoryId)
+  const previous = normalizeVariantSelection(attributes, before, lineName)
+  return variantPriceDelta(attributes, after, basePrice, priceCategoryId) - variantPriceDelta(attributes, previous, basePrice, priceCategoryId)
 }
