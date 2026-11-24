@@ -3,7 +3,7 @@ import { tr, appDir } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { AlertTriangle, CheckCircle2, ClipboardList, Download, Factory, Loader2, Lock, Play, Plus, RotateCcw, Save, ShoppingCart, Trash2, XCircle } from "lucide-react"
+import { AlertTriangle, CheckCircle2, ClipboardList, Download, Eye, Factory, Loader2, Lock, Play, Plus, RotateCcw, Save, ShoppingCart, Trash2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,8 +12,8 @@ import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useAuth } from "@/components/auth/auth-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
 import { openSectionWith } from "@/lib/section-intents"
-import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
-import { VoucherListTable, VoucherSearchButton, searchOnEnter } from "@/components/common/voucher-list-table"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
+import { VoucherSearchButton, searchOnEnter } from "@/components/common/voucher-list-table"
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 import type { ProductionOrderIntent } from "@/components/inventory/production-vouchers"
@@ -101,7 +101,8 @@ export default function ProductionOrders() {
   const loadList = useCallback(async () => {
     setLoading(true); setError("")
     try {
-      const query = new URLSearchParams({ q: filters.q, status: /^\d$/.test(filters.status) ? filters.status : "0" })
+      // كل الحالات من الخادم — التبويبات (وأعدادها) تُصفّى في الشاشة
+      const query = new URLSearchParams({ q: filters.q, status: "0" })
       if (activeBranchId) query.set("branch_id", String(activeBranchId))
       const response = await fetch(`/api/production-orders?${query}`, { cache: "no-store" })
       if (!response.ok) throw new Error(await readError(response, tr("تعذر تحميل أوامر الانتاج")))
@@ -109,7 +110,7 @@ export default function ProductionOrders() {
     } catch (e) {
       setError(e instanceof Error ? e.message : tr("تعذر تحميل أوامر الانتاج"))
     } finally { setLoading(false) }
-  }, [filters, activeBranchId])
+  }, [filters.q, activeBranchId])
 
   useEffect(() => { void loadList() }, [activeBranchId]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -237,18 +238,29 @@ export default function ProductionOrders() {
   }
 
   // تنفيذ: يحفظ التغييرات أولاً ثم يفتح سند انتاج جديداً بالمتبقي من كل صنف
-  const execute = async () => {
-    let current: Form | null = form
-    if (!form.id || dirty) current = await save()
+  const execute = async (fromList?: Form) => {
+    let current: Form | null = fromList || form
+    if (!fromList && (!form.id || dirty)) current = await save()
     if (!current?.id) return
     const items = current.items.filter((line) => line.remaining > 0).map((line) => ({ item_id: line.item_id, quantity: line.remaining }))
-    if (!items.length) { setFormError(tr("لا توجد كميات متبقية للانتاج في هذا الأمر")); return }
+    if (!items.length) { if (fromList) setError(tr("لا توجد كميات متبقية للانتاج في الأمر {0}", current.code)); else setFormError(tr("لا توجد كميات متبقية للانتاج في هذا الأمر")); return }
     const intent: ProductionOrderIntent = {
       order_id: current.id, order_code: current.code, branch_id: current.branch_id,
       finished_store_id: Number(current.finished_store_id) || null, raw_store_id: Number(current.raw_store_id) || null, items,
     }
     setOpen(false)
     openSectionWith("production-vouchers", intent)
+  }
+
+  const executeRow = async (id: number) => {
+    setBusy(true); setError("")
+    try {
+      const response = await fetch(`/api/production-orders?id=${id}`, { cache: "no-store" })
+      if (!response.ok) throw new Error(await readError(response, tr("تعذر فتح أمر الانتاج")))
+      await execute(fromServer(await response.json()))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : tr("تعذر فتح أمر الانتاج"))
+    } finally { setBusy(false) }
   }
 
   const exportShortages = async () => {
@@ -263,184 +275,288 @@ export default function ProductionOrders() {
     XLSX.writeFile(book, `احتياج-المواد-${form.code || "أمر-جديد"}.xlsx`)
   }
 
-  const visibleRows = useMemo(() => rows.filter((row) => filters.status !== "open" || row.status === 1 || row.status === 2), [rows, filters.status])
-  const stats = [
-    { label: tr("أوامر مفتوحة"), value: rows.filter((row) => row.status === 1 || row.status === 2).length },
-    { label: tr("قيد التنفيذ"), value: rows.filter((row) => row.status === 2).length },
-    { label: tr("متأخرة"), value: rows.filter((row) => row.late).length },
-    { label: tr("منتهية"), value: rows.filter((row) => row.status === 3).length },
+  const counts = {
+    open: rows.filter((row) => row.status === 1 || row.status === 2).length,
+    1: rows.filter((row) => row.status === 1).length,
+    2: rows.filter((row) => row.status === 2).length,
+    late: rows.filter((row) => row.late).length,
+    3: rows.filter((row) => row.status === 3).length,
+    4: rows.filter((row) => row.status === 4).length,
+    0: rows.length,
+  } as Record<string, number>
+  const visibleRows = useMemo(() => rows.filter((row) =>
+    filters.status === "open" ? row.status === 1 || row.status === 2
+      : filters.status === "late" ? row.late
+        : filters.status === "0" ? true : row.status === Number(filters.status)), [rows, filters.status])
+  const TABS: { key: string; label: string; tone: string }[] = [
+    { key: "open", label: tr("المفتوحة"), tone: "emerald" }, { key: "1", label: tr("مخطط"), tone: "sky" }, { key: "2", label: tr("قيد التنفيذ"), tone: "amber" },
+    { key: "late", label: tr("متأخرة"), tone: "rose" }, { key: "3", label: tr("منتهية"), tone: "emerald" }, { key: "4", label: tr("ملغاة"), tone: "slate" }, { key: "0", label: tr("الكل"), tone: "slate" },
   ]
   const isLate = editable && form.due_date && form.due_date < today()
+  const plannedTotal = form.items.reduce((sum, line) => sum + num(line.quantity), 0)
+  const producedTotal = form.items.reduce((sum, line) => sum + line.produced, 0)
+  const progress = plannedTotal > 0 ? Math.min(100, Math.round((producedTotal / plannedTotal) * 100)) : 0
+  const daysLeft = form.due_date ? Math.round((new Date(`${form.due_date}T12:00:00`).getTime() - new Date(`${today()}T12:00:00`).getTime()) / 86400000) : null
+  const fieldClass = "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-50 disabled:text-slate-500 dark:border-slate-700 dark:bg-slate-900"
 
   return (
     <div className="space-y-5 p-4" dir={appDir()}>
       <VoucherListHero icon={ClipboardList} title={tr("أوامر الانتاج")} subtitle={tr("خطط ما ستنتجه، افحص توفر المواد الخام، ثم نفّذ الأمر بسند انتاج")} addLabel={tr("أمر انتاج جديد")} onNew={openNew} addDisabled={busy} />
-      <VoucherStats stats={stats} />
 
-      <section className="grid gap-3 rounded-2xl border bg-white p-4 shadow-sm sm:grid-cols-3">
-        <div className="space-y-1">
-          <Label>{tr("الحالة")}</Label>
-          <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
-            <option value="open">{tr("المفتوحة")}</option><option value="0">{tr("الكل")}</option>
-            <option value="1">{tr("مخطط")}</option><option value="2">{tr("قيد التنفيذ")}</option><option value="3">{tr("منتهي")}</option><option value="4">{tr("ملغى")}</option>
-          </select>
+      {/* شريط الحالات + البحث */}
+      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex flex-wrap items-center gap-2">
+          {TABS.map((tab) => {
+            const active = filters.status === tab.key
+            return (
+              <button key={tab.key} type="button" onClick={() => setFilters({ ...filters, status: tab.key })}
+                className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${active ? "border-emerald-600 bg-emerald-600 text-white shadow" : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}`}>
+                {tab.label}
+                <span className={`min-w-6 rounded-full px-1.5 text-center text-xs tabular-nums ${active ? "bg-white/25" : tab.key === "late" && counts.late ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-500 dark:bg-slate-800"}`}>{counts[tab.key] ?? 0}</span>
+              </button>
+            )
+          })}
+          <div className="ms-auto flex min-w-[240px] flex-1 items-center gap-2 sm:max-w-md">
+            <Input className="h-10 rounded-xl" placeholder={tr("ابحث برقم الأمر، الصنف، رقم الطلبية")} value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} onKeyDown={searchOnEnter(() => void loadList())} />
+            <VoucherSearchButton onClick={() => void loadList()} loading={loading} className="h-10 rounded-xl px-4" />
+          </div>
         </div>
-        <div className="space-y-1"><Label>{tr("بحث")}</Label><Input placeholder={tr("رقم الأمر، الصنف، رقم الطلبية")} value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} onKeyDown={searchOnEnter(() => void loadList())} /></div>
-        <div className="flex items-end"><VoucherSearchButton onClick={() => void loadList()} loading={loading} className="w-full" /></div>
       </section>
 
       {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
 
-      <VoucherListTable
-        loading={loading}
-        statusColumn={false}
-        rows={visibleRows}
-        columns={[
-          { header: tr("رقم الأمر"), name: "code", width: 120, render: (row) => <span className="font-mono font-bold text-emerald-700">{row.code}</span> },
-          { header: tr("التاريخ"), name: "order_date", width: 105 },
-          { header: tr("التسليم"), name: "due_date", width: 105, render: (row) => row.due_date ? <span className={row.late ? "font-bold text-rose-600" : ""}>{row.due_date}{row.late ? ` · ${tr("متأخر")}` : ""}</span> : "—" },
-          { header: tr("المواد المنتجة"), name: "product_names", width: "*" },
-          {
-            header: tr("الإنجاز"), name: "progress", width: 150, render: (row) => (
-              <div className="flex items-center gap-2">
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${row.progress}%` }} /></div>
-                <span className="w-10 text-end text-xs tabular-nums">{row.progress}%</span>
-              </div>
-            ),
-          },
-          { header: tr("طلبيات المبيعات"), name: "sales_orders", width: 130 },
-          { header: tr("الحالة"), name: "status_label", width: 110, render: (row) => <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${STATUS_TONE[row.status] || ""}`}>{STATUS_LABEL[row.status]}{row.priority === 2 ? ` · ${tr("عاجل")}` : ""}</span> },
-        ]}
-        onOpen={(row: any) => void openRow(Number(row.id))}
-      />
+      {/* بطاقات الأوامر */}
+      {loading && !rows.length ? (
+        <div className="grid h-48 place-items-center"><Loader2 className="h-6 w-6 animate-spin text-emerald-600" /></div>
+      ) : !visibleRows.length ? (
+        <div className="grid place-items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white py-14 text-center dark:border-slate-700 dark:bg-slate-950">
+          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><ClipboardList className="h-7 w-7" /></span>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">{tr("لا توجد أوامر انتاج هنا")}</p>
+          <p className="text-sm text-slate-500">{tr("أنشئ أمراً جديداً أو غيّر الحالة المختارة في الأعلى")}</p>
+          <Button onClick={openNew} className="gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700"><Plus className="h-4 w-4" />{tr("أمر انتاج جديد")}</Button>
+        </div>
+      ) : (
+        <div className={`grid gap-3 sm:grid-cols-2 xl:grid-cols-3 ${loading ? "opacity-60" : ""}`}>
+          {visibleRows.map((row) => {
+            const open = row.status === 1 || row.status === 2
+            return (
+              <article key={row.id} onDoubleClick={() => void openRow(row.id)}
+                className={`group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-950 ${row.late ? "border-rose-200 dark:border-rose-900/50" : "border-slate-200 dark:border-slate-800"}`}>
+                <span className={`absolute inset-y-0 start-0 w-1 ${row.late ? "bg-rose-500" : row.status === 2 ? "bg-amber-400" : row.status === 3 ? "bg-emerald-500" : row.status === 4 ? "bg-slate-300" : "bg-sky-400"}`} />
+                <div className="flex items-start justify-between gap-2 px-4 pt-3.5">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-bold text-slate-800 dark:text-slate-100">{row.code}</span>
+                      {row.priority === 2 && <span className="rounded-md bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">{tr("عاجل")}</span>}
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-sm font-semibold text-slate-700 dark:text-slate-200">{row.product_names || "—"}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${STATUS_TONE[row.status] || ""}`}>{STATUS_LABEL[row.status]}</span>
+                </div>
+                <div className="space-y-1.5 px-4 pt-3">
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>{tr("الإنجاز")}</span>
+                    <span className="font-mono tabular-nums" dir="ltr">{qty(row.produced)} / {qty(row.planned)}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div className={`h-full rounded-full transition-all ${row.progress >= 100 ? "bg-emerald-500" : "bg-gradient-to-l from-emerald-500 to-teal-400"}`} style={{ width: `${row.progress}%` }} />
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pb-3 pt-2.5 text-xs text-slate-500">
+                  <span>{tr("التاريخ")} <b className="font-mono font-medium text-slate-600 dark:text-slate-300">{row.order_date}</b></span>
+                  <span className={row.late ? "font-bold text-rose-600" : ""}>{tr("التسليم")} <b className="font-mono font-medium">{row.due_date || "—"}</b>{row.late ? ` · ${tr("متأخر")}` : ""}</span>
+                  {row.sales_orders && <span className="flex items-center gap-1"><ShoppingCart className="h-3 w-3" /><b className="font-mono font-medium">{row.sales_orders}</b></span>}
+                </div>
+                <div className="mt-auto flex items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/40">
+                  <Button size="sm" variant="ghost" className="h-8 flex-1 gap-1.5 rounded-lg text-slate-700" onClick={() => void openRow(row.id)}><Eye className="h-4 w-4" />{tr("فتح وتعديل")}</Button>
+                  {open && <Button size="sm" disabled={busy} className="h-8 flex-1 gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700" onClick={(event) => { event.stopPropagation(); void executeRow(row.id) }}><Play className="h-4 w-4" />{tr("تنفيذ")}</Button>}
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={(value) => { if (!value) void close() }}>
         <DialogContent
           dir={appDir()}
-          className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0"
+          className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-6xl flex-col gap-0 overflow-hidden rounded-2xl p-0"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onFocusOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => { if (searchOpen || salesOpen || busy) event.preventDefault() }}
         >
-          <DialogHeader className="border-b bg-gradient-to-l from-emerald-700 to-teal-600 px-5 py-4 text-start text-white">
-            <DialogTitle className="flex flex-wrap items-center gap-2 text-lg">
-              <ClipboardList className="h-5 w-5" />{tr("أمر انتاج")}
-              <span className="rounded-full bg-white/15 px-2.5 py-0.5 font-mono text-sm">{form.code || tr("جديد")}</span>
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${STATUS_TONE[form.status] || ""}`}>{STATUS_LABEL[form.status]}</span>
-              {isLate && <span className="rounded-full bg-rose-500 px-2.5 py-0.5 text-xs font-bold">{tr("متأخر")}</span>}
-            </DialogTitle>
+          {/* رأس: الرقم والحالة والإنجاز */}
+          <DialogHeader className="space-y-0 bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 pb-4 pt-4 text-start text-white">
+            <div className="flex flex-wrap items-center gap-3 pe-8">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15"><ClipboardList className="h-6 w-6" /></span>
+              <div className="min-w-0">
+                <DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-bold">
+                  {form.id ? tr("أمر انتاج") : tr("أمر انتاج جديد")}
+                  <span className="rounded-lg bg-white/15 px-2 py-0.5 font-mono text-sm">{form.code || "—"}</span>
+                </DialogTitle>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className="rounded-full bg-white px-2.5 py-0.5 font-bold text-emerald-800">{STATUS_LABEL[form.status]}</span>
+                  {form.priority === 2 && <span className="rounded-full bg-rose-500 px-2.5 py-0.5 font-bold">{tr("عاجل")}</span>}
+                  {isLate && <span className="rounded-full bg-rose-500 px-2.5 py-0.5 font-bold">{tr("متأخر")}</span>}
+                  {daysLeft !== null && !isLate && editable && <span className="rounded-full bg-white/15 px-2.5 py-0.5">{daysLeft === 0 ? tr("التسليم اليوم") : tr("باقي {0} يوم للتسليم", daysLeft)}</span>}
+                </div>
+              </div>
+              {form.items.length > 0 && (
+                <div className="ms-auto w-full min-w-[180px] sm:w-56">
+                  <div className="mb-1 flex justify-between text-xs text-white/80"><span>{tr("الإنجاز")}</span><b className="font-mono" dir="ltr">{progress}%</b></div>
+                  <div className="h-2 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-white" style={{ width: `${progress}%` }} /></div>
+                </div>
+              )}
+            </div>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-            {formError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{formError}</p>}
-
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-1"><Label>{tr("تاريخ الأمر")}</Label><Input type="date" dir="ltr" disabled={!editable} value={form.order_date} onChange={(event) => setForm({ ...form, order_date: event.target.value })} /></div>
-              <div className="space-y-1"><Label>{tr("تاريخ التسليم المطلوب")}</Label><Input type="date" dir="ltr" disabled={!editable} value={form.due_date} onChange={(event) => setForm({ ...form, due_date: event.target.value })} /></div>
-              <div className="space-y-1">
-                <Label>{tr("الأولوية")}</Label>
-                <select disabled={!editable} className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.priority} onChange={(event) => setForm({ ...form, priority: Number(event.target.value) })}>
-                  <option value={1}>{tr("عادي")}</option><option value={2}>{tr("عاجل")}</option>
-                </select>
-              </div>
-              <TransactionBranchField family="production" action={form.id ? "update" : "create"} value={form.branch_id} disabled={!editable || Boolean(form.vouchers.length)}
-                onChange={(id) => setForm((value) => ({ ...value, branch_id: id, code: value.id ? value.code : "" }))} />
-              <div className="space-y-1">
-                <Label>{tr("مستودع المواد الجاهزة")}</Label>
-                <select disabled={!editable} className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.finished_store_id} onChange={(event) => setForm({ ...form, finished_store_id: event.target.value })}>
-                  <option value="">{tr("— اختر —")}</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label>{tr("مستودع المواد الخام")}</Label>
-                <select disabled={!editable} className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.raw_store_id} onChange={(event) => { setForm({ ...form, raw_store_id: event.target.value }); setRequirements(null) }}>
-                  <option value="">{tr("— اختر —")}</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1 sm:col-span-2"><Label>{tr("ملاحظات")}</Label><Input disabled={!editable} value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} /></div>
-            </div>
-
-            <section className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-emerald-50/70 px-4 py-3">
-                <h3 className="flex items-center gap-2 font-bold text-slate-800"><Factory className="h-5 w-5 text-emerald-600" />{tr("المواد المطلوب انتاجها")}</h3>
-                {editable && (
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" className="gap-1" onClick={() => setSalesOpen(true)}><ShoppingCart className="h-4 w-4" />{tr("من طلبيات المبيعات")}</Button>
-                    <Button size="sm" variant="outline" className="gap-1" onClick={() => setSearchOpen(true)}><Plus className="h-4 w-4" />{tr("إضافة صنف")}</Button>
+          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/70 dark:bg-slate-950">
+            {formError && <p role="alert" className="mx-4 mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{formError}</p>}
+            <div className="grid gap-4 p-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+              {/* تفاصيل الأمر */}
+              <aside className="space-y-4 self-start rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-0">
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{tr("تفاصيل الأمر")}</h3>
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
+                  <div className="space-y-1"><Label className="text-xs text-slate-500">{tr("تاريخ الأمر")}</Label><Input type="date" dir="ltr" disabled={!editable} className="h-10 rounded-xl" value={form.order_date} onChange={(event) => setForm({ ...form, order_date: event.target.value })} /></div>
+                  <div className="space-y-1"><Label className="text-xs text-slate-500">{tr("تاريخ التسليم المطلوب")}</Label><Input type="date" dir="ltr" disabled={!editable} className="h-10 rounded-xl" value={form.due_date} onChange={(event) => setForm({ ...form, due_date: event.target.value })} /></div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-slate-500">{tr("الأولوية")}</Label>
+                  <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+                    {[{ value: 1, label: tr("عادي") }, { value: 2, label: tr("عاجل") }].map((option) => (
+                      <button key={option.value} type="button" disabled={!editable} onClick={() => setForm({ ...form, priority: option.value })}
+                        className={`rounded-lg py-1.5 text-sm font-semibold transition disabled:cursor-not-allowed ${form.priority === option.value ? option.value === 2 ? "bg-rose-600 text-white shadow" : "bg-white text-emerald-700 shadow dark:bg-slate-700 dark:text-emerald-300" : "text-slate-500"}`}>
+                        {option.label}
+                      </button>
+                    ))}
                   </div>
+                </div>
+                <TransactionBranchField family="production" action={form.id ? "update" : "create"} value={form.branch_id} disabled={!editable || Boolean(form.vouchers.length)}
+                  onChange={(id) => setForm((value) => ({ ...value, branch_id: id, code: value.id ? value.code : "" }))} />
+                <div className="space-y-1">
+                  <Label className="text-xs text-slate-500">{tr("مستودع المواد الجاهزة")}</Label>
+                  <select disabled={!editable} className={fieldClass} value={form.finished_store_id} onChange={(event) => setForm({ ...form, finished_store_id: event.target.value })}>
+                    <option value="">{tr("— اختر —")}</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-slate-500">{tr("مستودع المواد الخام")}</Label>
+                  <select disabled={!editable} className={fieldClass} value={form.raw_store_id} onChange={(event) => { setForm({ ...form, raw_store_id: event.target.value }); setRequirements(null) }}>
+                    <option value="">{tr("— اختر —")}</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1"><Label className="text-xs text-slate-500">{tr("ملاحظات")}</Label><textarea disabled={!editable} rows={2} className={`${fieldClass} h-auto py-2`} value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} /></div>
+              </aside>
+
+              <div className="min-w-0 space-y-4">
+                {/* الأصناف */}
+                <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+                    <h3 className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
+                      <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10"><Factory className="h-4 w-4" /></span>
+                      {tr("المطلوب انتاجه")}
+                      <span className="rounded-full bg-slate-100 px-2 text-xs font-semibold text-slate-500 dark:bg-slate-800">{form.items.length}</span>
+                    </h3>
+                    {editable && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" className="gap-1.5 rounded-lg" onClick={() => setSalesOpen(true)}><ShoppingCart className="h-4 w-4" />{tr("من طلبيات المبيعات")}</Button>
+                        <Button size="sm" className="gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700" onClick={() => setSearchOpen(true)}><Plus className="h-4 w-4" />{tr("إضافة صنف")}</Button>
+                      </div>
+                    )}
+                  </div>
+                  {!form.items.length ? (
+                    <button type="button" disabled={!editable} onClick={() => setSearchOpen(true)} className="m-4 grid w-[calc(100%-2rem)] place-items-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-10 text-sm text-slate-500 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700">
+                      <Plus className="h-6 w-6" />{tr("أضف الأصناف المطلوب انتاجها أو اسحبها من طلبيات المبيعات المفتوحة")}
+                    </button>
+                  ) : (
+                    <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {form.items.map((line) => {
+                        const planned = num(line.quantity)
+                        const done = line.produced + line.pending
+                        const remaining = Math.max(0, planned - done)
+                        const percent = planned > 0 ? Math.min(100, (line.produced / planned) * 100) : 0
+                        const pendingPercent = planned > 0 ? Math.min(100 - percent, (line.pending / planned) * 100) : 0
+                        return (
+                          <li key={line.key} className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_130px_auto] sm:items-center">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="truncate font-semibold text-slate-800 dark:text-slate-100">{line.product_name}</span>
+                                {line.sales_order_number && <span className="flex items-center gap-1 rounded-md bg-sky-50 px-1.5 py-0.5 font-mono text-[11px] text-sky-700"><ShoppingCart className="h-3 w-3" />{line.sales_order_number}</span>}
+                              </div>
+                              <div className="font-mono text-[11px] text-slate-400">{line.product_code}{line.unit_name ? ` · ${line.unit_name}` : ""}</div>
+                              <div className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                                <div className="h-full bg-emerald-500" style={{ width: `${percent}%` }} />
+                                <div className="h-full bg-amber-400" style={{ width: `${pendingPercent}%` }} />
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-x-3 text-[11px] text-slate-500">
+                                <span><span className="me-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />{tr("منتَج")} <b className="font-mono">{qty(line.produced)}</b></span>
+                                {line.pending > 0 && <span><span className="me-1 inline-block h-2 w-2 rounded-full bg-amber-400" />{tr("بسندات غير معتمدة")} <b className="font-mono">{qty(line.pending)}</b></span>}
+                                <span>{tr("المتبقي")} <b className="font-mono text-slate-700 dark:text-slate-200">{qty(remaining)}</b></span>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[11px] text-slate-500">{tr("الكمية المخططة")}</Label>
+                              <Input type="number" min={0} step="any" dir="ltr" className="h-10 rounded-xl text-center font-mono text-base font-semibold" disabled={!editable} value={line.quantity} onChange={(event) => patchItem(line.key, { quantity: event.target.value })} />
+                            </div>
+                            <div className="flex justify-end">
+                              {editable && done <= 0 && <Button size="sm" variant="ghost" className="h-9 w-9 rounded-lg p-0 text-rose-600 hover:bg-rose-50" onClick={() => setForm((value) => ({ ...value, items: value.items.filter((row) => row.key !== line.key) }))} aria-label={tr("حذف")}><Trash2 className="h-4 w-4" /></Button>}
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </section>
+
+                {/* توفر المواد */}
+                <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+                    <h3 className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
+                      <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/10"><AlertTriangle className="h-4 w-4" /></span>
+                      {tr("توفر المواد الخام")}
+                    </h3>
+                    <div className="flex gap-2">
+                      {requirements && requirements.rows.length > 0 && <Button size="sm" variant="outline" className="gap-1.5 rounded-lg" onClick={() => void exportShortages()}><Download className="h-4 w-4" />{tr("Excel")}</Button>}
+                      <Button size="sm" variant="outline" className="gap-1.5 rounded-lg border-amber-300 text-amber-700 hover:bg-amber-50" disabled={requirementsLoading || !form.items.length} onClick={() => void checkMaterials()}>
+                        {requirementsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{requirements ? tr("إعادة الفحص") : tr("فحص توفر المواد")}
+                      </Button>
+                    </div>
+                  </div>
+                  {requirements ? <RequirementsTable data={requirements} /> : <p className="px-4 py-6 text-center text-sm text-slate-500">{tr("يحسب المواد الخام اللازمة للكميات المتبقية (مع نسبة الهدر) ويقارنها برصيد مستودع المواد الخام")}</p>}
+                </section>
+
+                {form.vouchers.length > 0 && (
+                  <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <h3 className="mb-3 text-sm font-bold text-slate-800 dark:text-slate-100">{tr("سندات الانتاج المنفذة")}</h3>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {form.vouchers.map((voucher) => (
+                        <div key={voucher.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-800/50">
+                          <div><b className="font-mono text-sm text-slate-700 dark:text-slate-200">{voucher.code}</b><div className="text-slate-500">{voucher.vch_date}</div></div>
+                          <div className="text-end">
+                            <span className={`rounded-full px-2 py-0.5 font-bold ${voucher.status === 2 ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{VOUCHER_STATUS[voucher.status] || ""}</span>
+                            <div className="mt-0.5 font-mono text-slate-600" dir="ltr">{money(voucher.value)}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 )}
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-sm">
-                  <thead className="bg-slate-50 text-xs text-slate-500">
-                    <tr>
-                      <th className="p-2 text-start">{tr("الصنف")}</th><th className="w-28 p-2 text-start">{tr("الكمية المخططة")}</th>
-                      <th className="p-2 text-start">{tr("المنتَج")}</th><th className="p-2 text-start">{tr("بسندات غير معتمدة")}</th><th className="p-2 text-start">{tr("المتبقي")}</th>
-                      <th className="p-2 text-start">{tr("طلبية المبيعات")}</th><th className="w-10 p-2" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {form.items.map((line) => {
-                      const done = line.produced + line.pending
-                      return (
-                        <tr key={line.key} className="border-t">
-                          <td className="p-2"><div className="font-medium">{line.product_name}</div><div className="font-mono text-[11px] text-slate-400">{line.product_code} · {line.unit_name}</div></td>
-                          <td className="p-2"><Input type="number" min={0} step="any" dir="ltr" className="h-8 font-mono" disabled={!editable} value={line.quantity} onChange={(event) => patchItem(line.key, { quantity: event.target.value })} /></td>
-                          <td className="p-2 font-mono text-emerald-700">{qty(line.produced)}</td>
-                          <td className="p-2 font-mono text-amber-700">{line.pending ? qty(line.pending) : "—"}</td>
-                          <td className="p-2 font-mono font-bold">{qty(Math.max(0, num(line.quantity) - done))}</td>
-                          <td className="p-2 font-mono text-xs">{line.sales_order_number || "—"}</td>
-                          <td className="p-2 text-end">
-                            {editable && done <= 0 && <Button size="sm" variant="ghost" className="h-8 px-2 text-rose-600" onClick={() => setForm((value) => ({ ...value, items: value.items.filter((row) => row.key !== line.key) }))} aria-label={tr("حذف")}><Trash2 className="h-4 w-4" /></Button>}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-                {!form.items.length && <p className="p-6 text-center text-sm text-muted-foreground">{tr("أضف الأصناف المطلوب انتاجها أو اسحبها من طلبيات المبيعات المفتوحة")}</p>}
-              </div>
-            </section>
-
-            <section className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-amber-50/70 px-4 py-3">
-                <h3 className="flex items-center gap-2 font-bold text-slate-800"><AlertTriangle className="h-5 w-5 text-amber-600" />{tr("توفر المواد الخام")}</h3>
-                <div className="flex gap-2">
-                  {requirements && requirements.rows.length > 0 && <Button size="sm" variant="outline" className="gap-1" onClick={() => void exportShortages()}><Download className="h-4 w-4" />{tr("تصدير Excel")}</Button>}
-                  <Button size="sm" className="gap-1 bg-amber-600 hover:bg-amber-700" disabled={requirementsLoading || !form.items.length} onClick={() => void checkMaterials()}>
-                    {requirementsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{tr("فحص توفر المواد")}
-                  </Button>
-                </div>
-              </div>
-              {requirements ? <RequirementsTable data={requirements} /> : <p className="p-4 text-center text-xs text-slate-500">{tr("يحسب المواد الخام اللازمة للكميات المتبقية (مع نسبة الهدر) ويقارنها برصيد مستودع المواد الخام")}</p>}
-            </section>
-
-            {form.vouchers.length > 0 && (
-              <section className="rounded-2xl border p-4 text-sm">
-                <p className="mb-2 font-bold text-slate-700">{tr("سندات الانتاج المنفذة")}</p>
-                <div className="flex flex-wrap gap-2">
-                  {form.vouchers.map((voucher) => (
-                    <span key={voucher.id} className="rounded-lg border bg-slate-50 px-2.5 py-1 text-xs">
-                      <b className="font-mono">{voucher.code}</b> · {voucher.vch_date} · {VOUCHER_STATUS[voucher.status] || ""} · <span dir="ltr">{money(voucher.value)}</span>
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
+            </div>
           </div>
 
-          <DialogFooter className="flex flex-wrap gap-2 border-t bg-slate-50 px-4 py-3 sm:justify-between">
+          <DialogFooter className="flex flex-wrap items-center gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:justify-between dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap gap-2">
-              {editable && <Button disabled={busy} onClick={() => void save()} className="gap-1">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{tr("حفظ")}</Button>}
-              {editable && <Button disabled={busy || !form.items.length} onClick={() => void execute()} className="gap-1 bg-emerald-700 hover:bg-emerald-800"><Play className="h-4 w-4" />{tr("تنفيذ (سند انتاج)")}</Button>}
+              {editable && <Button disabled={busy || !form.items.length} onClick={() => void execute()} className="h-10 gap-1.5 rounded-xl bg-emerald-600 px-5 hover:bg-emerald-700"><Play className="h-4 w-4" />{tr("تنفيذ (سند انتاج)")}</Button>}
+              {editable && <Button variant="outline" disabled={busy} onClick={() => void save()} className="h-10 gap-1.5 rounded-xl">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{tr("حفظ")}{dirty && <span className="h-2 w-2 rounded-full bg-amber-500" />}</Button>}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {form.id && editable && <Button variant="outline" disabled={busy} className="gap-1" onClick={() => void act("close", tr("إغلاق أمر الانتاج {0} كمنتهٍ؟ لن تُضاف له سندات جديدة.", form.code))}><Lock className="h-4 w-4" />{tr("إغلاق الأمر")}</Button>}
-              {form.id && editable && !form.vouchers.length && <Button variant="outline" disabled={busy} className="gap-1 text-rose-600" onClick={() => void act("cancel", tr("إلغاء أمر الانتاج {0}؟", form.code))}><XCircle className="h-4 w-4" />{tr("إلغاء الأمر")}</Button>}
-              {form.id && !editable && <Button variant="outline" disabled={busy} className="gap-1" onClick={() => void act("reopen", tr("إعادة فتح أمر الانتاج {0}؟", form.code))}><RotateCcw className="h-4 w-4" />{tr("إعادة فتح")}</Button>}
-              {form.id && !form.vouchers.length && <Button variant="ghost" disabled={busy} className="gap-1 text-rose-600" onClick={() => void remove()}><Trash2 className="h-4 w-4" />{tr("حذف")}</Button>}
-              <Button variant="outline" disabled={busy} onClick={() => void close()}>{tr("إغلاق")}</Button>
+            <div className="flex flex-wrap gap-1.5">
+              {form.id && editable && <Button variant="ghost" disabled={busy} className="h-10 gap-1.5 rounded-xl text-slate-600" onClick={() => void act("close", tr("إغلاق أمر الانتاج {0} كمنتهٍ؟ لن تُضاف له سندات جديدة.", form.code))}><Lock className="h-4 w-4" />{tr("إغلاق الأمر")}</Button>}
+              {form.id && editable && !form.vouchers.length && <Button variant="ghost" disabled={busy} className="h-10 gap-1.5 rounded-xl text-rose-600 hover:bg-rose-50" onClick={() => void act("cancel", tr("إلغاء أمر الانتاج {0}؟", form.code))}><XCircle className="h-4 w-4" />{tr("إلغاء الأمر")}</Button>}
+              {form.id && !editable && <Button variant="outline" disabled={busy} className="h-10 gap-1.5 rounded-xl" onClick={() => void act("reopen", tr("إعادة فتح أمر الانتاج {0}؟", form.code))}><RotateCcw className="h-4 w-4" />{tr("إعادة فتح")}</Button>}
+              {form.id && !form.vouchers.length && <Button variant="ghost" disabled={busy} className="h-10 gap-1.5 rounded-xl text-rose-600 hover:bg-rose-50" onClick={() => void remove()}><Trash2 className="h-4 w-4" />{tr("حذف")}</Button>}
+              <Button variant="outline" disabled={busy} className="h-10 rounded-xl" onClick={() => void close()}>{tr("إغلاق")}</Button>
             </div>
           </DialogFooter>
         </DialogContent>
