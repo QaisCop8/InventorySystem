@@ -210,9 +210,13 @@ export async function kitchenBoard(branchId: number, locationId: number | null, 
       ORDER BY id
     `,
     sql`
-      SELECT ot.order_id, string_agg(t.name, ' + ' ORDER BY ot.is_primary DESC, t.sort_order, t.id) AS names
+      -- 2026-11-24: الطاولات الحالية للطلب، وإن أُفرغت كلها (طلب أُغلق وبطاقته باقية في المطبخ) فطاولاته المُفرغة —
+      -- كان قيد «أُفرغت خلال 12 ساعة» يُظهر «طاولة -» لبطاقة قديمة لم يُضغط عليها «تم»
+      SELECT ot.order_id,
+             COALESCE(string_agg(t.name, ' + ' ORDER BY ot.is_primary DESC, t.sort_order, t.id) FILTER (WHERE ot.active),
+                      string_agg(DISTINCT t.name, ' + ')) AS names
       FROM restaurant_order_tables_tbl ot JOIN restaurant_tables_tbl t ON t.id = ot.table_id
-      WHERE ot.order_id = ANY(${ids}::int[]) AND (ot.active OR ot.released_at >= NOW() - INTERVAL '12 hours')
+      WHERE ot.order_id = ANY(${ids}::int[])
       GROUP BY ot.order_id
     `,
   ])

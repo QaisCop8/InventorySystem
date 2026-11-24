@@ -2143,7 +2143,9 @@ export default function UnifiedSalesDelivery({
       const enteredPrice = isPurchaseDeliveryVoucher
         ? purchaseBase * (Number(product.to_main_unit_qty ?? product.to_main_qnty) || 1)
         : product.price != null ? Number(product.price) : 0
-      const unitPrice = entryPriceToNet(enteredPrice, await itemVatRateFor(product.id)) ?? 0
+      // متغير مختار بعد إدخال الرقم/الباركود ⇐ فرق سعر قيمته (كنافذة البحث)
+      const variantDelta = await variantAddDelta(product, enteredPrice, 1)
+      const unitPrice = entryPriceToNet(enteredPrice + variantDelta, await itemVatRateFor(product.id)) ?? 0
       const warehousePatch = resolveDefaultWarehouse(product)
       const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
       const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
