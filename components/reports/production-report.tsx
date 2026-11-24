@@ -3,7 +3,7 @@ import { tr } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Boxes, Factory, ListTree, PackagePlus, Printer, Search, type LucideIcon } from "lucide-react"
+import { Boxes, Factory, Gauge, ListTree, PackagePlus, Printer, Scale, Search, TrendingUp, Users, type LucideIcon } from "lucide-react"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
 import { ReportFilters } from "@/components/reports/report-filters"
@@ -15,8 +15,8 @@ import { Label } from "@/components/ui/label"
 import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 // تقارير الانتاج (app/api/reports/production): مكوّن واحد بعدة أنواع — كل نوع شاشة وصلاحية مستقلة.
-type View = "detailed" | "produced" | "raw" | "vouchers"
-type Column = { key: string; label: string; align?: "end" | "center"; format?: "money" | "qty" | "int" | "role" | "status"; sum?: boolean }
+type View = "detailed" | "produced" | "raw" | "vouchers" | "variance" | "profitability" | "workers" | "centers"
+type Column = { key: string; label: string; align?: "end" | "center"; format?: "money" | "qty" | "int" | "role" | "status" | "percent"; sum?: boolean }
 
 const STATUS_OPTIONS = [{ id: 2, name: "معتمد" }, { id: 1, name: "غير معتمد" }] as unknown as ReportOption[]
 const CONFIG: Record<View, { title: string; description: string; icon: LucideIcon; columns: Column[]; valueKey: string }> = {
@@ -62,6 +62,58 @@ const CONFIG: Record<View, { title: string; description: string; icon: LucideIco
       { key: "difference", label: tr("الفرق"), align: "end", format: "money", sum: true },
     ],
   },
+  variance: {
+    title: tr("انحراف استهلاك المواد الخام"), icon: Scale, valueKey: "variance_value",
+    description: tr("المستهلك فعلاً مقابل الكمية المعيارية حسب الوصفة (مع الهدر المتوقع) — الموجب = استهلاك زائد/هدر"),
+    columns: [
+      { key: "product_code", label: tr("رمز الصنف") }, { key: "product_name", label: tr("المادة الخام") }, { key: "unit_name", label: tr("الوحدة") },
+      { key: "vouchers", label: tr("عدد السندات"), align: "center", format: "int" },
+      { key: "standard_quantity", label: tr("الكمية المعيارية"), align: "end", format: "qty", sum: true },
+      { key: "quantity", label: tr("المستهلك فعلاً"), align: "end", format: "qty", sum: true },
+      { key: "variance_quantity", label: tr("الانحراف"), align: "end", format: "qty", sum: true },
+      { key: "variance_percent", label: tr("الانحراف %"), align: "end", format: "percent" },
+      { key: "variance_value", label: tr("قيمة الانحراف"), align: "end", format: "money", sum: true },
+    ],
+  },
+  profitability: {
+    title: tr("ربحية المنتجات المصنعة"), icon: TrendingUp, valueKey: "value",
+    description: tr("كلفة الوحدة الفعلية مقابل المعيارية (الوصفة بمتوسط الكلفة) ومتوسط سعر البيع في الفترة وهامش الربح"),
+    columns: [
+      { key: "product_code", label: tr("رمز الصنف") }, { key: "product_name", label: tr("الصنف") }, { key: "unit_name", label: tr("الوحدة") },
+      { key: "quantity", label: tr("الكمية المنتجة"), align: "end", format: "qty", sum: true },
+      { key: "value", label: tr("كلفة الانتاج"), align: "end", format: "money", sum: true },
+      { key: "actual_unit_cost", label: tr("كلفة الوحدة الفعلية"), align: "end", format: "money" },
+      { key: "standard_unit_cost", label: tr("كلفة الوحدة المعيارية"), align: "end", format: "money" },
+      { key: "cost_variance_percent", label: tr("فرق الكلفة %"), align: "end", format: "percent" },
+      { key: "avg_sale_price", label: tr("متوسط سعر البيع"), align: "end", format: "money" },
+      { key: "unit_margin", label: tr("ربح الوحدة"), align: "end", format: "money" },
+      { key: "margin_percent", label: tr("هامش الربح %"), align: "end", format: "percent" },
+    ],
+  },
+  workers: {
+    title: tr("إنتاجية العمال"), icon: Users, valueKey: "labor_cost",
+    description: tr("ساعات كل عامل في سندات الانتاج وأجوره وما أُنتج في السندات التي عمل بها"),
+    columns: [
+      { key: "worker_name", label: tr("العامل") }, { key: "vouchers", label: tr("عدد السندات"), align: "center", format: "int", sum: true },
+      { key: "hours", label: tr("الساعات"), align: "end", format: "qty", sum: true },
+      { key: "avg_rate", label: tr("متوسط أجر الساعة"), align: "end", format: "money" },
+      { key: "labor_cost", label: tr("الأجور"), align: "end", format: "money", sum: true },
+      { key: "produced_quantity", label: tr("الكمية المنتجة"), align: "end", format: "qty" },
+      { key: "produced_value", label: tr("قيمة الانتاج"), align: "end", format: "money" },
+    ],
+  },
+  centers: {
+    title: tr("إنتاجية مراكز العمل"), icon: Gauge, valueKey: "produced_value",
+    description: tr("ساعات تشغيل كل مركز/خط وكلفتها وما أنتجه والإنتاج لكل ساعة"),
+    columns: [
+      { key: "center_name", label: tr("مركز العمل") }, { key: "vouchers", label: tr("عدد السندات"), align: "center", format: "int", sum: true },
+      { key: "machine_hours", label: tr("ساعات التشغيل"), align: "end", format: "qty", sum: true },
+      { key: "overhead_cost", label: tr("مصاريف التشغيل"), align: "end", format: "money", sum: true },
+      { key: "produced_quantity", label: tr("الكمية المنتجة"), align: "end", format: "qty", sum: true },
+      { key: "produced_value", label: tr("قيمة الانتاج"), align: "end", format: "money", sum: true },
+      { key: "output_per_hour", label: tr("الانتاج لكل ساعة"), align: "end", format: "qty" },
+    ],
+  },
 }
 
 const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
@@ -76,6 +128,7 @@ function cell(column: Column, row: Record<string, any>) {
     case "money": return <span dir="ltr" className={`font-mono ${column.key === "difference" && Number(value) < 0 ? "text-rose-700" : ""}`}>{money(value)}</span>
     case "qty": return <span dir="ltr" className="font-mono">{qty(value)}</span>
     case "int": return <span className="font-mono">{Number(value || 0)}</span>
+    case "percent": return value === null || value === undefined ? "—" : <span dir="ltr" className={`font-mono ${Number(value) > 0 && column.key.startsWith("variance") ? "text-rose-700" : ""}`}>{Number(value).toFixed(2)}%</span>
     case "role": return Number(value) === 1
       ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">{tr("منتَج")}</span>
       : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">{tr("خام")}</span>
@@ -170,11 +223,13 @@ export function ProductionReport({ view }: { view: View }) {
           <ReportGrid rows={rows} exportFileName={config.title} emptyText={tr("لا توجد بيانات للفترة والفلاتر المحددة")}
               columns={config.columns.map((column): ReportGridColumn => {
                 const numeric = column.format === "money" || column.format === "qty" || column.format === "int"
+                // قيم فارغة (لا وصفة/لا مبيعات) تُعرض «—» بدل 0
+                const nullable = ["standard_unit_cost", "avg_sale_price", "unit_margin"].includes(column.key)
                 return {
                   key: column.key, label: column.label, width: numeric ? 130 : "*", minWidth: numeric ? 110 : 140,
                   type: numeric ? "number" : "text", decimals: column.format === "int" ? 0 : column.format === "qty" ? 3 : undefined,
                   total: column.sum ? Number(totals[column.key] || 0) : undefined,
-                  render: numeric ? undefined : (row: any) => cell(column, row),
+                  render: numeric && !nullable ? undefined : (row: any) => (nullable && (row[column.key] === null || row[column.key] === undefined) ? "—" : cell(column, row)),
                 }
               })}/>
         </>
@@ -187,3 +242,7 @@ export const ProductionDetailedReport = () => <ProductionReport view="detailed" 
 export const ProductionProducedReport = () => <ProductionReport view="produced" />
 export const ProductionRawReport = () => <ProductionReport view="raw" />
 export const ProductionVouchersReport = () => <ProductionReport view="vouchers" />
+export const ProductionVarianceReport = () => <ProductionReport view="variance" />
+export const ProductionProfitabilityReport = () => <ProductionReport view="profitability" />
+export const ProductionWorkersReport = () => <ProductionReport view="workers" />
+export const ProductionCentersReport = () => <ProductionReport view="centers" />

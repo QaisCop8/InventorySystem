@@ -370,3 +370,6 @@ export function ReceivablesDashboard() {
     </>
   }}</DashboardShell>
 }
+
+// قطع مشتركة لِلوحات أخرى (لوحة الانتاج components/reports/production-dashboard.tsx) — نفس الألوان والأسلوب
+export { Card as VizCard, Kpi as VizKpi, ChartTooltip as VizTooltip, RankBars as VizRankBars, Empty as VizEmpty }
