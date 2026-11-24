@@ -387,9 +387,9 @@ export default function ProductionOrders() {
                         <tr key={line.key} className="border-t">
                           <td className="p-2"><div className="font-medium">{line.product_name}</div><div className="font-mono text-[11px] text-slate-400">{line.product_code} · {line.unit_name}</div></td>
                           <td className="p-2"><Input type="number" min={0} step="any" dir="ltr" className="h-8 font-mono" disabled={!editable} value={line.quantity} onChange={(event) => patchItem(line.key, { quantity: event.target.value })} /></td>
-                          <td className="p-2 font-mono text-emerald-700" dir="ltr">{qty(line.produced)}</td>
-                          <td className="p-2 font-mono text-amber-700" dir="ltr">{line.pending ? qty(line.pending) : "—"}</td>
-                          <td className="p-2 font-mono font-bold" dir="ltr">{qty(Math.max(0, num(line.quantity) - done))}</td>
+                          <td className="p-2 font-mono text-emerald-700">{qty(line.produced)}</td>
+                          <td className="p-2 font-mono text-amber-700">{line.pending ? qty(line.pending) : "—"}</td>
+                          <td className="p-2 font-mono font-bold">{qty(Math.max(0, num(line.quantity) - done))}</td>
                           <td className="p-2 font-mono text-xs">{line.sales_order_number || "—"}</td>
                           <td className="p-2 text-end">
                             {editable && done <= 0 && <Button size="sm" variant="ghost" className="h-8 px-2 text-rose-600" onClick={() => setForm((value) => ({ ...value, items: value.items.filter((row) => row.key !== line.key) }))} aria-label={tr("حذف")}><Trash2 className="h-4 w-4" /></Button>}
@@ -495,10 +495,10 @@ function RequirementsTable({ data }: { data: Requirement }) {
               {data.rows.map((row) => (
                 <tr key={row.item_id} className={`border-t ${row.shortage > 0 ? "bg-rose-50/60" : ""}`}>
                   <td className="p-2"><div className="font-medium">{row.product_name}</div><div className="font-mono text-[11px] text-slate-400">{row.product_code} · {row.unit_name}</div></td>
-                  <td className="p-2 font-mono" dir="ltr">{qty(row.required)}</td>
-                  <td className="p-2 font-mono" dir="ltr">{data.store_checked ? qty(row.available) : "—"}</td>
+                  <td className="p-2 font-mono">{qty(row.required)}</td>
+                  <td className="p-2 font-mono">{data.store_checked ? qty(row.available) : "—"}</td>
                   <td className={`p-2 font-mono font-bold ${row.shortage > 0 ? "text-rose-700" : "text-emerald-700"}`} dir="ltr">{row.shortage > 0 ? qty(row.shortage) : "✓"}</td>
-                  <td className="p-2 font-mono" dir="ltr">{row.shortage > 0 ? money(row.shortage_value) : "—"}</td>
+                  <td className="p-2 font-mono">{row.shortage > 0 ? money(row.shortage_value) : "—"}</td>
                   <td className="max-w-[200px] truncate p-2 text-xs text-slate-500">{row.used_by.join("، ")}</td>
                 </tr>
               ))}
@@ -551,8 +551,8 @@ function SalesOrderLinesDialog({ onClose, onPick }: { onClose: () => void; onPic
                     <td className="p-2 font-mono text-xs">{row.order_number}<div className="text-[11px] text-slate-400">{row.order_date}</div></td>
                     <td className="max-w-[160px] truncate p-2">{row.customer_name || "—"}</td>
                     <td className="p-2">{row.product_name}</td>
-                    <td className="p-2 font-mono" dir="ltr">{qty(row.remaining)}</td>
-                    <td className="p-2 font-mono text-slate-500" dir="ltr">{row.planned ? qty(row.planned) : "—"}</td>
+                    <td className="p-2 font-mono">{qty(row.remaining)}</td>
+                    <td className="p-2 font-mono text-slate-500">{row.planned ? qty(row.planned) : "—"}</td>
                     <td className="p-2 text-xs">{row.delivery_date || "—"}</td>
                   </tr>
                 )

@@ -781,7 +781,7 @@ export default function ProductionVouchers() {
                         <tr key={transfer.id} className="border-t">
                           <td className="p-1"><button type="button" className="font-mono text-emerald-700 underline" onClick={() => openVoucher(transfer.voucher_id, 10)}>{transfer.vch_code || "—"}</button></td>
                           <td className="p-1">{transfer.to_store_name}</td>
-                          <td className="p-1 font-mono" dir="ltr">{qty(transfer.quantity)}</td>
+                          <td className="p-1 font-mono">{qty(transfer.quantity)}</td>
                           <td className="p-1">{transfer.status === 1 ? tr("فعّال") : transfer.status === 3 ? tr("ملغى") : tr("قيد الإلغاء")}</td>
                           <td className="p-1 text-end">{transfer.status !== 3 && <Button size="sm" variant="ghost" className="h-7 text-rose-600" disabled={busy} onClick={() => void act("cancel_transfer", { transfer_id: transfer.id }, tr("إلغاء النقل {0}؟ ستُلغى الإرسالية الداخلية.", transfer.vch_code || ""))}>{tr("إلغاء النقل")}</Button>}</td>
                         </tr>
@@ -1018,9 +1018,9 @@ function TransferDialog({ production, warehouses, busy, onClose, onSubmit }: {
               {lines.map((line: any) => (
                 <tr key={line.id} className="border-t">
                   <td className="p-2 font-medium">{line.product_name}</td>
-                  <td className="p-2 font-mono" dir="ltr">{qty(line.quantity)}</td>
-                  <td className="p-2 font-mono" dir="ltr">{qty(line.transferred || 0)}</td>
-                  <td className="p-2 font-mono font-bold" dir="ltr">{qty(line.remaining)}</td>
+                  <td className="p-2 font-mono">{qty(line.quantity)}</td>
+                  <td className="p-2 font-mono">{qty(line.transferred || 0)}</td>
+                  <td className="p-2 font-mono font-bold">{qty(line.remaining)}</td>
                   <td className="p-2"><Input type="number" min={0} max={line.remaining} step="any" dir="ltr" className="h-8" disabled={line.remaining <= 0} value={quantities[line.id] ?? ""} onChange={(event) => setQuantities({ ...quantities, [line.id]: event.target.value })} /></td>
                 </tr>
               ))}
@@ -1068,7 +1068,7 @@ function ProductionCodeSearch({ branchId, onClose, onPick }: { branchId: number 
                 <tr key={row.id} tabIndex={0} className="cursor-pointer border-t hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none"
                   onDoubleClick={() => onPick(Number(row.id))} onKeyDown={(event) => { if (event.key === "Enter") onPick(Number(row.id)) }}>
                   <td className="p-2 font-mono font-bold text-emerald-700">{row.code}</td>
-                  <td className="p-2" dir="ltr">{String(row.vch_date || "").slice(0, 10)}</td>
+                  <td className="p-2">{String(row.vch_date || "").slice(0, 10)}</td>
                   <td className="max-w-[320px] truncate p-2">{row.produced_names || "—"}</td>
                   <td className="p-2"><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${STATUS_TONE[Number(row.status)] || ""}`}>{STATUS_LABEL[Number(row.status)] || ""}</span></td>
                 </tr>

@@ -2916,16 +2916,6 @@ export function CompactProductForm({
       <ProgressSpinner loading={loading} />
       <div ref={formRootRef} className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${isService ? "compact-service-form-scroll" : ""}`}>
         <div className={`mx-auto w-full max-w-full ${isService ? "space-y-2 p-2 pb-3 sm:space-y-3 sm:p-3" : "space-y-4 p-2 pb-8 sm:space-y-6 sm:p-4 sm:pb-10 lg:p-6 lg:pb-12"}`}>
-          {/* رأس الشاشة (2026-11-16): ملخص مختصر للصنف — الأيقونة، حالة السجل، الاسم والرقم */}
-          <div className={`flex items-center gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-l from-emerald-50 to-white shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-slate-950 ${isService ? "p-2" : "p-3 sm:p-4"}`}>
-            <span className={`grid shrink-0 place-items-center rounded-xl bg-emerald-600 text-white shadow ${isService ? "h-9 w-9" : "h-11 w-11"}`}><Package className="h-5 w-5" /></span>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{isService ? (editingProduct ? tr("تعديل خدمة") : tr("خدمة جديدة")) : (editingProduct ? tr("تعديل صنف") : tr("صنف جديد"))}</div>
-              <div className={`truncate font-bold text-foreground ${isService ? "text-sm" : "text-lg"}`}>{formData.product_name || (isService ? tr("خدمة بدون اسم") : tr("صنف بدون اسم"))}</div>
-            </div>
-            {formData.product_code ? <span className="shrink-0 rounded-lg border bg-white px-2.5 py-1 font-mono text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300" dir="ltr">{formData.product_code}</span> : null}
-          </div>
-
           <form onSubmit={handleSubmit} className={isService ? "space-y-2" : "space-y-4"}>
             <Card className="rounded-2xl border-slate-200 shadow-sm dark:border-slate-800">
               {/* بطاقة مدمجة (2026-11-17): الرقم والاسمان بسطر واحد، صورة أصغر، وحشوة/فراغات أقل */}
