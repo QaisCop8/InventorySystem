@@ -70,6 +70,7 @@ import { adjustStock } from "@/lib/inventory"
 import { maxLength } from "zod/v4"
 import Dropdown from "../common/Dropdown"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
+import { categoryAttributeDeltas } from "@/lib/attribute-prices"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import OrderSearchPopup from "./OrderSearchPopup"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
@@ -1126,10 +1127,22 @@ function UnifiedSalesOrder({
 
       // Validate price
       const resolvedStore = resolveProductStore(ii);
+      // 2026-11-24: قيمة متغير مختارة من نافذة البحث (المتغيرات والخصائص) ⇐ يُضاف فرق سعرها بفئة سعر الطلبية
+      const variantAttributes = (ii.selected_attributes || {}) as Record<string, string>;
+      const variantDelta = (() => {
+        if (setFromExcelRef.current) return 0;
+        const base = Number(ii.price) || Number(ii.first_price) || 0;
+        let delta = 0;
+        for (const [group, value] of Object.entries(variantAttributes)) {
+          const attribute = (Array.isArray(ii.attributes) ? ii.attributes : []).find((row: any) => row?.name === group);
+          if (attribute) delta += Number(categoryAttributeDeltas(attribute, base, Number(priceCategoryIdRef.current) || 1)[value] || 0);
+        }
+        return delta / (Number(state.formData.exchange_rate) || 1);
+      })();
       const initialPrice = (() => {
         const p = ii.price ? ii.price / state.formData.exchange_rate : NaN;
         const fallback = ii.first_price ? ii.first_price / state.formData.exchange_rate : NaN;
-        return isNaN(p) ? (isNaN(fallback) ? 0 : fallback) : p;
+        return (isNaN(p) ? (isNaN(fallback) ? 0 : fallback) : p) + variantDelta;
       })();
       const initialPriceInclTax = calculateInclusivePrice(initialPrice, state.formData.vat_percent ?? 0)
 
@@ -1163,6 +1176,7 @@ function UnifiedSalesOrder({
           width: null,
           height: null,
           count: 1,
+          ...(Object.keys(variantAttributes).length ? { selected_attributes: variantAttributes, attribute_summary: ii.attribute_summary || Object.values(variantAttributes).join("، ") } : {}),
         };
         if (setFromExcelRef.current) {
           item.qnty = ii.qnty;
@@ -1185,9 +1199,11 @@ function UnifiedSalesOrder({
         const updatedPrice = setFromExcelRef.current ? ii.price : (() => {
           const p = ii.price ? ii.price / state.formData.exchange_rate : NaN;
           const fallback = ii.first_price ? ii.first_price / state.formData.exchange_rate : NaN;
-          return isNaN(p) ? (isNaN(fallback) ? 0 : fallback) : p;
+          return (isNaN(p) ? (isNaN(fallback) ? 0 : fallback) : p) + variantDelta;
         })();
         item.price = updatedPrice;
+        item.selected_attributes = Object.keys(variantAttributes).length ? variantAttributes : undefined;
+        item.attribute_summary = Object.keys(variantAttributes).length ? (ii.attribute_summary || Object.values(variantAttributes).join("، ")) : undefined;
         item.price_incl_tax = calculateInclusivePrice(updatedPrice, state.formData.vat_percent ?? 0);
         item.store_id = resolvedStore.store_id;
         item.store_name = resolvedStore.store_name;
@@ -1694,11 +1710,12 @@ function UnifiedSalesOrder({
   };
 
   const openAttributeEditor = async (item: OrderItem) => {
-    if (!item?.product_id) return
+    const productId = Number((item as any)?.product_id || (item as any)?.id) || 0
+    if (!productId) return
     let product: any = item
     if (!Array.isArray(product.attributes) || product.attributes.length === 0) {
       try {
-        const response = await fetch(`/api/inventory/products?productId=${item.product_id}`)
+        const response = await fetch(`/api/inventory/products?productId=${productId}&priceCategoryId=${Number(priceCategoryIdRef.current) || 1}`)
         const products = response.ok ? await response.json() : []
         const fetchedProduct = Array.isArray(products) ? products[0] : null
         if (fetchedProduct) product = { ...fetchedProduct, ...item, attributes: fetchedProduct.attributes }
@@ -1709,16 +1726,38 @@ function UnifiedSalesOrder({
     if (!Array.isArray(product.attributes) || product.attributes.length === 0) return
     const selected = await requestProductVariant({
       ...product,
-      id: Number(item.product_id),
-      product_name: item.product_name || item.name,
+      id: productId,
+      product_name: item.product_name || (item as any).name,
       selected_attributes: item.selected_attributes || product.selected_attributes,
     }, true)
     if (!selected) return
-    updateOrderItem(item.id, "product_name", selected.product_name || item.product_name || item.name)
-    updateOrderItem(item.id, "name", selected.product_name || item.name)
-    updateOrderItem(item.id, "attributes", selected.attributes)
-    updateOrderItem(item.id, "selected_attributes", selected.selected_attributes)
-    updateOrderItem(item.id, "attribute_summary", selected.attribute_summary)
+    // 2026-11-24: السطر في شبكة Wijmo (CollectionView) — updateOrderItem يعدّل state.orderItems غير الموجود فكان يعطل
+    // الصفحة (Cannot read properties of undefined (reading 'map')). يُعدَّل السطر نفسه ويُستبدل فرق سعر القيمة القديمة بالجديدة.
+    const row: any = item
+    const attributes = Array.isArray(selected.attributes) && selected.attributes.length ? selected.attributes : product.attributes
+    const variantDelta = (chosen: Record<string, string> | undefined) => {
+      const base = Number(product.first_price) || Number(product.price) || 0
+      let delta = 0
+      for (const [group, value] of Object.entries(chosen || {})) {
+        const attribute = (Array.isArray(attributes) ? attributes : []).find((entry: any) => entry?.name === group)
+        if (attribute) delta += Number(categoryAttributeDeltas(attribute, base, Number(priceCategoryIdRef.current) || 1)[value] || 0)
+      }
+      return delta / (Number(state.formData.exchange_rate) || 1)
+    }
+    const priceChange = variantDelta(selected.selected_attributes) - variantDelta(row.selected_attributes)
+    CollectionView.editItem(row)
+    row.product_name = selected.product_name || row.product_name || row.name
+    row.name = selected.product_name || row.name
+    row.attributes = attributes
+    row.selected_attributes = selected.selected_attributes
+    row.attribute_summary = selected.attribute_summary
+    if (priceChange) {
+      row.price = Math.round((Number(row.price || 0) + priceChange) * 10000) / 10000
+      row.price_incl_tax = calculateInclusivePrice(row.price, state.formData.vat_percent ?? 0)
+      row.amount = Number(row.price) * Number(row.qnty || 0)
+    }
+    CollectionView.commitEdit()
+    CollectionView.refresh()
   }
 
   const getScheme = () => {

@@ -71,6 +71,17 @@ import { SmsSendDialog } from "@/components/sms/sms-send-dialog"
 import { pickRoleUnit } from "@/lib/product-unit-roles"
 import VoucherItemCards, { type ItemCardField } from "@/components/sales/voucher-item-cards"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { categoryAttributeDeltas } from "@/lib/attribute-prices"
+
+// 2026-11-24: فرق سعر قيم «المتغيرات والخصائص» المختارة عن سعر الصنف (فئة السعر 1 كما في نافذة بحث الأصناف هنا)
+const variantPriceDelta = (attributes: any[] | undefined, chosen: Record<string, string> | undefined, basePrice: number) => {
+  let delta = 0
+  for (const [group, value] of Object.entries(chosen || {})) {
+    const attribute = (Array.isArray(attributes) ? attributes : []).find((entry: any) => entry?.name === group)
+    if (attribute) delta += Number(categoryAttributeDeltas(attribute, basePrice, 1)[value] || 0)
+  }
+  return delta
+}
 
 // vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23) — هذا المكوّن يخدم
 // الأنواع الثمانية جميعها الآن عبر خاصية voucherType (بنفس أسلوب unified-stock-voucher.tsx مع
@@ -1671,7 +1682,19 @@ export default function UnifiedSalesDelivery({
       selected_attributes: savedSelection,
     }, { forceEdit: true, readOnly: !editable })
     if (selected && editable) {
+      // 2026-11-24: تغيير القيمة يستبدل فرق سعر القيمة القديمة بفرق الجديدة (سندات البيع فقط)
+      const attributes = Array.isArray(selected.attributes) && selected.attributes.length ? selected.attributes : product.attributes
+      const basePrice = Number((product as any).first_price) || Number((product as any).price) || 0
+      const entryChange = isPurchaseDeliveryVoucher ? 0
+        : variantPriceDelta(attributes, selected.selected_attributes, basePrice) - variantPriceDelta(attributes, savedSelection, basePrice)
+      const netChange = entryChange ? (entryPriceToNet(entryChange, await itemVatRateFor(productId)) ?? 0) : 0
+      const repriced = netChange ? (() => {
+        const unit_price = Math.round((Number(row.unit_price || 0) + netChange) * 10000) / 10000
+        const base_unit_price = unit_price * Number(formRef.current.rate || 1)
+        return { unit_price, base_unit_price, ...recalcLineAmounts({ ...row, unit_price, base_unit_price }) }
+      })() : {}
       patchItemRow(rowIndex, {
+        ...repriced,
         product_name: selected.product_name || row.product_name,
         base_product_name: selected.base_product_name || row.base_product_name,
         attributes: selected.attributes,
@@ -2482,7 +2505,10 @@ export default function UnifiedSalesDelivery({
       const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
       const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
       if (!isMountedRef.current) return
-      const unitPrice = entryPriceToNet(Number(unit?.price ?? product.first_price ?? 0), await itemVatRateFor(product.id)) ?? 0
+      // سعر الوحدة (أو سعر الصنف إن كانت 0) + فرق سعر قيمة المتغير المختارة من نافذة البحث (لسندات البيع)
+      const basePrice = Number(unit?.price) || Number(product.first_price) || 0
+      const entryPrice = basePrice + (isPurchaseDeliveryVoucher ? 0 : variantPriceDelta(product.attributes, product.selected_attributes, basePrice))
+      const unitPrice = entryPriceToNet(entryPrice, await itemVatRateFor(product.id)) ?? 0
       const patched: SalesVoucherItemRow = {
         ...currentRow,
         product_id: product.id,
