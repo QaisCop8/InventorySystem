@@ -49,7 +49,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         [productId, priceCategoryId],
       )
       // وحدة بلا سعر ⇐ سعر الوحدة الأولى × العلاقة بالرئيسية (lib/unit-prices.ts)
-      let units = withDerivedUnitPrices(result.rows.map((row: any) => ({ ...row, price: Number(row.price) || 0 })), "price", "to_main_qnty")
+      let rows = result.rows.map((row: any) => ({ ...row, price: Number(row.price) || 0 }))
+      // 2026-11-24: سعر محفوظ بلا وحدة مطابقة (unit_id فارغ/وحدة أخرى) كان يظهر 0 في الوحدات بينما بطاقة الصنف تعرضه —
+      // نفس قاعدة first_price في قائمة الأصناف: أي سعر للصنف بالفئة يصبح سعر الوحدة الأولى ثم تُشتق الباقية
+      if (rows.length && rows.every((row: any) => !row.price)) {
+        const anyPrice = Number((await client.query(
+          `SELECT price FROM product_prices WHERE product_id = $1 AND price_category_id IN ($2, 1) AND COALESCE(price, 0) <> 0
+           ORDER BY (price_category_id = $2) DESC, id LIMIT 1`,
+          [productId, priceCategoryId],
+        ).catch(() => ({ rows: [] as any[] }))).rows[0]?.price || 0)
+        if (anyPrice) rows = rows.map((row: any, index: number) => index === 0 ? { ...row, price: anyPrice } : row)
+      }
+      let units = withDerivedUnitPrices(rows, "price", "to_main_qnty")
       // numberType=factory|original (عمود الرقم في السند): أول رقم مصنع/أصلي للصنف بدل باركود كل وحدة
       const numberTypeParam = searchParams.get("numberType")
       const numberType = numberTypeParam === "factory" ? 2 : numberTypeParam === "original" ? 1 : 0

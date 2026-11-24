@@ -15,6 +15,7 @@ import ProductSearchPopup from "./products/ProductSearchPopup"
 import { useAuth } from "./auth/auth-context"
 import MeasurementInputDialog from "./common/MeasurementInputDialog"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { categoryAttributeDeltas } from "@/lib/attribute-prices"
 
 // نوع طلبية المبيعات ثابت في هذه النافذة السريعة — لا يُعرض للمستخدم ولا يمكن تغييره
 const SALES_ORDER_TYPE = 1
@@ -168,6 +169,13 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
     if (!product) return
 
     const unit = product.selected_unit || product.units?.[0]
+    // 2026-11-24: سعر الوحدة (أو سعر الصنف إن كانت 0) + فرق سعر قيمة المتغير المختارة بفئة السعر 1
+    const basePrice = Number(unit?.price) || Number(product.first_price) || 0
+    let price = basePrice
+    for (const [group, value] of Object.entries((product.selected_attributes || {}) as Record<string, string>)) {
+      const attribute = (Array.isArray(product.attributes) ? product.attributes : []).find((row: any) => row?.name === group)
+      if (attribute) price += Number(categoryAttributeDeltas(attribute, basePrice, 1)[value] || 0)
+    }
 
     setItems((prev) => {
       // أول سطر فارغ يُملأ مباشرة بدل إضافة سطر جديد، وإلا يُضاف سطر جديد بنهاية القائمة
@@ -180,7 +188,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         unit_id: unit?.unit_id ?? null,
         unit_name: unit?.unit_name || product.first_unit || "",
         qty: 1,
-        price: unit?.price ?? product.first_price ?? 0,
+        price: Math.round(price * 10000) / 10000,
         discount: 0,
         measurment_id: product.measurment_id != null ? Number(product.measurment_id) : 1,
         product_length: product.length != null ? Number(product.length) : null,
