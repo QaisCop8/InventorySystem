@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Save, Trash2, UserSearch } from "lucide-react"
 import { Toast } from "primereact/toast"
 import Util from "./common/Util"
-import CustomerSearchPopup from "./products/CustomerSearchPopup"
+import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import ProductSearchPopup from "./products/ProductSearchPopup"
 import { useAuth } from "./auth/auth-context"
 import MeasurementInputDialog from "./common/MeasurementInputDialog"
@@ -152,12 +152,13 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [open])
 
-  const handleCustomerSelect = (selected: any) => {
+  // 2026-11-24: اختيار من بحث الحسابات (مثل طلبية المبيعات الكاملة) بدل بحث العملاء
+  const handleCustomerSelect = (selected: AccountItem & Record<string, any>) => {
     setCustomer({
       id: selected.id,
       name: selected.name || selected.customer_name || "",
-      customer_code: selected.customer_code,
-      mobile1: selected.mobile1,
+      customer_code: selected.code || selected.customer_code,
+      mobile1: selected.mobile1 || "",
     })
     setShowCustomerSearch(false)
   }
@@ -373,9 +374,9 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         // الـDialog وتُغلقها تلقائياً، فتُغلَق نافذة الطلبية السريعة كاملة معها. تُمنَع هذه الإغلاقات
         // التلقائية طالما نافذة بحث الأصناف مفتوحة — إغلاقها هي نفسها يبقى بيد onClose/Escape الخاصين
         // بها فقط.
-        onPointerDownOutside={(e) => { if (showProductSearch || measurementItem) e.preventDefault() }}
-        onInteractOutside={(e) => { if (showProductSearch || measurementItem) e.preventDefault() }}
-        onEscapeKeyDown={(e) => { if (showProductSearch || measurementItem) e.preventDefault() }}
+        onPointerDownOutside={(e) => { if (showProductSearch || showCustomerSearch || measurementItem) e.preventDefault() }}
+        onInteractOutside={(e) => { if (showProductSearch || showCustomerSearch || measurementItem) e.preventDefault() }}
+        onEscapeKeyDown={(e) => { if (showProductSearch || showCustomerSearch || measurementItem) e.preventDefault() }}
       >
         <Toast ref={toast} position="top-left" className="erp-toast-host" style={{ top: 100, whiteSpace: "pre-line" }} />
 
@@ -504,12 +505,12 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
           </div>
         </form>
 
-        <CustomerSearchPopup
-          visible={showCustomerSearch}
-          onClose={() => setShowCustomerSearch(false)}
+        <AccountSearchDialog
+          open={showCustomerSearch}
+          onOpenChange={setShowCustomerSearch}
+          accounts={[]}
+          allowedTypeValues={[2, 3, 5, 6]}
           onSelect={handleCustomerSelect}
-          type={1}
-          vch_type={SALES_ORDER_TYPE}
         />
         <ProductSearchPopup
           visible={showProductSearch}

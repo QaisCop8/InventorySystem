@@ -166,6 +166,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   // عنصر النافذة نفسها — حاوية قائمة "النوع" المنسدلة (ReportMultiChoice) كي تظهر فوق اللوحة لا خلفها
   const [dialogElement, setDialogElement] = useState<HTMLDivElement | null>(null);
   const unitsTableRef = useRef<SearchResultsTableHandle | null>(null);
+  const attributesTableRef = useRef<SearchResultsTableHandle | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedAttributeKeysByProduct, setSelectedAttributeKeysByProduct] = useState<Record<string, Set<string>>>({});
   const [refreshVersion, setRefreshVersion] = useState(0);
@@ -467,7 +468,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     const attributes = Array.isArray(product.attributes) ? product.attributes.filter((attribute) => attribute.name && attribute.values?.length) : [];
     if (attributes.length > 0 && !product.selected_attributes) {
       setSelectedProduct(product);
-      setTimeout(() => unitsTableRef.current?.focusFirstRow(), 0);
+      setTimeout(() => (attributesTableRef.current ?? unitsTableRef.current)?.focusFirstRow(), 0);
       return;
     }
     const name = product.attribute_summary ? `${product.product_name} (${product.attribute_summary})` : product.product_name
@@ -684,7 +685,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     });
     if (pendingAttributeProduct) {
       setSelectedProduct(pendingAttributeProduct);
-      setTimeout(() => unitsTableRef.current?.focusFirstRow(), 0);
+      setTimeout(() => (attributesTableRef.current ?? unitsTableRef.current)?.focusFirstRow(), 0);
       return;
     }
 
@@ -795,7 +796,9 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     }] : []),
     { key: "attribute_name", header: tr("المتغير"), className: "font-semibold text-slate-700" },
     { key: "value_name", header: tr("القيمة") },
-    { key: "image_url", header: "", width: "40px", align: "center", render: (row) => productThumb(row.image_url) },
+    { key: "image_url", header: tr("الصورة"), width: "56px", align: "center", render: (row) => row.image_url
+      ? <img src={imageSrc(row.image_url)} alt={row.value_name} className="mx-auto h-10 w-10 rounded-md border object-cover" />
+      : productThumb(null) },
   ], [ShowSelect, toggleAttributeKey]);
 
   // كل وحدة بعدد باركوداتها: وحدة لها 3 باركودات ⇐ 3 أسطر (الاختيار يُرجع الوحدة مع ذلك الباركود)
@@ -1013,36 +1016,47 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
 
           <div className="flex h-[240px] min-w-0 flex-col gap-1.5 lg:h-auto lg:min-h-[160px] lg:w-[300px] lg:shrink-0">
             <div className="flex items-center justify-between gap-2 px-1 text-[11px] font-bold text-slate-500">
-              <span>{showingAttributes ? tr("المتغيرات والخصائص") : tr("وحدات الصنف")}</span>
+              <span>{tr("وحدات الصنف")}</span>
               <span className="truncate text-slate-700">{selectedProduct?.product_name || ""}</span>
             </div>
             {!selectedProduct ? (
               <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-4 text-center text-xs text-slate-400">
                 {tr("اختر صنفاً من النتائج لعرض وحداته")}
               </div>
-            ) : showingAttributes ? (
-              <SearchResultsTable<AttributeRow>
-                ref={unitsTableRef}
-                rows={selectedAttributeRows}
-                columns={attributeColumns}
-                getRowKey={(row) => row.attribute_key}
-                onPick={(row) => handleAttributeDoubleClick(row)}
-                onToggle={ShowSelect ? (row) => toggleAttributeKey(row.attribute_key) : undefined}
-                isRowMarked={(row) => row.selected}
-                rowHeightClassName="h-9"
-              />
             ) : (
-              <SearchResultsTable<Unit>
-                ref={unitsTableRef}
-                rows={unitBarcodeRows(selectedProduct.units || [])}
-                columns={unitColumns}
-                getRowKey={(unit) => unit._row_key || unit.unit_id}
-                onPick={(unit) => handleUnitRowDoubleClick(unit)}
-                onActiveChange={(unit) => { if (unit) handleSelectUnit(unit) }}
-                isRowMarked={(unit) => selectedProduct.selected_unit?.unit_id === unit.unit_id}
-                emptyText={tr("لا توجد وحدات")}
-                rowHeightClassName="h-9"
-              />
+              <>
+                {/* 2026-11-24: الوحدات دائماً، والمتغيرات والخصائص بصورها تحتها (كانت تحل محل الوحدات) */}
+                <div className={showingAttributes ? "flex min-h-[96px] flex-[2] flex-col" : "flex min-h-0 flex-1 flex-col"}>
+                  <SearchResultsTable<Unit>
+                    ref={unitsTableRef}
+                    rows={unitBarcodeRows(selectedProduct.units || [])}
+                    columns={unitColumns}
+                    getRowKey={(unit) => unit._row_key || unit.unit_id}
+                    onPick={(unit) => handleUnitRowDoubleClick(unit)}
+                    onActiveChange={(unit) => { if (unit) handleSelectUnit(unit) }}
+                    isRowMarked={(unit) => selectedProduct.selected_unit?.unit_id === unit.unit_id}
+                    emptyText={tr("لا توجد وحدات")}
+                    rowHeightClassName="h-9"
+                  />
+                </div>
+                {showingAttributes && (
+                  <>
+                    <div className="mt-1 px-1 text-[11px] font-bold text-slate-500">{tr("المتغيرات والخصائص")}</div>
+                    <div className="flex min-h-[120px] flex-[3] flex-col">
+                      <SearchResultsTable<AttributeRow>
+                        ref={attributesTableRef}
+                        rows={selectedAttributeRows}
+                        columns={attributeColumns}
+                        getRowKey={(row) => row.attribute_key}
+                        onPick={(row) => handleAttributeDoubleClick(row)}
+                        onToggle={ShowSelect ? (row) => toggleAttributeKey(row.attribute_key) : undefined}
+                        isRowMarked={(row) => row.selected}
+                        rowHeightClassName="h-12"
+                      />
+                    </div>
+                  </>
+                )}
+              </>
             )}
           </div>
         </div>
