@@ -56,6 +56,25 @@ export async function listReminders(userId: number, view: string) {
   return rows as unknown as Reminder[]
 }
 
+/**
+ * التقويم: تذكيراتي (لي أو كتبتها لغيري) التي تقع في الفترة — أو متكررة بدأت قبل نهايتها (العميل يفرد مواعيدها).
+ * المنجزة تظهر بيوم موعدها.
+ */
+export async function calendarReminders(userId: number, from: string, to: string) {
+  await ensureRemindersTable()
+  const start = new Date(from), end = new Date(to)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) throw new ReminderError("فترة التقويم غير صالحة")
+  return (await sql`
+    SELECT ${sql.unsafe(COLUMNS)}
+    WHERE (r.assigned_to = ${userId} OR r.created_by = ${userId}) AND r.status <> 'cancelled'
+      AND (
+        (COALESCE(r.snoozed_until, r.remind_at) >= ${start.toISOString()} AND COALESCE(r.snoozed_until, r.remind_at) < ${end.toISOString()})
+        OR (r.status = 'pending' AND r.repeat <> 'none' AND r.remind_at < ${end.toISOString()})
+      )
+    ORDER BY COALESCE(r.snoozed_until, r.remind_at)
+    LIMIT 1000`) as unknown as Reminder[]
+}
+
 /** الحالّة الآن (للنافذة المنبثقة) — وأول مرة تحلّ: إشعار في الجرس */
 export async function dueReminders(userId: number) {
   await ensureRemindersTable()

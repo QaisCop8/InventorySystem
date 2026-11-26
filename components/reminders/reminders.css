@@ -77,3 +77,40 @@ button.reminder-check:hover { border-color:#0d827f; color:#0d827f; background:#e
 .dark .reminder-row:hover { background:#1a3140; }
 .dark .reminder-row.is-overdue { background:#2a1b22; }
 .dark .reminders-badge { box-shadow:0 0 0 2px #0f202c; }
+
+/* التقويم */
+.reminders-tabs button { display:inline-flex; align-items:center; gap:5px; }
+.reminders-calendar { max-height:min(70vh,680px); overflow-y:auto; padding:12px 16px 16px; }
+.reminders-cal-head { display:flex; align-items:center; gap:6px; margin-bottom:10px; }
+.reminders-cal-head h3 { min-width:150px; text-align:center; font-size:15px; font-weight:800; color:#1d3343; }
+.reminders-cal-head button { display:grid; place-items:center; width:32px; height:32px; border-radius:10px; background:#f1f5f7; color:#4d6474; }
+.reminders-cal-head button:hover { background:#e3f5f0; color:#0d827f; }
+.reminders-cal-head button.is-today { width:auto; padding:0 12px; font-size:12px; font-weight:650; }
+.reminders-cal-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; }
+.reminders-cal-weekday { padding:4px 0; text-align:center; font-size:11px; font-weight:700; color:#7a8f9c; }
+.reminders-cal-day { display:flex; flex-direction:column; align-items:stretch; gap:2px; min-height:78px; padding:5px; border:1px solid #edf2f4; border-radius:12px; background:#fff; text-align:start; transition:background .15s, border-color .15s; }
+.reminders-cal-day:hover { border-color:#bfe3da; background:#f7fcfb; }
+.reminders-cal-day.is-outside { background:#fafbfc; }
+.reminders-cal-day.is-outside .reminders-cal-num { color:#c3cfd6; }
+.reminders-cal-day.is-selected { border-color:#0d827f; box-shadow:0 0 0 3px rgba(15,155,133,.14); }
+.reminders-cal-num { display:grid; place-items:center; align-self:flex-start; width:24px; height:24px; border-radius:999px; font-size:12px; font-weight:700; color:#1d3343; }
+.reminders-cal-day.is-today .reminders-cal-num { background:#0d827f; color:#fff; }
+.reminders-cal-chip { display:block; overflow:hidden; padding:1px 6px; border-radius:6px; background:#e3f5f0; color:#0b6f64; font-size:10.5px; line-height:17px; white-space:nowrap; text-overflow:ellipsis; }
+.reminders-cal-chip b { margin-inline-end:4px; font-weight:700; }
+.reminders-cal-chip.is-overdue { background:#ffe4e6; color:#be123c; }
+.reminders-cal-chip.is-done { background:#f1f5f9; color:#94a3b8; text-decoration:line-through; }
+.reminders-cal-chip.is-sent { background:#e0f2fe; color:#0369a1; }
+.reminders-cal-more { font-size:10.5px; font-weight:700; color:#7a8f9c; padding-inline:6px; }
+.reminders-cal-day-panel { margin-top:12px; padding:12px; border-radius:16px; background:#f8fbfb; }
+.reminders-cal-day-panel h4 { font-size:13.5px; font-weight:800; color:#1d3343; }
+.reminders-cal-count { padding:0 8px; border-radius:999px; background:#e3f5f0; color:#0d827f; font-size:11px; font-weight:700; }
+@media (max-width:640px) { .reminders-cal-day { min-height:52px; } .reminders-cal-chip { font-size:0; padding:0; height:5px; } .reminders-cal-chip b { display:none; } }
+.dark .reminders-cal-head h3, .dark .reminders-cal-num, .dark .reminders-cal-day-panel h4 { color:#e2edf3; }
+.dark .reminders-cal-head button { background:#1c3344; color:#b5c6d1; }
+.dark .reminders-cal-day { background:#132634; border-color:#24394a; }
+.dark .reminders-cal-day.is-outside { background:#10202b; }
+.dark .reminders-cal-day:hover { background:#173040; }
+.dark .reminders-cal-day-panel { background:#132634; }
+.dark .reminders-cal-chip { background:#173d3a; color:#8ee7c5; }
+.dark .reminders-cal-chip.is-overdue { background:#3b1d26; color:#fda4af; }
+.dark .reminders-cal-chip.is-sent { background:#16324a; color:#7dd3fc; }

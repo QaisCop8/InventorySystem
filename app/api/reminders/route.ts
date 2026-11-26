@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getSessionUser } from "@/lib/tenant-auth"
-import { ReminderError, createReminder, deleteReminder, dueReminders, listReminders, pendingCount, reminderUsers, updateReminder } from "@/lib/reminders"
+import { ReminderError, calendarReminders, createReminder, deleteReminder, dueReminders, listReminders, pendingCount, reminderUsers, updateReminder } from "@/lib/reminders"
 
 export const dynamic = "force-dynamic"
 
 // التذكيرات الشخصية — كل الطلبات بهوية الجلسة (لا user_id من العميل):
-// GET ?view=pending|done|sent · ?due=1 (الحالّة للنافذة المنبثقة + العدّاد) · ?count=1 · ?users=1
+// GET ?view=pending|done|sent · ?from=&to= (التقويم) · ?due=1 (الحالّة للنافذة المنبثقة + العدّاد) · ?count=1 · ?users=1
 // POST {title, note, remind_at, repeat, assigned_to} · PATCH {id, action: done|snooze|reopen|edit, ...} · DELETE ?id=
 async function sessionUserId(request: NextRequest) {
   const user = await getSessionUser(request)
@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       const [due, count] = await Promise.all([dueReminders(userId), pendingCount(userId)])
       return NextResponse.json({ due, count }, { headers })
     }
+    if (params.get("from") && params.get("to")) return NextResponse.json({ reminders: await calendarReminders(userId, params.get("from")!, params.get("to")!) }, { headers })
     if (params.get("count") === "1") return NextResponse.json({ count: await pendingCount(userId) }, { headers })
     return NextResponse.json({ reminders: await listReminders(userId, params.get("view") || "pending") }, { headers })
   } catch (error) { return failure(error) }

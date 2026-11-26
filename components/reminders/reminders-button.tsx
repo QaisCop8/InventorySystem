@@ -2,7 +2,7 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { AlarmClock, BellRing, Check, Clock, Loader2, Pencil, Plus, Repeat, RotateCcw, Trash2, UserRound, X } from "lucide-react"
+import { AlarmClock, BellRing, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Loader2, Pencil, Plus, Repeat, RotateCcw, Trash2, UserRound, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -132,8 +132,13 @@ export function RemindersButton({ className = "" }: { className?: string }) {
   </>
 }
 
+type View = "pending" | "calendar" | "done" | "sent"
+const VIEW_LABEL: Record<View, string> = { pending: "القادمة", calendar: "التقويم", done: "المنجزة", sent: "أرسلتها لغيري" }
+const dayKey = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+const WEEK_DAYS = ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"]
+
 function RemindersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const [view, setView] = useState<"pending" | "done" | "sent">("pending")
+  const [view, setView] = useState<View>("pending")
   const [rows, setRows] = useState<Reminder[]>([])
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<{ id: number; name: string }[]>([])
@@ -143,6 +148,7 @@ function RemindersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const [error, setError] = useState("")
 
   const load = useCallback(async () => {
+    if (view === "calendar") return
     setLoading(true)
     try { setRows((await api("GET", undefined, `?view=${view}`)).reminders || []) } catch (reason) { setError(reason instanceof Error ? reason.message : "") } finally { setLoading(false) }
   }, [view])
@@ -154,7 +160,8 @@ function RemindersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
     return () => window.removeEventListener("reminders:changed", refresh)
   }, [load])
 
-  const newDraft = () => setDraft({ title: "", note: "", at: toLocalInput(inHours(1)), repeat: "none", assigned_to: me })
+  const newDraft = (at?: Date) => setDraft({ title: "", note: "", at: toLocalInput(at || inHours(1)), repeat: "none", assigned_to: me })
+  const editDraft = (row: Reminder) => setDraft({ id: row.id, title: row.title, note: row.note, at: toLocalInput(new Date(row.remind_at)), repeat: row.repeat, assigned_to: row.assigned_to })
   const save = async () => {
     if (!draft) return
     setSaving(true); setError("")
@@ -183,19 +190,23 @@ function RemindersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
     const later = rows.filter((row) => new Date(row.due_at).getTime() > endOfToday.getTime())
     return [{ key: "overdue", title: "حان موعدها", items: overdue }, { key: "today", title: "اليوم", items: today }, { key: "later", title: "قادمة", items: later }].filter((group) => group.items.length)
   }, [rows, view, now])
+  const rowProps = { me, onAct: act, onEdit: editDraft, onRemove: remove }
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent dir={appDir()} className="reminders-dialog max-w-2xl gap-0 overflow-hidden p-0">
+    {/* لا تُغلق بالنقر خارجها (فقدان ما يُكتب) — فقط ✕ أو Esc */}
+    <DialogContent dir={appDir()} className={`reminders-dialog gap-0 overflow-hidden p-0 ${view === "calendar" ? "max-w-4xl" : "max-w-2xl"}`}
+      onInteractOutside={(event) => event.preventDefault()} onPointerDownOutside={(event) => event.preventDefault()}>
       <DialogHeader className="reminders-dialog-head">
         <DialogTitle className="flex items-center gap-2.5"><span className="reminders-dialog-icon"><AlarmClock className="h-5 w-5" /></span>{tr("التذكيرات")}</DialogTitle>
         <p className="text-xs opacity-80">{tr("ذكّر نفسك أو زميلك بموعد — تظهر نافذة وتنبيه في الجرس عند حلوله")}</p>
       </DialogHeader>
 
-      <div className="flex items-center gap-2 border-b px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
         <div className="reminders-tabs" role="tablist">
-          {(["pending", "done", "sent"] as const).map((key) => <button key={key} type="button" role="tab" aria-selected={view === key} onClick={() => setView(key)}>{tr(key === "pending" ? "القادمة" : key === "done" ? "المنجزة" : "أرسلتها لغيري")}</button>)}
+          {(Object.keys(VIEW_LABEL) as View[]).map((key) => <button key={key} type="button" role="tab" aria-selected={view === key} onClick={() => setView(key)}>
+            {key === "calendar" && <CalendarDays className="h-3.5 w-3.5" />}{tr(VIEW_LABEL[key])}</button>)}
         </div>
-        <Button size="sm" className="ms-auto gap-1.5 rounded-full bg-teal-600 hover:bg-teal-700" onClick={newDraft}><Plus className="h-4 w-4" />{tr("تذكير جديد")}</Button>
+        <Button size="sm" className="ms-auto gap-1.5 rounded-full bg-teal-600 hover:bg-teal-700" onClick={() => newDraft()}><Plus className="h-4 w-4" />{tr("تذكير جديد")}</Button>
       </div>
 
       {draft && <div className="reminders-form">
@@ -219,37 +230,140 @@ function RemindersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
       </div>}
       {error && <p className="mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-      <div className="reminders-list">
+      {view === "calendar" ? <RemindersCalendar rowProps={rowProps} onAdd={(day) => newDraft(day)} />
+        : <div className="reminders-list">
         {loading ? <div className="grid h-40 place-items-center"><Loader2 className="h-5 w-5 animate-spin text-teal-600" /></div>
-          : !rows.length ? <div className="reminders-empty"><AlarmClock className="h-8 w-8" /><p>{tr(view === "pending" ? "لا تذكيرات قادمة" : view === "done" ? "لا تذكيرات منجزة" : "لم ترسل تذكيرات لغيرك")}</p>{view === "pending" && !draft && <Button size="sm" variant="outline" className="rounded-full" onClick={newDraft}><Plus className="me-1 h-4 w-4" />{tr("أضف أول تذكير")}</Button>}</div>
+          : !rows.length ? <div className="reminders-empty"><AlarmClock className="h-8 w-8" /><p>{tr(view === "pending" ? "لا تذكيرات قادمة" : view === "done" ? "لا تذكيرات منجزة" : "لم ترسل تذكيرات لغيرك")}</p>{view === "pending" && !draft && <Button size="sm" variant="outline" className="rounded-full" onClick={() => newDraft()}><Plus className="me-1 h-4 w-4" />{tr("أضف أول تذكير")}</Button>}</div>
           : groups.map((group) => <section key={group.key}>
             {group.title && <h3 className={`reminders-group ${group.key === "overdue" ? "is-overdue" : ""}`}>{tr(group.title)} <span>{group.items.length}</span></h3>}
-            {group.items.map((row) => {
-              const overdue = row.status === "pending" && new Date(row.due_at).getTime() <= now
-              return <div key={row.id} className={`reminder-row ${overdue ? "is-overdue" : ""} ${row.status === "done" ? "is-done" : ""}`}>
-                {row.status === "pending" && view !== "sent"
-                  ? <button type="button" className="reminder-check" onClick={() => void act(row.id, { action: "done" })} aria-label={tr("تم")} title={row.repeat !== "none" ? tr("تم — ينتقل للموعد التالي") : tr("تم")}><Check className="h-3.5 w-3.5" /></button>
-                  : <span className="reminder-check is-static">{row.status === "done" ? <Check className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}</span>}
-                <div className="min-w-0 flex-1">
-                  <p className="reminder-title">{row.title}</p>
-                  {row.note && <p className="reminder-note">{row.note}</p>}
-                  <p className="reminder-meta">
-                    <span><Clock className="h-3 w-3" />{row.status === "done" && row.done_at ? `${tr("أُنجز")} ${formatWhen(row.done_at)}` : formatWhen(row.due_at)}</span>
-                    {row.repeat !== "none" && <span><Repeat className="h-3 w-3" />{tr(REPEAT_LABEL[row.repeat])}</span>}
-                    {view === "sent" ? <span><UserRound className="h-3 w-3" />{tr("إلى")} {row.assigned_to_name}</span>
-                      : row.created_by !== row.assigned_to && row.created_by_name ? <span><UserRound className="h-3 w-3" />{tr("من")} {row.created_by_name}</span> : null}
-                  </p>
-                </div>
-                <div className="reminder-actions">
-                  {row.status === "done"
-                    ? <button type="button" onClick={() => void act(row.id, { action: "reopen" })} title={tr("إعادة فتح")}><RotateCcw className="h-4 w-4" /></button>
-                    : <button type="button" onClick={() => setDraft({ id: row.id, title: row.title, note: row.note, at: toLocalInput(new Date(row.remind_at)), repeat: row.repeat, assigned_to: row.assigned_to })} title={tr("تعديل")}><Pencil className="h-4 w-4" /></button>}
-                  <button type="button" className="is-danger" onClick={() => void remove(row.id)} title={tr("حذف")}><Trash2 className="h-4 w-4" /></button>
-                </div>
-              </div>
-            })}
+            {group.items.map((row) => <ReminderRow key={row.id} row={row} sent={view === "sent"} {...rowProps} />)}
           </section>)}
-      </div>
+      </div>}
     </DialogContent>
   </Dialog>
+}
+
+type RowProps = { me: number; onAct: (id: number, body: Record<string, unknown>) => void; onEdit: (row: Reminder) => void; onRemove: (id: number) => void }
+
+function ReminderRow({ row, sent = false, at, me, onAct, onEdit, onRemove }: RowProps & { row: Reminder; sent?: boolean; at?: string }) {
+  const now = Date.now()
+  const when = at || row.due_at
+  const overdue = row.status === "pending" && new Date(when).getTime() <= now
+  const mine = Number(row.assigned_to) === me
+  return <div className={`reminder-row ${overdue ? "is-overdue" : ""} ${row.status === "done" ? "is-done" : ""}`}>
+    {row.status === "pending" && mine
+      ? <button type="button" className="reminder-check" onClick={() => onAct(row.id, { action: "done" })} aria-label={tr("تم")} title={row.repeat !== "none" ? tr("تم — ينتقل للموعد التالي") : tr("تم")}><Check className="h-3.5 w-3.5" /></button>
+      : <span className="reminder-check is-static">{row.status === "done" ? <Check className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}</span>}
+    <div className="min-w-0 flex-1">
+      <p className="reminder-title">{row.title}</p>
+      {row.note && <p className="reminder-note">{row.note}</p>}
+      <p className="reminder-meta">
+        <span><Clock className="h-3 w-3" />{row.status === "done" && row.done_at ? `${tr("أُنجز")} ${formatWhen(row.done_at)}` : formatWhen(when)}</span>
+        {row.repeat !== "none" && <span><Repeat className="h-3 w-3" />{tr(REPEAT_LABEL[row.repeat])}</span>}
+        {sent || !mine ? <span><UserRound className="h-3 w-3" />{tr("إلى")} {row.assigned_to_name}</span>
+          : row.created_by !== row.assigned_to && row.created_by_name ? <span><UserRound className="h-3 w-3" />{tr("من")} {row.created_by_name}</span> : null}
+      </p>
+    </div>
+    <div className="reminder-actions">
+      {row.status === "done"
+        ? <button type="button" onClick={() => onAct(row.id, { action: "reopen" })} title={tr("إعادة فتح")}><RotateCcw className="h-4 w-4" /></button>
+        : <button type="button" onClick={() => onEdit(row)} title={tr("تعديل")}><Pencil className="h-4 w-4" /></button>}
+      <button type="button" className="is-danger" onClick={() => onRemove(row.id)} title={tr("حذف")}><Trash2 className="h-4 w-4" /></button>
+    </div>
+  </div>
+}
+
+type Occurrence = { row: Reminder; at: Date }
+
+/** مواعيد تذكير داخل الفترة: المتكرر المعلّق يُفرد من موعده القادم (السابق لا سجل له) */
+function occurrences(row: Reminder, start: Date, end: Date): Occurrence[] {
+  const first = new Date(row.due_at)
+  if (row.repeat === "none" || row.status !== "pending") return first >= start && first < end ? [{ row, at: first }] : []
+  const list: Occurrence[] = []
+  const at = new Date(row.remind_at)
+  if (first.getTime() !== at.getTime() && first >= start && first < end) list.push({ row, at: first })
+  for (let guard = 0; at < end && guard < 400; guard++) {
+    if (at >= start && !(guard === 0 && first.getTime() !== at.getTime())) list.push({ row, at: new Date(at) })
+    if (row.repeat === "daily") at.setDate(at.getDate() + 1)
+    else if (row.repeat === "weekly") at.setDate(at.getDate() + 7)
+    else at.setMonth(at.getMonth() + 1)
+  }
+  return list
+}
+
+function RemindersCalendar({ rowProps, onAdd }: { rowProps: RowProps; onAdd: (at: Date) => void }) {
+  const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
+  const [selected, setSelected] = useState(() => dayKey(new Date()))
+  const [rows, setRows] = useState<Reminder[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // شبكة 6 أسابيع تبدأ بالسبت
+  const gridStart = useMemo(() => { const d = new Date(month); d.setDate(1 - ((d.getDay() + 1) % 7)); d.setHours(0, 0, 0, 0); return d }, [month])
+  const gridEnd = useMemo(() => { const d = new Date(gridStart); d.setDate(d.getDate() + 42); return d }, [gridStart])
+  const load = useCallback(async () => {
+    setLoading(true)
+    try { setRows((await api("GET", undefined, `?from=${encodeURIComponent(gridStart.toISOString())}&to=${encodeURIComponent(gridEnd.toISOString())}`)).reminders || []) } catch { setRows([]) } finally { setLoading(false) }
+  }, [gridStart, gridEnd])
+  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    const refresh = () => void load()
+    window.addEventListener("reminders:changed", refresh)
+    return () => window.removeEventListener("reminders:changed", refresh)
+  }, [load])
+
+  const byDay = useMemo(() => {
+    const map = new Map<string, Occurrence[]>()
+    for (const row of rows) for (const item of occurrences(row, gridStart, gridEnd)) {
+      const key = dayKey(item.at)
+      map.set(key, [...(map.get(key) || []), item])
+    }
+    for (const list of map.values()) list.sort((a, b) => a.at.getTime() - b.at.getTime())
+    return map
+  }, [rows, gridStart, gridEnd])
+
+  const days = Array.from({ length: 42 }, (_, index) => { const d = new Date(gridStart); d.setDate(d.getDate() + index); return d })
+  const todayKey = dayKey(new Date())
+  const selectedDate = new Date(`${selected}T00:00:00`)
+  const selectedItems = byDay.get(selected) || []
+  const shift = (months: number) => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + months, 1))
+  const addOn = (key: string) => {
+    const date = new Date(`${key}T09:00:00`)
+    onAdd(key === todayKey || date.getTime() < Date.now() ? inHours(1) : date)
+  }
+
+  return <div className="reminders-calendar">
+    <div className="reminders-cal-head">
+      <button type="button" onClick={() => shift(-1)} aria-label={tr("الشهر السابق")}><ChevronRight className="h-4 w-4" /></button>
+      <h3>{month.toLocaleDateString("ar-u-nu-latn", { month: "long", year: "numeric" })}</h3>
+      <button type="button" onClick={() => shift(1)} aria-label={tr("الشهر التالي")}><ChevronLeft className="h-4 w-4" /></button>
+      <button type="button" className="is-today" onClick={() => { const d = new Date(); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)); setSelected(dayKey(d)) }}>{tr("اليوم")}</button>
+      {loading && <Loader2 className="h-4 w-4 animate-spin text-teal-600" />}
+    </div>
+    <div className="reminders-cal-grid">
+      {WEEK_DAYS.map((name) => <div key={name} className="reminders-cal-weekday">{tr(name)}</div>)}
+      {days.map((date) => {
+        const key = dayKey(date)
+        const items = byDay.get(key) || []
+        const outside = date.getMonth() !== month.getMonth()
+        return <button key={key} type="button" onClick={() => setSelected(key)} onDoubleClick={() => addOn(key)}
+          className={`reminders-cal-day ${outside ? "is-outside" : ""} ${key === todayKey ? "is-today" : ""} ${key === selected ? "is-selected" : ""}`}>
+          <span className="reminders-cal-num">{date.getDate()}</span>
+          {items.slice(0, 2).map((item, index) => <span key={`${item.row.id}-${index}`}
+            className={`reminders-cal-chip ${item.row.status === "done" ? "is-done" : item.at.getTime() <= Date.now() ? "is-overdue" : Number(item.row.assigned_to) !== rowProps.me ? "is-sent" : ""}`}>
+            <b>{item.at.toLocaleTimeString("ar-u-nu-latn", { hour: "numeric", minute: "2-digit" })}</b>{item.row.title}</span>)}
+          {items.length > 2 && <span className="reminders-cal-more">+{items.length - 2}</span>}
+        </button>
+      })}
+    </div>
+    <div className="reminders-cal-day-panel">
+      <div className="flex items-center gap-2">
+        <h4>{selectedDate.toLocaleDateString("ar-u-nu-latn", { weekday: "long", day: "numeric", month: "long" })}</h4>
+        <span className="reminders-cal-count">{selectedItems.length}</span>
+        <Button size="sm" variant="outline" className="ms-auto gap-1 rounded-full border-teal-200 text-teal-700 hover:bg-teal-50" onClick={() => addOn(selected)}><Plus className="h-4 w-4" />{tr("تذكير في هذا اليوم")}</Button>
+      </div>
+      {selectedItems.length
+        ? selectedItems.map((item, index) => <ReminderRow key={`${item.row.id}-${index}`} row={item.row} at={item.at.toISOString()} {...rowProps} />)
+        : <p className="py-4 text-center text-sm text-slate-400">{tr("لا تذكيرات في هذا اليوم — انقر مرتين على أي يوم لإضافة تذكير")}</p>}
+    </div>
+  </div>
 }
