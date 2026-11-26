@@ -17,6 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Search, RefreshCw, Loader2, User, ListChecks, PlayCircle, CheckCircle2, XCircle, AlarmClock, Clock } from "lucide-react"
+import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { formatDateTimeToBritish } from "@/lib/utils"
 import type { TaskOrderItemDetail, TaskOrderItemRow, TaskWorkflow } from "./types"
@@ -136,19 +137,23 @@ export function TaskReport() {
         ))}
       </div>
 
-      <ReportFilters><div className="flex flex-wrap items-center gap-2">
-        <div className="relative w-64">
-          <Search className="pointer-events-none absolute start-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("رقم الصنف، العنوان، العميل أو الطلبية")} className="ps-8" />
+      <ReportFilters><div className="grid">
+        <div>
+          <Label>{tr("بحث")}</Label>
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("رقم الصنف، العنوان، العميل أو الطلبية")} />
         </div>
-        <div className="flex items-center gap-1 text-xs text-slate-500">
-          {tr("من")}
-          <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
-          {tr("إلى")}
-          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
+        <div>
+          <Label>{tr("من تاريخ")}</Label>
+          <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
+        <div>
+          <Label>{tr("إلى تاريخ")}</Label>
+          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </div>
+        <div>
+          <Label>{tr("الحالة")}</Label>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -158,8 +163,11 @@ export function TaskReport() {
             <SelectItem value="cancelled">{tr("ملغى")}</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={workflowFilter} onValueChange={setWorkflowFilter}>
-          <SelectTrigger className="w-56">
+        </div>
+        <div>
+          <Label>{tr("سير العمل")}</Label>
+          <Select value={workflowFilter} onValueChange={setWorkflowFilter}>
+          <SelectTrigger>
             <SelectValue placeholder={tr("كل سير العمل")} />
           </SelectTrigger>
           <SelectContent>
@@ -172,8 +180,11 @@ export function TaskReport() {
             ))}
           </SelectContent>
         </Select>
-        <Button data-report-apply variant="outline" size="icon" onClick={fetchItems} title={tr("تحديث")}>
-          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+        </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button data-report-apply onClick={fetchItems}>
+          <RefreshCw className={cn("me-2 h-4 w-4", loading && "animate-spin")} />{tr("تحديث")}
         </Button>
       </div></ReportFilters>
 

@@ -224,8 +224,6 @@ export function AdvancedReportingDashboard() {
             </>} />
       {/* Header with filters and actions */}
       <ReportFilters>
-
-        <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-4">
             <div>
               <Label className="text-sm font-medium mb-2 block">{tr("من تاريخ:")}</Label>
@@ -299,7 +297,6 @@ export function AdvancedReportingDashboard() {
               </Select>
             </div>
           </div>
-        </CardContent>
       </ReportFilters>
 
       {/* KPI Cards */}

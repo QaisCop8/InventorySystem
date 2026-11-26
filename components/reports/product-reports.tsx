@@ -199,8 +199,6 @@ export function ProductReports() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">{summaryCards}</div>
 
       <ReportFilters>
-
-        <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
             <div>
               <Label className="text-sm font-medium mb-2 block text-gray-700">{tr("الصنف:")}</Label>
@@ -294,7 +292,6 @@ export function ProductReports() {
               {tr("طباعة")}
             </Button>
           </div>
-        </CardContent>
       </ReportFilters>
 
       <Tabs value={state.activeTab} onValueChange={(value) => setState((prev) => ({ ...prev, activeTab: value }))}>

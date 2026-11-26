@@ -38,6 +38,10 @@ const DailyProfitDialog = dynamic(
   () => import("@/components/reports/daily-profit-dialog").then((module) => module.DailyProfitDialog),
   { ssr: false },
 );
+const RemindersButton = dynamic(
+  () => import("@/components/reminders/reminders-button").then((module) => module.RemindersButton),
+  { ssr: false },
+)
 const NotificationCenter = dynamic(
   () => import("@/components/notifications/notification-center").then((module) => module.NotificationCenter),
   { ssr: false },
@@ -478,6 +482,8 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
           {dailyProfitOpen && <DailyProfitDialog open={dailyProfitOpen} onOpenChange={setDailyProfitOpen} />}
 
           {/* جرس واحد: مركز الإشعارات نفسه هو زر الهيدر (كان داخل قائمة منسدلة بجرس ثانٍ يجب النقر عليه) */}
+          {/* التذكيرات الشخصية: عدّاد + نافذة منبثقة عند حلول الموعد */}
+          <RemindersButton className={toolButtonClass} />
           <NotificationCenter userId={user?.id} department={user?.department} className={`${toolButtonClass} [&_svg]:h-[18px] [&_svg]:w-[18px]`} />
 
 

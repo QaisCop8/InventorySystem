@@ -391,8 +391,6 @@ export function BatchReports() {
         <TabsContent value="movements" className="space-y-4">
           {/* Filters */}
           <ReportFilters>
-
-            <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
                   <Label>{tr("المنتج")}</Label>
@@ -454,15 +452,13 @@ export function BatchReports() {
                     onChange={(e) => setFilters((prev) => ({ ...prev, date_to: e.target.value }))}
                   />
                 </div>
-
-                <div className="flex items-end">
-                  <Button data-report-apply onClick={fetchMovements} className="w-full">
-                    <Search className="me-2 h-4 w-4" />
-                    {tr("تطبيق الفلاتر")}
-                  </Button>
-                </div>
               </div>
-            </CardContent>
+              <div className="flex justify-end gap-2">
+                <Button data-report-apply onClick={fetchMovements}>
+                  <Search className="me-2 h-4 w-4" />
+                  {tr("تطبيق الفلاتر")}
+                </Button>
+              </div>
           </ReportFilters>
 
           {/* Movements Table */}

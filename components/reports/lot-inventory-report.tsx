@@ -280,8 +280,6 @@ export function LotInventoryReport() {
 
       {/* Filters */}
       <ReportFilters>
-
-        <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
             <div>
               <Label>{tr("البحث العام")}</Label>
@@ -381,14 +379,12 @@ export function LotInventoryReport() {
                 onChange={(e) => setFilters((prev) => ({ ...prev, lot_number: e.target.value }))}
               />
             </div>
-
-            <div className="flex items-end">
-              <Button variant="outline" onClick={resetFilters}>
-                {tr("إعادة تعيين")}
-              </Button>
-            </div>
           </div>
-        </CardContent>
+          <div className="report-filter-actions flex justify-end gap-2">
+            <Button variant="outline" onClick={resetFilters}>
+              {tr("إعادة تعيين")}
+            </Button>
+          </div>
       </ReportFilters>
 
       {/* Report Table */}

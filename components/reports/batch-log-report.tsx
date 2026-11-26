@@ -137,9 +137,9 @@ export function BatchLogReport() {
 
         <CardContent className="space-y-4">
           {/* Filters */}
-          <ReportFilters><div className="flex flex-wrap gap-4 items-end">
+          <ReportFilters><div className="grid">
             {/* رقم الصنف */}
-            <div className="flex flex-col flex-1 min-w-[280px]">
+            <div>
               <label className="text-sm mb-1">{tr("رقم الصنف")}</label>
               <div className="flex gap-2 items-center">
 
@@ -173,7 +173,7 @@ export function BatchLogReport() {
             </div>
 
             {/* الرقم التشغيلي */}
-            <div className="flex flex-col flex-1 min-w-[240px]">
+            <div>
               <label className="text-sm mb-1">{tr("الرقم التشغيلي")}</label>
               <Input
                 value={filters.batch_number}
@@ -187,7 +187,7 @@ export function BatchLogReport() {
             </div>
 
             {/* من تاريخ */}
-            <div className="flex flex-col flex-1 min-w-[140px]">
+            <div>
               <label className="text-sm mb-1">{tr("من تاريخ")}</label>
               <Input
                 type="date"
@@ -200,7 +200,7 @@ export function BatchLogReport() {
             </div>
 
             {/* إلى تاريخ */}
-            <div className="flex flex-col flex-1 min-w-[140px]">
+            <div>
               <label className="text-sm mb-1">{tr("إلى تاريخ")}</label>
               <Input
                 type="date"
@@ -211,17 +211,15 @@ export function BatchLogReport() {
                 className="h-11 w-full"
               />
             </div>
+           </div>
+           <div className="flex justify-end gap-2">
 
-            {/* زر البحث */}
-            <div className="flex items-end flex-shrink-0">
-              <Button data-report-apply
-                onClick={fetchLogs}
-                className="h-11 w-full sm:w-auto flex items-center justify-center"
-              >
-                <Search className="me-2 h-4 w-4" />{tr(" بحث")}
-              </Button>
-            </div>
-          </div></ReportFilters>
+            <Button data-report-apply onClick={fetchLogs}>
+
+              <Search className="me-2 h-4 w-4" />{tr("بحث")}
+
+            </Button>
+           </div></ReportFilters>
 
           <CardContent>
             <DataGridView

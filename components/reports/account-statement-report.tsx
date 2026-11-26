@@ -83,7 +83,7 @@ export function ReportMultiChoice({ label, options, selected, onChange, placehol
     <Label htmlFor={triggerId}>{label}</Label>
     <Popover open={open} onOpenChange={setOpen}>
     <PopoverTrigger asChild>
-    <button id={triggerId} type="button" data-filter-value={filterSummary} className="flex h-10 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm transition hover:border-teal-400 dark:border-slate-700 dark:bg-slate-950">
+    <button id={triggerId} type="button" data-filter-value={filterSummary} data-active={selected.length > 0 && selected.length < options.length} className="flex h-10 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm transition hover:border-teal-400 dark:border-slate-700 dark:bg-slate-950">
       <span className="truncate">{selected.length ? tr("تم اختيار {0}", selected.length) : placeholder}</span><ChevronDown className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`}/>
     </button>
     </PopoverTrigger>
