@@ -1,8 +1,8 @@
 import sql from "@/lib/database"
 import { withBranchSymbol } from "@/lib/branch-symbol"
 import { buildVoucherCode } from "@/app/api/stock-vouchers/_lib"
-import { getAvailableMainUnitQuantity } from "@/lib/inventory-availability"
-import { ProductionError, averageCosts, ensureProductionTables, loadProductionProducts, productionProductsInfo } from "@/lib/production-vouchers"
+import { getAvailableMainUnitQuantities } from "@/lib/inventory-availability"
+import { ProductionError, ensureProductionTables, loadProductionProducts, productionProductsInfo } from "@/lib/production-vouchers"
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // أوامر الانتاج (2026-11-24) — تخطيط ما سيُنتَج قبل تنفيذه:
@@ -282,14 +282,10 @@ export async function materialRequirements(lines: { item_id: number; quantity: n
     }
   }
   const rows = [...totals.values()]
-  if (rawStoreId) {
-    await Promise.all(rows.map(async (row) => {
-      row.available = round6(await getAvailableMainUnitQuantity({ item_id: row.item_id, unit_id: null, store_id: rawStoreId, voucher_date: date }).catch(() => 0))
-    }))
-  }
-  const costs = await averageCosts(rows.map((row) => row.item_id), date)
+  // one stock query for all materials; unit_cost already = average cost (productionProductsInfo prices components)
+  const available = rawStoreId ? await getAvailableMainUnitQuantities(rows.map((row) => row.item_id), rawStoreId, date).catch(() => new Map<number, number>()) : new Map<number, number>()
   for (const row of rows) {
-    row.unit_cost = costs.get(row.item_id) || row.unit_cost
+    row.available = round6(available.get(row.item_id) || 0)
     row.shortage = round6(Math.max(0, row.required - row.available))
     row.shortage_value = round6(row.shortage * row.unit_cost)
   }

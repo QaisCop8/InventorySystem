@@ -49,10 +49,23 @@ const IN_TYPES = [8, 15, 16, 17, 18]
 const OUT_TYPES = [9, 11, 12, 13, 14, 19]
 const INTERNAL_TRANSFER_TYPE = 10
 const preparedDatabases = new Set<string>()
+// parallel callers (Promise.all over many items) share one preparation instead of each running the full-table UPDATE + trigger rebuild
+const preparingDatabases = new Map<string, Promise<void>>()
 
 async function ensureMainUnitQuantity() {
   const databaseName = await resolveCurrentDbName()
   if (preparedDatabases.has(databaseName)) return
+  let pending = preparingDatabases.get(databaseName)
+  if (!pending) {
+    pending = prepareMainUnitQuantity()
+      .then(() => { preparedDatabases.add(databaseName) })
+      .finally(() => { preparingDatabases.delete(databaseName) })
+    preparingDatabases.set(databaseName, pending)
+  }
+  return pending
+}
+
+async function prepareMainUnitQuantity() {
   await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS main_unit_quantity NUMERIC(20,6)`
   await sql`CREATE TABLE IF NOT EXISTS attributes_tbl (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE)`
   await sql`CREATE TABLE IF NOT EXISTS attribute_values_tbl (id SERIAL PRIMARY KEY, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, name TEXT NOT NULL, UNIQUE(attr_id, name))`
@@ -80,7 +93,38 @@ async function ensureMainUnitQuantity() {
   `
   await sql`DROP TRIGGER IF EXISTS voucher_item_main_unit_quantity_trigger ON voucher_items_tbl`
   await sql`CREATE TRIGGER voucher_item_main_unit_quantity_trigger BEFORE INSERT OR UPDATE OF item_id, unit_id, qnty, bonus ON voucher_items_tbl FOR EACH ROW EXECUTE FUNCTION set_voucher_item_main_unit_quantity()`
-  preparedDatabases.add(databaseName)
+}
+
+/** Many items in one store at once (same rules as getItemAvailability without expiry/attributes) — one query instead of one per item. */
+export async function getAvailableMainUnitQuantities(itemIds: number[], storeId: number, voucherDate?: string): Promise<Map<number, number>> {
+  const ids = [...new Set(itemIds.map(Number).filter((id) => id > 0))]
+  if (!ids.length || !storeId) return new Map()
+  await ensureMainUnitQuantity()
+  const day = voucherDate ? String(voucherDate).slice(0, 10) : new Date().toISOString().slice(0, 10)
+  const rows = (await sql`
+    SELECT vi.item_id, COALESCE(SUM(
+      CASE
+        WHEN vh.vch_type = ${INTERNAL_TRANSFER_TYPE} AND vh.from_store_id = ${storeId}
+          THEN -COALESCE(vi.main_unit_quantity, (COALESCE(vi.qnty, 0) + COALESCE(vi.bonus, 0)) * COALESCE(pu.to_main_qnty, 1), 0)
+        WHEN vh.vch_type = ${INTERNAL_TRANSFER_TYPE} AND COALESCE(vh.to_store_id, vi.store_id) = ${storeId}
+          THEN COALESCE(vi.main_unit_quantity, (COALESCE(vi.qnty, 0) + COALESCE(vi.bonus, 0)) * COALESCE(pu.to_main_qnty, 1), 0)
+        WHEN vh.vch_type = ANY(${IN_TYPES}::int[]) AND COALESCE(vi.store_id, vh.to_store_id) = ${storeId}
+          THEN COALESCE(vi.main_unit_quantity, (COALESCE(vi.qnty, 0) + COALESCE(vi.bonus, 0)) * COALESCE(pu.to_main_qnty, 1), 0)
+        WHEN vh.vch_type = ANY(${OUT_TYPES}::int[]) AND COALESCE(vi.store_id, vh.to_store_id) = ${storeId}
+          THEN -COALESCE(vi.main_unit_quantity, (COALESCE(vi.qnty, 0) + COALESCE(vi.bonus, 0)) * COALESCE(pu.to_main_qnty, 1), 0)
+        ELSE 0
+      END
+    ), 0) AS available_main
+    FROM voucher_items_tbl vi
+    JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+    LEFT JOIN product_units pu ON pu.product_id = vi.item_id AND pu.unit_id = vi.unit_id
+    WHERE vi.item_id = ANY(${ids}::int[])
+      AND vh.status = 2
+      AND vh.vch_date::date <= ${day}::date
+      AND vh.vch_type = ANY(${[...IN_TYPES, ...OUT_TYPES, INTERNAL_TRANSFER_TYPE]}::int[])
+    GROUP BY vi.item_id
+  `) as any[]
+  return new Map(rows.map((row) => [Number(row.item_id), Number(row.available_main || 0)] as [number, number]))
 }
 
 /** Global stock lookup used by drafts, vouchers, sales documents and stock pages. */
