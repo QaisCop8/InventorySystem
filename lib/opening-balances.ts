@@ -65,7 +65,9 @@ export async function postOpeningBalances(lines: OpeningBalanceLine[], context: 
       }))
       const net = Math.round(group.reduce((sum, line) => sum + line.amount, 0) * 1000) / 1000
       if (Math.abs(net) >= 0.0005) {
-        journalLines.push({ accountId: clearing.id, creditDebit: net > 0 ? 2 : 1, amount: Math.abs(net), currencyId, rate, note: "أرصدة افتتاحية - استيراد Excel" })
+        // مبلغ الأساس صريحاً = فرق نفس القيم المقرّبة لكل سطر — أسطر كثيرة بعملة أجنبية لا تتراكم فروق تقريبها فيرفض القيد
+        const netBaseCents = journalLines.reduce((sum, line) => sum + (line.creditDebit === 1 ? 1 : -1) * Math.round(Math.round(line.amount * 100) / 100 * rate * 100), 0)
+        journalLines.push({ accountId: clearing.id, creditDebit: net > 0 ? 2 : 1, amount: Math.abs(net), currencyId, rate, baseAmountOverride: Math.abs(netBaseCents) / 100, note: "أرصدة افتتاحية - استيراد Excel" })
       }
       const journal = await withTenantTransaction(() => createAutoJournal({
         userId: context.userId, branchId: context.branchId, date, currencyId, rate,

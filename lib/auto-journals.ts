@@ -85,6 +85,8 @@ export type AutoJournalLine = {
   // مبلغ الحساب بعملته بدل الاحتساب التلقائي — قيد فرق العملة يغيّر قيمة الرصيد بعملة الأساس فقط
   // دون أي أثر على رصيد الحساب بعملته (0).
   accountAmountOverride?: number
+  // مبلغ عملة الأساس الصريح بدل round2(amount × rate) — طرف موازنة يغلق فروق تقريب أسطر كثيرة بعملة أجنبية
+  baseAmountOverride?: number
 }
 
 export type AutoJournalInput = {
@@ -123,7 +125,7 @@ export async function createAutoJournal(input: AutoJournalInput, context?: Journ
   if (lines.length < 2) throw new AutoJournalError("القيد يحتاج طرفين على الأقل بمبلغ أكبر من صفر")
 
   // التوازن بعملة الأساس (أطراف القيد قد تكون بعملات مختلفة في قيد فرق العملة فقط بعملة الأساس).
-  const baseOf = (line: AutoJournalLine) => round2(line.amount * line.rate)
+  const baseOf = (line: AutoJournalLine) => line.baseAmountOverride !== undefined ? round2(Math.abs(line.baseAmountOverride)) : round2(line.amount * line.rate)
   const debitBase = round2(lines.filter((l) => l.creditDebit === 1).reduce((s, l) => s + baseOf(l), 0))
   const creditBase = round2(lines.filter((l) => l.creditDebit === 2).reduce((s, l) => s + baseOf(l), 0))
   if (Math.abs(debitBase - creditBase) > 0.01) throw new AutoJournalError("القيد غير متوازن: مجموع المدين لا يساوي مجموع الدائن")

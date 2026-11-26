@@ -81,6 +81,8 @@ export async function processAccountBalances(rows: Row[], ctx: StepContext, last
     if (previous.length) {
       // سند رُحِّل بسعر 1 لعملة أجنبية (لا سعر صرف بتاريخ الأرصدة هنا) ⇐ يُصحَّح بسعر الشامل
       if (currency !== Number(baseCurrencyId) && shamelRates.get(currency)) await fixOpeningJournalRate(previous, shamelRates.get(currency)!, clearing.id, Number(baseCurrencyId), ctx)
+      // سندات سابقة طرف الوسيط فيها بعملة الأساس ⇐ يُحوَّل لعملة السند (المدين = الدائن بعملة السند)
+      if (currency !== Number(baseCurrencyId)) await fixClearingLineCurrency(previous, clearing.id, ctx)
       const postedAccounts = new Set(((await sql`SELECT DISTINCT account_id FROM voucher_journal_detail_tbl WHERE voucher_id = ANY(${previous}::int[])`) as any[]).map((row) => Number(row.account_id)))
       const fresh = group.filter((line) => !postedAccounts.has(line.accountId))
       ctx.stats.skipped += group.length - fresh.length
@@ -97,8 +99,16 @@ export async function processAccountBalances(rows: Row[], ctx: StepContext, last
           accountId: line.accountId, creditDebit: line.amount > 0 ? 1 : 2, amount: Math.round(Math.abs(line.amount) * 100) / 100, currencyId: currency, rate,
           note: `رصيد افتتاحي - ${line.label}`.slice(0, 70),
         }))
+        // طرف الحساب الوسيط بنفس عملة السند (فرق المدين والدائن بالعملة) — ومبلغه بعملة الأساس صريحاً = فرق نفس القيم المقرّبة
         const netCents = journalLines.reduce((sum, line) => sum + (line.creditDebit === 1 ? 1 : -1) * Math.round(line.amount * rate * 100), 0)
-        if (netCents !== 0) journalLines.push({ accountId: clearing.id, creditDebit: netCents > 0 ? 2 : 1, amount: Math.abs(netCents) / 100, currencyId: Number(baseCurrencyId) || currency, rate: 1, note: "أرصدة افتتاحية - ترحيل من الشامل" })
+        const netCurrencyCents = journalLines.reduce((sum, line) => sum + (line.creditDebit === 1 ? 1 : -1) * Math.round(line.amount * 100), 0)
+        if (netCents !== 0 || netCurrencyCents !== 0) {
+          const side = (netCurrencyCents || netCents) > 0 ? 2 : 1
+          journalLines.push({
+            accountId: clearing.id, creditDebit: side, amount: Math.abs(netCurrencyCents) / 100 || 0.01, currencyId: currency, rate,
+            baseAmountOverride: Math.abs(netCents) / 100, note: "أرصدة افتتاحية - ترحيل من الشامل",
+          })
+        }
         return createAutoJournal({
           userId: ctx.run.created_by, branchId: ctx.run.branch_id, date: day, currencyId: currency, rate,
           note: "الأرصدة الافتتاحية - ترحيل من الشامل", internalVoucherId: INTERNAL_VOUCHER.OPENING_BALANCE, lines: journalLines,
@@ -138,6 +148,40 @@ async function fixOpeningJournalRate(voucherIds: number[], rate: number, clearin
       })
     })
     ctx.info(`سند قيد الأرصدة الافتتاحية ${voucherId}: صُحِّح سعر الصرف إلى ${rate}`)
+  }
+}
+
+/**
+ * طرف الحساب الوسيط بسند أرصدة بعملة أجنبية كان يُقيَّد بعملة الأساس (109,444.12 ₪ بدل 32,266.09 $) فيظهر السند غير
+ * متوازن بعملته. يُعاد بعملة السند وسعره: المبلغ = فرق مدين/دائن الأسطر الأخرى بالعملة، ومبلغ الأساس = فرقها بعملة الأساس.
+ */
+async function fixClearingLineCurrency(voucherIds: number[], clearingId: number, ctx: StepContext) {
+  const wrong = (await sql`
+    SELECT h.id, h.currency_id, COALESCE(h.rate, 1) AS rate, h.vch_date::date::text AS day
+    FROM voucher_header_tbl h
+    JOIN voucher_journal_detail_tbl d ON d.voucher_id = h.id AND d.account_id = ${clearingId}
+    WHERE h.id = ANY(${voucherIds}::int[]) AND d.currency_id IS DISTINCT FROM h.currency_id`) as any[]
+  for (const voucher of wrong) {
+    await withTenantTransaction(async () => {
+      await withYearOpened(Number(String(voucher.day).slice(0, 4)) || new Date().getFullYear(), async () => {
+        const [net] = (await sql`
+          SELECT COALESCE(SUM(CASE WHEN credit_debit = 1 THEN amount ELSE -amount END), 0) AS cur,
+                 COALESCE(SUM(CASE WHEN credit_debit = 1 THEN base_curr_amount ELSE -base_curr_amount END), 0) AS base
+          FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucher.id} AND account_id <> ${clearingId}`) as any[]
+        const netCur = Math.round(Number(net?.cur || 0) * 100) / 100
+        const netBase = Math.round(Number(net?.base || 0) * 100) / 100
+        await sql`
+          UPDATE voucher_journal_detail_tbl SET credit_debit = ${(netCur || netBase) > 0 ? 2 : 1}, amount = ${Math.abs(netCur)},
+            currency_id = ${voucher.currency_id}, rate = ${Number(voucher.rate)}, base_curr_amount = ${Math.abs(netBase)},
+            account_amount = CASE WHEN account_currency_id = ${voucher.currency_id} THEN ${Math.abs(netCur)}
+                                  ELSE ROUND((${Math.abs(netBase)} / NULLIF(COALESCE(account_rate, 1), 0))::numeric, 2) END
+          WHERE voucher_id = ${voucher.id} AND account_id = ${clearingId}`
+        await sql`
+          UPDATE voucher_header_tbl SET amount = (SELECT COALESCE(SUM(amount), 0) FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucher.id} AND credit_debit = 1)
+          WHERE id = ${voucher.id}`
+      })
+    })
+    ctx.info(`سند قيد الأرصدة الافتتاحية ${voucher.id}: طرف الحساب الوسيط حُوِّل لعملة السند`)
   }
 }
 
