@@ -162,8 +162,12 @@ function RemindersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
 
   const newDraft = (at?: Date) => setDraft({ title: "", note: "", at: toLocalInput(at || inHours(1)), repeat: "none", assigned_to: me })
   const editDraft = (row: Reminder) => setDraft({ id: row.id, title: row.title, note: row.note, at: toLocalInput(new Date(row.remind_at)), repeat: row.repeat, assigned_to: row.assigned_to })
+  const titleRef = useRef<HTMLInputElement>(null)
   const save = async () => {
     if (!draft) return
+    // لا زر معطّل بلا سبب ظاهر: العنوان الفارغ يُنبَّه إليه ويُركَّز عليه
+    if (!draft.title.trim()) { setError(tr("اكتب ما تريد التذكير به أولاً")); titleRef.current?.focus(); return }
+    if (!draft.at || Number.isNaN(new Date(draft.at).getTime())) { setError(tr("حدّد موعد التذكير")); return }
     setSaving(true); setError("")
     try {
       const body = { title: draft.title, note: draft.note, remind_at: new Date(draft.at).toISOString(), repeat: draft.repeat, assigned_to: draft.assigned_to || me }
@@ -210,7 +214,7 @@ function RemindersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
       </div>
 
       {draft && <div className="reminders-form">
-        <Input autoFocus value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder={tr("بماذا أذكّرك؟ مثال: الاتصال بالمورد لتأكيد الشحنة")} className="reminders-title-input"
+        <Input ref={titleRef} autoFocus value={draft.title} onChange={(event) => { setDraft({ ...draft, title: event.target.value }); if (error) setError("") }} placeholder={tr("بماذا أذكّرك؟ مثال: الاتصال بالمورد لتأكيد الشحنة")} className="reminders-title-input"
           onKeyDown={(event) => { if (event.key === "Enter" && draft.title.trim()) void save() }} />
         <div className="reminders-quick">
           {QUICK.map((option) => <button key={option.label} type="button" aria-pressed={draft.at === toLocalInput(option.at())} onClick={() => setDraft({ ...draft, at: toLocalInput(option.at()) })}>{tr(option.label)}</button>)}
@@ -225,7 +229,7 @@ function RemindersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
         <Textarea value={draft.note} onChange={(event) => setDraft({ ...draft, note: event.target.value })} placeholder={tr("ملاحظة (اختياري)")} rows={2} className="rounded-xl" />
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => setDraft(null)}>{tr("إلغاء")}</Button>
-          <Button onClick={() => void save()} disabled={saving || !draft.title.trim() || !draft.at} className="rounded-full bg-teal-600 px-6 hover:bg-teal-700">{saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}{draft.id ? tr("حفظ التعديل") : tr("إضافة التذكير")}</Button>
+          <Button onClick={() => void save()} disabled={saving} className="rounded-full bg-teal-600 px-6 hover:bg-teal-700">{saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}{draft.id ? tr("حفظ التعديل") : tr("إضافة التذكير")}</Button>
         </div>
       </div>}
       {error && <p className="mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}

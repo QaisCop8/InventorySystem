@@ -114,3 +114,5 @@ button.reminder-check:hover { border-color:#0d827f; color:#0d827f; background:#e
 .dark .reminders-cal-chip { background:#173d3a; color:#8ee7c5; }
 .dark .reminders-cal-chip.is-overdue { background:#3b1d26; color:#fda4af; }
 .dark .reminders-cal-chip.is-sent { background:#16324a; color:#7dd3fc; }
+.reminders-title-input::placeholder { color:#a3b4be; font-weight:500; opacity:1; }
+.dark .reminders-title-input::placeholder { color:#5f7a8a; }
