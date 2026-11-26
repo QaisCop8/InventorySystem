@@ -30,18 +30,51 @@ function fastAutoSize(grid, columns) {
   const from = Math.max(0, (view && view.row >= 0 ? view.row : 0) - 50);
   for (let r = from; r < Math.min(total, from + SAMPLE_ROWS); r++) rows.add(r);
   for (let r = 0; r < Math.min(total, 50); r++) rows.add(r);
-  const padding = 24;
+  // الخط والحشوة الفعليان من خلية مرسومة بالعمود (خلايا التقارير بخط/وزن غير خط المضيف وحشوتها أكبر من 24px
+  // فكان الرقم الطويل ينكسر لسطرين بعد الملاءمة)
+  const cellStyleOf = (panel, column) => {
+    try {
+      const range = panel.viewRange;
+      for (let r = Math.max(0, range.row); r <= Math.min(panel.rows.length - 1, range.row2); r++) {
+        const element = panel.getCellElement(r, column.index);
+        if (!element) continue;
+        const cs = window.getComputedStyle(element);
+        return {
+          font: `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`,
+          bold: `${cs.fontStyle} 700 ${cs.fontSize} ${cs.fontFamily}`,
+          padding: (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) + (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.borderRightWidth) || 0),
+        };
+      }
+    } catch { /* not rendered */ }
+    return null;
+  };
+  const measure = (text, cssFont) => {
+    measureContext.font = cssFont;
+    return measureContext.measureText(String(text)).width;
+  };
+  const SAFETY = 10; // تقريب القياس على canvas مقابل رسم المتصفح
   grid.deferUpdate(() => {
     columns.forEach((column) => {
-      measureContext.font = headerFont;
-      let width = measureContext.measureText(String(column.header || '')).width;
-      measureContext.font = font;
+      const cell = cellStyleOf(grid.cells, column) || { font, bold: `bold ${style.fontSize || '13px'} ${style.fontFamily || 'sans-serif'}`, padding: 24 };
+      const head = cellStyleOf(grid.columnHeaders, column);
+      let width = measure(column.header || '', head ? head.font : headerFont) + (head ? head.padding : 24) - cell.padding;
       rows.forEach((r) => {
         let text = '';
         try { text = grid.getCellData(r, column.index, true); } catch { text = ''; }
-        if (text != null && text !== '') width = Math.max(width, measureContext.measureText(String(text)).width);
+        if (text == null || text === '') return;
+        // صفوف التجميع تُرسم بخط عريض
+        width = Math.max(width, measure(text, grid.rows[r] instanceof GroupRow ? cell.bold : cell.font));
       });
-      column.width = Math.min(Math.max(Math.ceil(width + padding), column.minWidth || 40), 600);
+      // تذييل المجاميع (عريض)
+      const footers = grid.columnFooters;
+      if (footers && footers.rows) {
+        for (let r = 0; r < footers.rows.length; r++) {
+          let text = '';
+          try { text = footers.getCellData(r, column.index, true); } catch { text = ''; }
+          if (text != null && text !== '') width = Math.max(width, measure(text, cell.bold));
+        }
+      }
+      column.width = Math.min(Math.max(Math.ceil(width + cell.padding + SAFETY), column.minWidth || 40), 600);
     });
   });
 }
