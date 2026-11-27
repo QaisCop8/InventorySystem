@@ -3132,13 +3132,13 @@ export function CompactProductForm({
               </CardContent>
             </Card>
 
-            {/* أقسام الصنف (2026-11-16): قائمة جانبية مجمّعة بأيقونات بدل 15 تبويباً في سطر واحد؛ على الجوال شريط أفقي.
-                الخدمات (3 أقسام فقط) تبقى شريطاً أفقياً بسيطاً. */}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir={appDir()} orientation={isService ? "horizontal" : "vertical"}
-              className={isService ? "min-w-0" : "cpf-sections grid min-w-0 gap-4 lg:grid-cols-[236px_minmax(0,1fr)] lg:items-start"}>
+            {/* أقسام الصنف: شريط أفقي (2026-11-27 بطلب المستخدم بدل القائمة الجانبية) يلتفّ لسطرين على الشاشات الكبيرة،
+                مجموعات مفصولة بخط رأسي؛ على الجوال يتمرّر أفقياً. المحتوى بعرض كامل تحته. */}
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir={appDir()} orientation="horizontal"
+              className={isService ? "min-w-0" : "cpf-sections flex min-w-0 flex-col gap-3"}>
               <TabsList className={isService
                 ? "flex h-auto w-full min-w-0 flex-nowrap justify-start gap-1 overflow-x-auto rounded-xl border bg-card p-1 shadow-sm"
-                : "cpf-nav flex h-auto w-full min-w-0 flex-nowrap items-stretch justify-start gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-card p-2 shadow-sm dark:border-slate-800 lg:sticky lg:top-2 lg:flex-col lg:overflow-visible"}
+                : "cpf-nav flex h-auto w-full min-w-0 flex-nowrap items-center justify-start gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-card p-1.5 shadow-sm dark:border-slate-800 lg:flex-wrap lg:overflow-visible"}
                 style={{ direction: appDir() }}>
                 {([
                   { group: "البيانات الأساسية", items: [
@@ -3164,12 +3164,13 @@ export function CompactProductForm({
                       { value: "attachments", label: "المرفقات", icon: Paperclip },
                     ] },
                   ]),
-                ]).map((section) => (
-                  <div key={section.group} className={isService ? "contents" : "contents lg:block"}>
-                    {!isService && <div className="hidden px-3 pb-1 pt-3 text-[11px] font-bold text-slate-400 first:pt-1 lg:block">{tr(section.group)}</div>}
+                ]).map((section, sectionIndex) => (
+                  <div key={section.group} className="contents">
+                    {/* فاصل رأسي بين مجموعات الأقسام في الشريط الأفقي */}
+                    {!isService && sectionIndex > 0 && <span aria-hidden className="mx-1 h-6 w-px shrink-0 self-center bg-slate-200 dark:bg-slate-700" />}
                     {section.items.map(({ value, label, icon: Icon }) => (
                       <TabsTrigger key={value} value={value}
-                        className={`flex-none justify-start gap-2.5 whitespace-nowrap rounded-xl text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-sm dark:text-slate-300 dark:hover:bg-slate-800 ${isService ? "px-3 py-1.5 text-xs" : "px-3 py-2.5 text-sm font-medium lg:w-full"}`}>
+                        className={`flex-none justify-start gap-2.5 whitespace-nowrap rounded-xl text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-sm dark:text-slate-300 dark:hover:bg-slate-800 ${isService ? "px-3 py-1.5 text-xs" : "px-3 py-1.5 text-[13px] font-medium"}`}>
                         <Icon className="h-4 w-4 shrink-0" />{tr(label)}
                       </TabsTrigger>
                     ))}
