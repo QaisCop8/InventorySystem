@@ -186,7 +186,7 @@ export default function UnifiedDrivers({
       <ProgressSpinner loading={combinedLoading} />
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent
-          className="w-[calc(100vw-2rem)] max-w-5xl overflow-hidden p-0"
+          className="flex w-[calc(100vw-2rem)] max-w-5xl flex-col overflow-hidden p-0"
           dir={appDir()}
           onOpenAutoFocus={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => event.preventDefault()}
@@ -208,7 +208,7 @@ export default function UnifiedDrivers({
             isLastRecord={isLastRecord}
           />
 
-          <div className="rounded-b-3xl bg-background px-6 py-6">
+          <div className="max-h-[calc(100vh-8rem)] min-h-0 flex-1 overflow-y-auto rounded-b-3xl bg-background px-6 py-6">
             <DialogHeader className="mb-4">
               <DialogTitle className="text-xl font-semibold">{form.id > 0 ? tr("تعديل بيانات سائق") : tr("إضافة سائق جديد")}</DialogTitle>
             </DialogHeader>
@@ -285,7 +285,7 @@ export default function UnifiedDrivers({
                     filter={true}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
+                    appendTo={() => document.body}
                     filterInputAutoFocus={true}
                     onChange={(e: any) => onFormChange("license_type_id", e.value ?? null)}
                   />
@@ -307,7 +307,7 @@ export default function UnifiedDrivers({
                     filter={false}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
+                    appendTo={() => document.body}
                     onChange={(e: any) => onFormChange("status", e.value || "نشط")}
                   />
                 </div>
@@ -324,6 +324,7 @@ export default function UnifiedDrivers({
         message={deleteConfirmMessage || tr("هل تريد حذف هذا السائق؟")}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
+        useAppDialog
       />
     </>
   )

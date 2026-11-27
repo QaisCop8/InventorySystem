@@ -89,3 +89,32 @@
     padding: 0.5rem !important;
   }
 }
+
+/* ── نموذج الصنف «بلا تمرير» (2026-11-27) ──────────────────────────────────────────
+   على الشاشات الكبيرة: بطاقة التعريف ثابتة أعلى، والأقسام (القائمة الجانبية + محتوى التبويب)
+   تملأ باقي ارتفاع النافذة؛ كلٌّ منهما يتمرّر داخله فقط إن زاد محتواه — لا تمرير للصفحة كلها.
+   CSS غير مُطبَّق في طبقة ⇐ يغلب أدوات Tailwind (p-6/space-y/sticky…) دون !important. */
+.cpf-fit .cpf-head[data-slot="card"] { padding-block: 0; gap: 0; }
+.cpf-fit .cpf-panel [role="tabpanel"] { margin-top: 0; }
+.cpf-fit .cpf-panel [role="tabpanel"] > [data-slot="card"] { padding-block: 12px 14px; gap: 10px; border-radius: 16px; }
+.cpf-fit .cpf-panel [data-slot="card-header"] { padding-inline: 16px; padding-bottom: 0; }
+.cpf-fit .cpf-panel [data-slot="card-content"] { padding-inline: 16px; }
+.cpf-fit .cpf-panel [data-slot="card-title"] { font-size: 15px; }
+
+@media (min-width: 1024px) {
+  .cpf-fit .cpf-scroll { overflow: hidden; display: flex; flex-direction: column; }
+  .cpf-fit .cpf-page { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 10px 14px 12px; }
+  .cpf-fit .cpf-page > form { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+  .cpf-fit .cpf-page > *, .cpf-fit .cpf-page > form > * { margin-block: 0; }
+  .cpf-fit .cpf-head { flex: none; }
+  .cpf-fit .cpf-sections {
+    flex: 1; min-height: 0; gap: 12px;
+    grid-template-columns: 208px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .cpf-fit .cpf-nav { position: static; max-height: 100%; overflow-y: auto; overflow-x: hidden; gap: 2px; padding: 6px; scrollbar-width: thin; }
+  .cpf-fit .cpf-nav [role="tab"] { padding-block: 6px; font-size: 13px; }
+  .cpf-fit .cpf-nav > div > div:first-child:not([role]) { padding-top: 8px; padding-bottom: 2px; }
+  .cpf-fit .cpf-panel { min-height: 0; overflow-y: auto; overflow-x: hidden; padding-inline-end: 2px; scrollbar-width: thin; }
+}

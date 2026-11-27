@@ -54,11 +54,15 @@ export default function Drivers() {
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState("هل تريد حذف هذا السائق؟")
   const [validationError, setValidationError] = useState("")
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
-  const [pendingAction, setPendingAction] = useState<"new" | "close" | null>(null)
+  const [pendingAction, setPendingAction] = useState<"new" | "close" | "switch" | null>(null)
   const navigationContinuationRef = useRef<(() => void) | null>(null)
   const initialFormHashRef = useRef("")
 
-  const getFormHash = useCallback((value: DriverFormData) => JSON.stringify(value), [])
+  // null/""/undefined متساوية والأرقام كنص — حتى لا يُعدّ النموذج «معدّلاً» بلا تعديل حقيقي
+  const getFormHash = useCallback((value: DriverFormData) => JSON.stringify(Object.entries(value)
+    .filter(([, field]) => field != null && field !== "")
+    .map(([key, field]) => [key, String(field)])
+    .sort(([a], [b]) => a.localeCompare(b))), [])
 
   const syncInitialFormHash = useCallback((value: DriverFormData) => {
     initialFormHashRef.current = getFormHash(value)
@@ -179,14 +183,16 @@ export default function Drivers() {
       if (!existingDriver?.id) return
 
       const targetIndex = drivers.findIndex((driver) => driver.id === existingDriver.id)
-      setForm(driverToForm(existingDriver))
+      const loaded = driverToForm(existingDriver)
+      setForm(loaded)
+      syncInitialFormHash(loaded)
       setCurrentIndex(targetIndex >= 0 ? targetIndex : 0)
       setIsNewMode(false)
       setDeleteError("")
     } catch (error) {
       console.error(error)
     }
-  }, [canView, drivers])
+  }, [canView, drivers, syncInitialFormHash])
 
   const normalizedDriverCode = useMemo(() => normalizeDriverCode(form.driver_code), [form.driver_code])
 
@@ -202,7 +208,7 @@ export default function Drivers() {
 
   const canSaveForm = !!form.name.trim() && !!form.license_type_id && !hasDuplicateName
 
-  const saveDriver = useCallback(async (options?: { afterSaveAction?: "new" | "close" }) => {
+  const saveDriver = useCallback(async (options?: { afterSaveAction?: "new" | "close" | "stay" }) => {
     if (!(form.id > 0 ? canUpdate : canCreate)) return false
     if (!canSaveForm) {
       if (hasDuplicateName) {
@@ -242,6 +248,8 @@ export default function Drivers() {
       }
 
       await fetchDrivers({ silent: true })
+      // "stay": حفظ قبل التنقل لسجل آخر — السجل التالي يحمّله الإجراء المؤجَّل
+      if (options?.afterSaveAction === "stay") return true
       if (options?.afterSaveAction === "close" || !canCreate) {
         setDialogOpen(false)
         return true
@@ -249,9 +257,11 @@ export default function Drivers() {
 
       await initializeNewDriverForm()
       setDialogOpen(true)
+      return true
     } catch (error) {
       console.error(error)
       setValidationError(error instanceof Error ? error.message : tr("فشل في حفظ السائق"))
+      return false
     } finally {
       setIsSaving(false)
     }
@@ -299,6 +309,21 @@ export default function Drivers() {
 
   const handleNavigateRecord = useCallback((record: Driver) => {
     if (!canView) return
+    if (record.id === form.id) return
+    // تغييرات غير محفوظة ⇐ نفس سؤال الحفظ قبل الانتقال (حفظ ثم انتقال / انتقال بلا حفظ / رجوع)
+    if (dialogOpen && hasUnsavedChanges) {
+      navigationContinuationRef.current = () => {
+        const loaded = driverToForm(record)
+        setForm(loaded)
+        syncInitialFormHash(loaded)
+        const index = filteredDrivers.findIndex((driver) => driver.id === record.id)
+        setCurrentIndex(index >= 0 ? index : 0)
+        setIsNewMode(false)
+      }
+      setPendingAction("switch")
+      setShowUnsavedConfirm(true)
+      return
+    }
     const nextForm = driverToForm(record)
     setForm(nextForm)
     syncInitialFormHash(nextForm)
@@ -306,7 +331,7 @@ export default function Drivers() {
     setCurrentIndex(targetIndex >= 0 ? targetIndex : 0)
     setIsNewMode(false)
     setDialogOpen(true)
-  }, [canView, filteredDrivers, syncInitialFormHash])
+  }, [canView, dialogOpen, filteredDrivers, form.id, hasUnsavedChanges, syncInitialFormHash])
 
   const handleRequestNew = useCallback(() => {
     if (!canCreate) return
@@ -337,8 +362,8 @@ export default function Drivers() {
     setShowUnsavedConfirm(false)
     if (pendingAction === "new") {
       await saveDriver({ afterSaveAction: "new" })
-    } else if (pendingAction === "close") {
-      const saved = await saveDriver({ afterSaveAction: "close" })
+    } else if (pendingAction === "close" || pendingAction === "switch") {
+      const saved = await saveDriver({ afterSaveAction: pendingAction === "switch" ? "stay" : "close" })
       const continuation = navigationContinuationRef.current
       navigationContinuationRef.current = null
       if (saved && continuation) continuation()
@@ -354,6 +379,10 @@ export default function Drivers() {
     } else if (pendingAction === "close") {
       void fetchDrivers()
       setDialogOpen(false)
+      const continuation = navigationContinuationRef.current
+      navigationContinuationRef.current = null
+      continuation?.()
+    } else if (pendingAction === "switch") {
       const continuation = navigationContinuationRef.current
       navigationContinuationRef.current = null
       continuation?.()
@@ -523,6 +552,8 @@ export default function Drivers() {
         onCancel={handleDiscardUnsaved}
         onBack={handleCancelUnsaved}
         showBack={true}
+        useAppDialog
+        onDismiss={handleCancelUnsaved}
       />
     </div>
   )

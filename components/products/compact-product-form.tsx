@@ -2829,7 +2829,7 @@ export function CompactProductForm({
   }), [formData.product_brands])
 
   return (
-    <div className={`h-full ${isService ? "min-h-0 text-sm compact-service-form-root" : "min-h-[70vh] text-lg"} min-w-0 flex flex-col overflow-hidden compact-product-form-root`} dir={appDir()}>
+    <div className={`h-full ${isService ? "min-h-0 text-sm compact-service-form-root" : "min-h-[70vh] text-lg"} min-w-0 flex flex-col overflow-hidden compact-product-form-root${isService ? "" : " cpf-fit"}`} dir={appDir()}>
       {/* Keep the toolbar flush with the dialog, matching the sales-delivery form. */}
       <div className="relative flex flex-shrink-0 items-center" dir={appDir()}>
         <button
@@ -2914,17 +2914,19 @@ export function CompactProductForm({
 
       <Toast ref={toast} position="top-left" className="custom-toast" />
       <ProgressSpinner loading={loading} />
-      <div ref={formRootRef} className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${isService ? "compact-service-form-scroll" : ""}`}>
-        <div className={`mx-auto w-full max-w-full ${isService ? "space-y-2 p-2 pb-3 sm:space-y-3 sm:p-3" : "space-y-4 p-2 pb-8 sm:space-y-6 sm:p-4 sm:pb-10 lg:p-6 lg:pb-12"}`}>
+      <div ref={formRootRef} className={`cpf-scroll flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${isService ? "compact-service-form-scroll" : ""}`}>
+        <div className={`cpf-page mx-auto w-full max-w-full ${isService ? "space-y-2 p-2 pb-3 sm:space-y-3 sm:p-3" : "space-y-4 p-2 pb-8 sm:space-y-6 sm:p-4 sm:pb-10 lg:p-6 lg:pb-12"}`}>
           <form onSubmit={handleSubmit} className={isService ? "space-y-2" : "space-y-4"}>
-            <Card className="rounded-2xl border-slate-200 shadow-sm dark:border-slate-800">
+            <Card className="cpf-head rounded-2xl border-slate-200 shadow-sm dark:border-slate-800">
               {/* بطاقة مدمجة (2026-11-17): الرقم والاسمان بسطر واحد، صورة أصغر، وحشوة/فراغات أقل */}
               <CardContent className={isService ? "space-y-2 p-2 sm:p-3" : "space-y-3 p-3 sm:p-4"}>
                 <div className={`flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200 ${isService ? "text-xs" : "text-sm"}`}><Info className="h-4 w-4 text-emerald-600" />{tr("المعلومات الأساسية والتعريف")}</div>
                 {/* نفس تصميم components/products/unified-customers.tsx: الصورة يساراً، وأكواد
                     التعريف (الرقم/الاسم العربي/الاسم الإنجليزي) يميناً — الرقم في سطره الخاص،
                     ثم كل اسم بسطر كامل العرض تحته. */}
-                <div className={`flex flex-col items-stretch ${isService ? "gap-2 md:flex-row" : "gap-3 md:flex-row md:items-end"}`}>
+                <div className={`flex flex-col items-stretch ${isService ? "gap-2 md:flex-row" : "gap-4 md:flex-row md:items-center"}`}>
+                  {/* الحقول (الرقم والاسمان ثم التصنيفات) عمود واحد بجانب الصورة — صف أقل ارتفاعاً بلا تمرير */}
+                  <div className="min-w-0 flex-1 space-y-3">
                   <div className={isService ? "flex-1 space-y-2" : "grid flex-1 grid-cols-1 items-end gap-3 md:grid-cols-3"}>
                     <div className={isService ? "grid grid-cols-1 gap-2 md:grid-cols-3" : "contents"}>
                       <div>
@@ -2989,17 +2991,7 @@ export function CompactProductForm({
                       </div>
                     </div>
                   </div>
-
-                  <ImageUploadField
-                    value={formData.product_image}
-                    onChange={(value) => updateFormData("product_image", value)}
-                    label={isService ? tr("صورة الخدمة") : tr("صورة الصنف")}
-                    size={isService ? 88 : 104}
-                  />
-                </div>
-
-
-                <div className={`grid grid-cols-1 sm:grid-cols-2 ${isService ? "gap-2 sm:grid-cols-3" : "gap-3 xl:grid-cols-5"}`}>
+                <div className={`grid grid-cols-1 sm:grid-cols-2 ${isService ? "gap-2 sm:grid-cols-3" : "gap-3 xl:grid-cols-4"}`}>
                   {!isService && (
                     <>
                       <div>
@@ -3128,16 +3120,25 @@ export function CompactProductForm({
                   )}
 
                 </div>
+                  </div>
+
+                  <ImageUploadField
+                    value={formData.product_image}
+                    onChange={(value) => updateFormData("product_image", value)}
+                    label={isService ? tr("صورة الخدمة") : tr("صورة الصنف")}
+                    size={isService ? 88 : 104}
+                  />
+                </div>
               </CardContent>
             </Card>
 
             {/* أقسام الصنف (2026-11-16): قائمة جانبية مجمّعة بأيقونات بدل 15 تبويباً في سطر واحد؛ على الجوال شريط أفقي.
                 الخدمات (3 أقسام فقط) تبقى شريطاً أفقياً بسيطاً. */}
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir={appDir()} orientation={isService ? "horizontal" : "vertical"}
-              className={isService ? "min-w-0" : "grid min-w-0 gap-4 lg:grid-cols-[236px_minmax(0,1fr)] lg:items-start"}>
+              className={isService ? "min-w-0" : "cpf-sections grid min-w-0 gap-4 lg:grid-cols-[236px_minmax(0,1fr)] lg:items-start"}>
               <TabsList className={isService
                 ? "flex h-auto w-full min-w-0 flex-nowrap justify-start gap-1 overflow-x-auto rounded-xl border bg-card p-1 shadow-sm"
-                : "flex h-auto w-full min-w-0 flex-nowrap items-stretch justify-start gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-card p-2 shadow-sm dark:border-slate-800 lg:sticky lg:top-2 lg:flex-col lg:overflow-visible"}
+                : "cpf-nav flex h-auto w-full min-w-0 flex-nowrap items-stretch justify-start gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-card p-2 shadow-sm dark:border-slate-800 lg:sticky lg:top-2 lg:flex-col lg:overflow-visible"}
                 style={{ direction: appDir() }}>
                 {([
                   { group: "البيانات الأساسية", items: [
@@ -3175,7 +3176,7 @@ export function CompactProductForm({
                   </div>
                 ))}
               </TabsList>
-              <div className="min-w-0">
+              <div className="cpf-panel min-w-0">
 
               <TabsContent value="units">
                 <Card>

@@ -168,7 +168,7 @@ export default function UnifiedCars({
       <ProgressSpinner loading={combinedLoading} />
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent
-          className="w-[calc(100vw-2rem)] max-w-5xl overflow-hidden p-0"
+          className="flex w-[calc(100vw-2rem)] max-w-5xl flex-col overflow-hidden p-0"
           dir={appDir()}
           onOpenAutoFocus={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => event.preventDefault()}
@@ -190,7 +190,8 @@ export default function UnifiedCars({
             isLastRecord={isLastRecord}
           />
 
-          <div className="max-h-[calc(100vh-8rem)] overflow-y-auto rounded-b-3xl bg-muted/30 px-6 py-5">
+          {/* النافذة محصورة بارتفاع مساحة العمل (dialog.tsx confined) — الجسم يأخذ الباقي ويتمرّر داخله */}
+          <div className="max-h-[calc(100vh-8rem)] min-h-0 flex-1 overflow-y-auto rounded-b-3xl bg-muted/30 px-6 py-5">
             <DialogHeader className="mb-3">
               <DialogTitle className="text-xl font-semibold">{form.id > 0 ? tr("تعديل بيانات سيارة") : tr("إضافة سيارة جديدة")}</DialogTitle>
             </DialogHeader>
@@ -276,6 +277,7 @@ export default function UnifiedCars({
         message={deleteConfirmMessage || tr("هل تريد حذف هذه السيارة؟")}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
+        useAppDialog
       />
     </>
   )
