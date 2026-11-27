@@ -855,7 +855,20 @@ export function CompactProductForm({
 
     return true;
   }
+  // خلية قيد التحرير في جدول (السعر مثلاً) تُعتمد قيمتها فقط عند Enter/Tab أو بعد فقد التركيز (بمهلة داخل Wijmo).
+  // الانتقال لتبويب آخر يزيل الجدول من الصفحة قبل تلك المهلة، والحفظ بـ F3 من داخل الخلية يسبقها ⇐ كان السعر يُحفظ 0.
+  // لذلك تُعتمد أي خلية مفتوحة صراحةً قبل تبديل التبويب وقبل الحفظ.
+  function commitActiveGridEdits() {
+    const root = formRootRef.current
+    if (!root) return
+    root.querySelectorAll<HTMLElement>(".wj-flexgrid").forEach((element) => {
+      const grid = wjGrid.FlexGrid.getControl(element) as wjGrid.FlexGrid | null
+      if (grid?.activeEditor) grid.finishEditing()
+    })
+  }
+
   const handleSaveProduct = async (): Promise<boolean | undefined> => {
+    commitActiveGridEdits()
     try {
       const productNameEn = formData.product_name_en.trim()
       if (!(formData.id > 0 ? canUpdate : canCreate)) {
@@ -3134,7 +3147,7 @@ export function CompactProductForm({
 
             {/* أقسام الصنف: شريط أفقي (2026-11-27 بطلب المستخدم بدل القائمة الجانبية) يلتفّ لسطرين على الشاشات الكبيرة،
                 مجموعات مفصولة بخط رأسي؛ على الجوال يتمرّر أفقياً. المحتوى بعرض كامل تحته. */}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir={appDir()} orientation="horizontal"
+            <Tabs value={activeTab} onValueChange={(v) => { commitActiveGridEdits(); setActiveTab(v) }} dir={appDir()} orientation="horizontal"
               className={isService ? "min-w-0" : "cpf-sections flex min-w-0 flex-col gap-3"}>
               <TabsList className={isService
                 ? "flex h-auto w-full min-w-0 flex-nowrap justify-start gap-1 overflow-x-auto rounded-xl border bg-card p-1 shadow-sm"
