@@ -5,6 +5,11 @@
 
 export const USER_FONT_STORAGE_KEY = "erp-font-settings"
 
+// الخط الافتراضي لمستخدمي الشركات الجديدة (2026-11-27): يُثبَّت كقيمة افتراضية لأعمدة user_settings عند تزويد
+// الشركة (lib/provisioning.ts) — الشركات القائمة تبقى على خطوطها المحفوظة.
+export const NEW_COMPANY_FONT_FAMILY = "Arabic Transparent"
+export const NEW_COMPANY_FONT_SIZE = 16
+
 export type UserFont = {
   fontFamily?: string
   fontSize?: number
