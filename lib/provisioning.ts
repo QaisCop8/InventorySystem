@@ -563,19 +563,24 @@ async function seedDefaultPriceCategory(tenantClient: ReturnType<typeof getPoolF
  * كل مستخدم يُنشأ في الشركة يرث القيم الافتراضية، ويمكنه تغييرها من «اعدادات الخطوط».
  */
 async function seedDefaultUserFont(tenantClient: ReturnType<typeof getPoolForDb>) {
+  // قيم افتراضية فقط (يُطبَّق على المدير المُدرَج بعدها وعلى كل مستخدم لاحق) — ولا تُعطّل أبداً إنشاء/اعتماد الشركة
   const family = NEW_COMPANY_FONT_FAMILY.replace(/'/g, "''")
+  const size = Math.round(Number(NEW_COMPANY_FONT_SIZE)) || 14
   const gridDefaults = JSON.stringify({ headerFontFamily: NEW_COMPANY_FONT_FAMILY }).replace(/'/g, "''")
-  await tenantClient.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_family VARCHAR(100) DEFAULT '${family}'`, [])
-  await tenantClient.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT ${NEW_COMPANY_FONT_SIZE}`, [])
-  await tenantClient.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS datagrid_settings JSONB DEFAULT '{}'`, [])
-  await tenantClient.query(`ALTER TABLE user_settings ALTER COLUMN font_family SET DEFAULT '${family}'`, [])
-  await tenantClient.query(`ALTER TABLE user_settings ALTER COLUMN font_size SET DEFAULT ${NEW_COMPANY_FONT_SIZE}`, [])
-  await tenantClient.query(`ALTER TABLE user_settings ALTER COLUMN datagrid_settings SET DEFAULT '${gridDefaults}'::jsonb`, [])
-  await tenantClient.query(
-    `UPDATE user_settings SET font_family = $1, font_size = $2,
-       datagrid_settings = COALESCE(datagrid_settings, '{}'::jsonb) || jsonb_build_object('headerFontFamily', $1::text)`,
-    [NEW_COMPANY_FONT_FAMILY, NEW_COMPANY_FONT_SIZE],
-  )
+  const statements = [
+    `ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_family VARCHAR(100) DEFAULT '${family}'`,
+    `ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT ${size}`,
+    `ALTER TABLE user_settings ALTER COLUMN font_family SET DEFAULT '${family}'`,
+    `ALTER TABLE user_settings ALTER COLUMN font_size SET DEFAULT ${size}`,
+    `ALTER TABLE user_settings ALTER COLUMN datagrid_settings SET DEFAULT '${gridDefaults}'::jsonb`,
+  ]
+  for (const statement of statements) {
+    try {
+      await tenantClient.query(statement, [])
+    } catch (error) {
+      console.warn("[provisioning] default font step skipped:", statement, error)
+    }
+  }
 }
 
 async function tableExists(tenantClient: ReturnType<typeof getPoolForDb>, tableName: string) {
@@ -715,8 +720,8 @@ export async function provisionCompanyDatabase(
   const insertedAdmin = await tenantClient.query(
     `INSERT INTO user_settings (
       user_id, username, email, password_hash, full_name, role, department,
-      organization_id, permissions, branch_id, is_active, font_family, font_size, datagrid_settings
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      organization_id, permissions, branch_id, is_active
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     RETURNING id`,
     [
       1,
@@ -730,9 +735,6 @@ export async function provisionCompanyDatabase(
       JSON.stringify([]),
       branchId,
       true,
-      NEW_COMPANY_FONT_FAMILY,
-      NEW_COMPANY_FONT_SIZE,
-      JSON.stringify({ headerFontFamily: NEW_COMPANY_FONT_FAMILY }),
     ],
   )
   const adminUserRowId = Number(insertedAdmin[0]?.id)
